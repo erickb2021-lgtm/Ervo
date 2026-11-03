@@ -1,11 +1,12 @@
 // Keeps Ervo working offline once it's added to the home screen.
 // Bump VERSION with every release so phones pick up the new files.
-const VERSION = "ervo-0.1.0";
+const VERSION = "ervo-0.2.0";
 const FILES = [
   "./",
   "index.html",
   "app.css",
   "app.js",
+  "config.js",
   "manifest.webmanifest",
   "img/ervo-symbol.svg",
   "img/ervo-symbol-white.svg",
@@ -32,7 +33,8 @@ self.addEventListener("activate", (event) => {
 
 // Network first so updates show up right away; fall back to the saved copy offline
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
+  // Only Ervo's own files; weather, news and the AI server always go to the network
+  if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(
     fetch(event.request)
       .then((res) => {

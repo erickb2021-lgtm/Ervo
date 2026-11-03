@@ -9,10 +9,10 @@ android {
 
     defaultConfig {
         applicationId = "app.ervo"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     buildTypes {
@@ -50,4 +50,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.webkit:webkit:1.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    // Steps for Ervo Stats. alpha08 is the newest that builds with compileSdk 34.
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha08")
 }

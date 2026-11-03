@@ -88,13 +88,17 @@
     </button>
     <div class="menu" id="menu" hidden>
       <p class="menu-who" id="menu-who"></p>
+      <button type="button" id="open-stats"><span class="mi stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg></span>Ervo Stats</button>
+      <button type="button" id="open-apps"><span class="mi apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7H6a4 4 0 0 0 0 8h3M15 7h3a4 4 0 0 1 0 8h-3M8 11h8"/></svg></span>Connected apps</button>
+      <button type="button" id="open-greeting"><span class="mi greet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg></span>Greeting</button>
+      <hr>
       <button type="button" id="clear-chat">Clear chat</button>
       <button type="button" id="sign-out">Sign out</button>
-      <p class="menu-version">Ervo version 0.1.0 (preview)</p>
+      <p class="menu-version">Ervo version 0.2.0 (preview)</p>
     </div>
   </header>
 
-  <p class="preview-note">Preview: Ervo isn't connected to real accounts yet, so these are sample answers.</p>
+  <p class="preview-note" id="preview-note">Preview: some answers are samples while Ervo learns. Ervo always asks before it opens or uses another app.</p>
 
   <div class="thread" id="thread" aria-live="polite"></div>
 
@@ -149,6 +153,84 @@
   </div>
 </section>
 
+<!-- 4. Ervo Stats: steps, what's coming up and what Ervo has done -->
+<section class="screen stats" id="stats" aria-labelledby="stats-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="stats-back" aria-label="Back to chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Chat
+    </button>
+  </header>
+  <div class="stats-body" id="stats-body">
+    <p class="stats-date" id="stats-date"></p>
+    <h1 id="stats-title">Ervo Stats</h1>
+    <p class="stats-weather" id="stats-weather" hidden></p>
+
+    <h2>Health</h2>
+    <div class="card steps-card" id="steps-card">
+      <div class="steps-top">
+        <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="50" class="ring-bg"/>
+          <circle cx="60" cy="60" r="50" class="ring-fg" id="ring-fg"/>
+        </svg>
+        <div class="steps-num">
+          <span class="label"><i class="dot steps"></i>Steps</span>
+          <b id="steps-today">--</b>
+          <small id="steps-goal">Goal 8,000</small>
+        </div>
+      </div>
+      <div class="week" id="steps-week" aria-label="Steps over the last 7 days"></div>
+      <div class="mini-stats" id="steps-extra"></div>
+      <p class="card-note" id="steps-note"></p>
+      <button class="pill" type="button" id="steps-btn" hidden>Connect Health</button>
+    </div>
+
+    <h2>Upcoming</h2>
+    <div class="card list" id="upcoming"></div>
+
+    <h2>Most recent events</h2>
+    <div class="card list" id="recent"></div>
+
+    <h2 id="apps-heading">Connected apps</h2>
+    <div class="card list" id="apps"></div>
+    <p class="foot-note">Ervo only opens an app after you tap Allow. You can turn any of them off here.</p>
+  </div>
+</section>
+
+<!-- Allow / Deny before Ervo uses another app -->
+<div class="sheet-wrap" id="perm" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="perm-title">
+    <span class="app-ico big" id="perm-ico"></span>
+    <h2 id="perm-title"></h2>
+    <ul class="perm-list" id="perm-list"></ul>
+    <p class="perm-note" id="perm-note"></p>
+    <div class="sheet-actions">
+      <button class="pill ghost" type="button" id="perm-deny">Deny</button>
+      <button class="pill" type="button" id="perm-allow">Allow</button>
+    </div>
+  </div>
+</div>
+
+<!-- Greeting settings -->
+<div class="sheet-wrap" id="greet" hidden>
+  <form class="sheet" role="dialog" aria-modal="true" aria-labelledby="greet-title" id="greet-form" novalidate>
+    <h2 id="greet-title">Your greeting</h2>
+    <p class="muted">Choose what Ervo tells you when you open the app.</p>
+    <label class="field-label" for="nickname">What should Ervo call you?</label>
+    <input class="field soft" id="nickname" type="text" autocomplete="nickname" maxlength="30" placeholder="Nickname">
+    <div class="toggles">
+      <label class="toggle"><span>Time</span><input type="checkbox" id="g-time"><i></i></label>
+      <label class="toggle"><span>Date</span><input type="checkbox" id="g-date"><i></i></label>
+      <label class="toggle"><span>Weather <small>uses your location</small></span><input type="checkbox" id="g-weather"><i></i></label>
+      <label class="toggle"><span>Today's news <small>near you</small></span><input type="checkbox" id="g-news"><i></i></label>
+    </div>
+    <div class="sheet-actions">
+      <button class="pill ghost" type="button" id="greet-cancel">Cancel</button>
+      <button class="pill" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

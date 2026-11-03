@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ervo_background">#1F1829</color>
+    <color name="ervo_background">#000000</color>
     <color name="ervo_purple">#7A4BE0</color>
     <bool name="ervo_light_bars">false</bool>
 </resources>
