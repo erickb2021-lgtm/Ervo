@@ -7,10 +7,10 @@
 <p align="center"><b>Your AI helper, for your life and your business.</b></p>
 
 <p align="center">
-  <a href="https://erickb2021-lgtm.github.io/ervo/">Website</a> ·
-  <a href="https://github.com/erickb2021-lgtm/ervo/releases/latest">Download for Android</a> ·
-  <a href="https://erickb2021-lgtm.github.io/ervo/privacy.html">Privacy</a> ·
-  <a href="https://erickb2021-lgtm.github.io/ervo/terms.html">Terms</a>
+  <a href="https://erickb2021-lgtm.github.io/Ervo/">Website</a> ·
+  <a href="https://github.com/erickb2021-lgtm/Ervo/releases/latest">Download for Android</a> ·
+  <a href="https://erickb2021-lgtm.github.io/Ervo/privacy.html">Privacy</a> ·
+  <a href="https://erickb2021-lgtm.github.io/Ervo/terms.html">Terms</a>
 </p>
 
 ---
@@ -24,7 +24,7 @@ Ervo comes as two separate products:
 
 ## Install on Android
 
-1. Open the [latest release](https://github.com/erickb2021-lgtm/ervo/releases/latest) on your Android phone.
+1. Open the [latest release](https://github.com/erickb2021-lgtm/Ervo/releases/latest) on your Android phone.
 2. Download **Ervo.apk** and open it.
 3. If asked, allow installs from your browser or files app, then tap **Install**.
 

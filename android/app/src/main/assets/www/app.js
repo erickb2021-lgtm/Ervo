@@ -126,11 +126,29 @@
     t.innerHTML = "<i></i><i></i><i></i>";
     thread.append(t);
     thread.scrollTop = thread.scrollHeight;
+    const speakIt = lastWasVoice;
+    lastWasVoice = false;
     setTimeout(() => {
       t.remove();
       bubble(text, "them");
       setChips(chips || PLAN[account.plan].chips);
+      if (speakIt) speak(text);
     }, 700 + Math.min(text.length * 12, 1300));
+  }
+
+  // ---------- speaking answers out loud ----------
+  let lastWasVoice = false;
+  function speak(text) {
+    const clean = text.replace(/[\u{1F300}-\u{1FAFF}☀-➿]/gu, "").replace(/[•★]/g, "");
+    if (window.ErvoNative && ErvoNative.speak) { ErvoNative.speak(clean); return; }
+    if ("speechSynthesis" in window) {
+      speechSynthesis.cancel();
+      speechSynthesis.speak(new SpeechSynthesisUtterance(clean));
+    }
+  }
+  function stopSpeaking() {
+    if (window.ErvoNative && ErvoNative.stopSpeaking) ErvoNative.stopSpeaking();
+    else if ("speechSynthesis" in window) speechSynthesis.cancel();
   }
 
   function setChips(list) {
@@ -216,19 +234,173 @@
     return ervoSays("Got it! In the full version I'll take care of that for you. For now, try one of the suggestions below to see how I work.");
   }
 
-  function send(text) {
+  function send(text, byVoice) {
     const v = text.trim();
     if (!v || !account) return;
     bubble(v, "me");
     $("chips").innerHTML = "";
+    lastWasVoice = !!byVoice;
     reply(v);
   }
 
+  // Composer: mic when empty, blue send arrow once you type (like text messages)
+  const message = $("message");
+  function syncComposer() {
+    const has = message.value.trim().length > 0;
+    $("send-btn").hidden = !has;
+    $("mic-btn").hidden = has;
+  }
+  message.addEventListener("input", syncComposer);
   $("composer").addEventListener("submit", (e) => {
     e.preventDefault();
-    const input = $("message");
-    send(input.value);
-    input.value = "";
+    send(message.value);
+    message.value = "";
+    syncComposer();
+  });
+
+  // ---------- attachments: photos and links ----------
+  function closeAttach() {
+    $("attach-sheet").hidden = true;
+    $("attach-btn").setAttribute("aria-expanded", "false");
+  }
+  $("attach-btn").addEventListener("click", () => {
+    const open = $("attach-sheet").hidden;
+    $("link-row").hidden = true;
+    $("attach-sheet").hidden = !open;
+    $("attach-btn").setAttribute("aria-expanded", String(open));
+  });
+
+  $("attach-photo").addEventListener("click", () => { closeAttach(); $("photo-input").click(); });
+  $("photo-input").addEventListener("change", () => {
+    const file = $("photo-input").files[0];
+    $("photo-input").value = "";
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const el = document.createElement("div");
+      el.className = "msg me photo";
+      const img = document.createElement("img");
+      img.src = reader.result;
+      img.alt = "Photo you sent";
+      img.onload = () => { thread.scrollTop = thread.scrollHeight; };
+      el.append(img);
+      thread.append(el);
+      $("chips").innerHTML = "";
+      ervoSays(account.plan === "business"
+        ? "Got the photo! In the full version I'll read it, like a receipt or a damaged product, and match it to the right order or ticket."
+        : "Got your photo! In the full version I'll look at it for you, like reading a receipt, a flyer or a product label, and take care of the next step.");
+    };
+    reader.readAsDataURL(file);
+  });
+
+  $("attach-link").addEventListener("click", () => {
+    closeAttach();
+    $("link-row").hidden = false;
+    $("link-input").value = "";
+    $("link-error").textContent = "";
+    setTimeout(() => $("link-input").focus(), 50);
+  });
+  $("link-cancel").addEventListener("click", () => { $("link-row").hidden = true; });
+  $("link-input").addEventListener("input", () => { $("link-error").textContent = ""; });
+  $("link-row").addEventListener("submit", (e) => {
+    e.preventDefault();
+    let v = $("link-input").value.trim();
+    if (v && !/^https?:\/\//i.test(v)) v = "https://" + v;
+    let url;
+    try { url = new URL(v); } catch (err) { url = null; }
+    if (!url || !/\.[a-z]{2,}$/i.test(url.hostname)) { $("link-error").textContent = "That doesn't look like a link. Try something like example.com."; return; }
+    $("link-row").hidden = true;
+    const el = document.createElement("div");
+    el.className = "msg me link";
+    const a = document.createElement("a");
+    a.href = url.href;
+    a.target = "_blank";
+    a.rel = "noopener";
+    const b = document.createElement("b");
+    b.textContent = url.hostname.replace(/^www\./, "");
+    const s = document.createElement("small");
+    s.textContent = url.href.length > 48 ? url.href.slice(0, 45) + "…" : url.href;
+    a.append(b, s);
+    el.innerHTML = '<div class="link-top"></div>';
+    el.append(a);
+    thread.append(el);
+    thread.scrollTop = thread.scrollHeight;
+    $("chips").innerHTML = "";
+    ervoSays(`Thanks! In the full version I'll open ${b.textContent}, read it and tell you what matters, or use it to finish your task.`);
+  });
+
+  // ---------- voice: Ervo waits until you finish talking, then answers ----------
+  const voice = $("voice");
+  let recognizer = null;
+  let heard = "";
+
+  function openVoice() {
+    stopSpeaking();
+    heard = "";
+    voice.classList.remove("thinking");
+    $("voice-owl").src = PLAN[account.plan].avatar;
+    $("voice-status").textContent = "Listening…";
+    $("voice-text").textContent = "Say what you need. I'll wait until you're done.";
+    $("voice-done").hidden = false;
+    voice.hidden = false;
+  }
+  function closeVoice() {
+    voice.hidden = true;
+    if (recognizer) { try { recognizer.abort(); } catch (e) { /* ignore */ } recognizer = null; }
+  }
+  function finishVoice(text) {
+    const said = (text || "").trim();
+    if (!said) {
+      $("voice-status").textContent = "I didn't catch that";
+      $("voice-text").textContent = "Tap the mic and try again.";
+      $("voice-done").hidden = true;
+      return;
+    }
+    voice.classList.add("thinking");
+    $("voice-status").textContent = "Got it";
+    $("voice-text").textContent = `"${said}"`;
+    setTimeout(() => { closeVoice(); send(said, true); }, 700);
+  }
+
+  // Android: the phone's own speech recognizer listens until you stop talking
+  window.ervoVoiceResult = (text) => finishVoice(text);
+  window.ervoVoiceError = (msg) => {
+    if (voice.hidden) return;
+    $("voice-status").textContent = "Voice isn't available";
+    $("voice-text").textContent = msg || "Try typing your message instead.";
+    $("voice-done").hidden = true;
+  };
+
+  $("mic-btn").addEventListener("click", () => {
+    openVoice();
+    if (window.ErvoNative && ErvoNative.startListening) {
+      ErvoNative.startListening();
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { window.ervoVoiceError("This device doesn't support voice. Try typing instead."); return; }
+    recognizer = new SR();
+    recognizer.lang = navigator.language || "en-US";
+    recognizer.interimResults = true;
+    recognizer.continuous = false; // stops on its own when you finish your sentence
+    recognizer.onresult = (e) => {
+      heard = Array.from(e.results).map((r) => r[0].transcript).join(" ");
+      $("voice-text").textContent = heard;
+    };
+    recognizer.onerror = (e) => {
+      if (e.error === "no-speech") return;
+      window.ervoVoiceError(e.error === "not-allowed" ? "Ervo needs microphone access to hear you." : "Something went wrong. Try again.");
+    };
+    recognizer.onend = () => { recognizer = null; if (!voice.hidden) finishVoice(heard); };
+    recognizer.start();
+  });
+  $("voice-done").addEventListener("click", () => {
+    if (recognizer) recognizer.stop(); // onend sends what was heard
+    else if (window.ErvoNative && ErvoNative.stopListening) ErvoNative.stopListening();
+  });
+  $("voice-cancel").addEventListener("click", () => {
+    if (window.ErvoNative && ErvoNative.stopListening) ErvoNative.stopListening();
+    closeVoice();
   });
 
   // ---------- menu ----------
@@ -251,7 +423,10 @@
 
   // Android back button: close the menu or go back a sign-up step first
   window.ervoBack = function () {
+    if (!voice.hidden) { $("voice-cancel").click(); return true; }
     if (!menu.hidden) { toggleMenu(false); return true; }
+    if (!$("attach-sheet").hidden) { closeAttach(); return true; }
+    if (!$("link-row").hidden) { $("link-row").hidden = true; return true; }
     const active = document.querySelector(".step.active");
     if ($("welcome").classList.contains("active") && active && active.dataset.step !== "contact") {
       step(active.dataset.step === "name" ? "code" : "contact");

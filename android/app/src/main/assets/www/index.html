@@ -63,8 +63,8 @@
 <!-- 3. Chat with Ervo -->
 <section class="screen chat" id="chat" aria-label="Chat with Ervo">
   <header class="chat-header">
-    <span class="avatar"><img id="chat-avatar" src="img/ervo-classic.png" alt=""></span>
     <div class="who">
+      <span class="avatar"><img id="chat-avatar" src="img/ervo-classic.png" alt=""></span>
       <b>Ervo</b>
       <span class="badge" id="mode-badge">Personal</span>
     </div>
@@ -88,13 +88,53 @@
 
   <div class="chips" id="chips"></div>
 
-  <form class="composer" id="composer">
-    <label class="sr" for="message">Message Ervo</label>
-    <input class="field" id="message" type="text" autocomplete="off" placeholder="Message Ervo">
-    <button class="send" type="submit" aria-label="Send">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+  <!-- Attach a photo or a link -->
+  <div class="attach-sheet" id="attach-sheet" hidden>
+    <button type="button" id="attach-photo">
+      <span class="sheet-ico photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-8 8"/></svg></span>
+      Photo
     </button>
+    <button type="button" id="attach-link">
+      <span class="sheet-ico link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span>
+      Link
+    </button>
+  </div>
+  <form class="link-row" id="link-row" hidden novalidate>
+    <label class="sr" for="link-input">Paste a link</label>
+    <input class="field" id="link-input" type="url" inputmode="url" autocomplete="off" placeholder="Paste a link, like example.com">
+    <button class="pill" type="submit">Add</button>
+    <button class="pill ghost" type="button" id="link-cancel">Cancel</button>
+    <p class="error" id="link-error" role="alert"></p>
   </form>
+  <input type="file" id="photo-input" accept="image/*" hidden>
+
+  <form class="composer" id="composer">
+    <button class="round plus" type="button" id="attach-btn" aria-label="Add a photo or link" aria-expanded="false" aria-controls="attach-sheet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <label class="sr" for="message">Message Ervo</label>
+    <div class="bar">
+      <input id="message" type="text" autocomplete="off" placeholder="Message Ervo">
+      <button class="round mic" type="button" id="mic-btn" aria-label="Talk to Ervo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+      <button class="round send" type="submit" id="send-btn" aria-label="Send" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      </button>
+    </div>
+  </form>
+
+  <!-- Voice: Ervo listens until you finish, then answers out loud -->
+  <div class="voice" id="voice" hidden role="dialog" aria-modal="true" aria-labelledby="voice-status">
+    <img class="voice-owl" id="voice-owl" src="img/ervo-classic.png" alt="">
+    <div class="rings" aria-hidden="true"><i></i><i></i><i></i></div>
+    <p class="voice-status" id="voice-status">Listening…</p>
+    <p class="voice-text" id="voice-text">Say what you need. I'll wait until you're done.</p>
+    <div class="voice-actions">
+      <button class="pill ghost" type="button" id="voice-cancel">Cancel</button>
+      <button class="pill" type="button" id="voice-done">Done</button>
+    </div>
+  </div>
 </section>
 
 <script src="app.js"></script>
