@@ -1,0 +1,5 @@
+# Keep text files with Unix line endings in the repo, on every computer
+* text=auto eol=lf
+*.png binary
+*.webp binary
+*.mp3 binary

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ervo home page ideas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Manrope", system-ui, sans-serif; background: #111; color: #fff; }
+    .intro { padding: 32px 24px 8px; max-width: 1100px; margin: 0 auto; }
+    .intro h1 { margin: 0 0 4px; font-size: 22px; }
+    .intro p { margin: 0; color: #aaa; }
+    .idea { max-width: 1100px; margin: 24px auto 48px; padding: 0 24px; }
+    .tag { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; font-weight: 700; }
+    .tag .letter { width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #111; display: flex; align-items: center; justify-content: center; }
+    .sw { display: flex; gap: 6px; margin-left: auto; }
+    .sw i { width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(255,255,255,.2); }
+    .screen { border-radius: 20px; overflow: hidden; min-height: 620px; display: flex; flex-direction: column; }
+    .nav { display: flex; justify-content: space-between; align-items: center; padding: 22px 32px; }
+    .logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 19px; }
+    .logo svg { width: 26px; height: 26px; }
+    .owl { animation: bob 3.6s ease-in-out infinite; }
+    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    .body { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px 32px 48px; }
+    input { font: inherit; }
+    a { color: inherit; }
+    @media (prefers-reduced-motion: reduce) { .owl { animation: none; } }
+
+    /* A — Paper */
+    .a { --body: #E8623A; --wing: #C24B27; --belly: #FBD9C9; --pupil: #1F1B2E; --beak: #1F1B2E;
+         background: #F6F1E7; color: #1F1B2E; }
+    .a .nav a { font-size: 15px; font-weight: 600; text-decoration: none; }
+    .a .col { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 28px; max-width: 560px; }
+    .a .owl { width: 120px; height: 120px; }
+    .a h2 { margin: 0; font-family: "Fraunces", serif; font-weight: 500; font-size: clamp(40px, 6vw, 64px); line-height: 1.05; letter-spacing: -1.5px; }
+    .a p { margin: 0; color: #6B6457; font-size: 17px; }
+    .a .pill { display: flex; width: 100%; max-width: 420px; background: #fff; border-radius: 999px; padding: 6px; box-shadow: 0 1px 0 #E3DACB, 0 10px 30px rgba(31,27,46,.06); }
+    .a .pill input { flex: 1; min-width: 0; border: 0; outline: none; background: none; padding: 0 18px; font-size: 16px; color: #1F1B2E; }
+    .a .pill button { width: 48px; height: 48px; border-radius: 50%; border: 0; background: #1F1B2E; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+    /* B — Night garden */
+    .b { --body: #3FBF8F; --wing: #2A9470; --belly: #CFF5E4; --pupil: #0E1A17; --beak: #F2C14E;
+         background: #0E1A17; color: #EAF6F1; font-family: "Space Grotesk", sans-serif; }
+    .b .nav a { font-size: 14px; border: 1px solid #2B3F39; padding: 10px 16px; border-radius: 999px; text-decoration: none; }
+    .b .grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 40px; align-items: center; width: 100%; max-width: 940px; }
+    .b h2 { margin: 0 0 16px; font-size: clamp(38px, 5.5vw, 60px); line-height: 1.02; letter-spacing: -2px; font-weight: 700; }
+    .b h2 em { font-style: normal; color: #7BE0B5; }
+    .b p { margin: 0 0 28px; color: #9FB8AF; font-size: 17px; max-width: 420px; }
+    .b .line { display: flex; gap: 10px; max-width: 440px; }
+    .b .line input { flex: 1; min-width: 0; height: 52px; border-radius: 14px; border: 1px solid #2B3F39; background: #13241F; color: #EAF6F1; padding: 0 16px; outline: none; }
+    .b .line button { height: 52px; padding: 0 22px; border-radius: 14px; border: 0; background: #7BE0B5; color: #0E1A17; font-weight: 700; cursor: pointer; }
+    .b .orb { aspect-ratio: 1; border-radius: 50%; background: #13241F; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1px #1E332D; }
+    .b .orb .owl { width: 58%; height: 58%; }
+
+    /* C — Sky chat */
+    .c { --body: #3B6FE0; --wing: #2752B5; --belly: #D6E4FF; --pupil: #0B1F3A; --beak: #FFB547;
+         background: #EAF2FF; color: #0B1F3A; }
+    .c .nav a { font-size: 15px; font-weight: 700; text-decoration: none; color: #3B6FE0; }
+    .c .convo { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 14px; }
+    .c .row { display: flex; align-items: flex-end; gap: 12px; }
+    .c .owl { width: 72px; height: 72px; flex: none; }
+    .c .bubble { background: #fff; border-radius: 22px 22px 22px 6px; padding: 18px 22px; box-shadow: 0 8px 24px rgba(11,31,58,.08); }
+    .c .bubble h2 { margin: 0 0 6px; font-size: clamp(26px, 4vw, 34px); letter-spacing: -0.8px; line-height: 1.15; }
+    .c .bubble p { margin: 0; color: #4A5D7A; }
+    .c .bubble.small { align-self: flex-start; margin-left: 84px; padding: 12px 18px; font-weight: 600; }
+    .c .composer { margin-top: 14px; display: flex; align-items: center; background: #fff; border-radius: 18px; padding: 6px 6px 6px 18px; border: 2px solid #3B6FE0; }
+    .c .composer input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font-size: 16px; color: #0B1F3A; }
+    .c .composer button { height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: #3B6FE0; color: #fff; font-weight: 700; cursor: pointer; }
+
+    /* D — Mono + yellow */
+    .d { --body: #141414; --wing: #000000; --belly: #FFD43B; --pupil: #141414; --beak: #FFD43B;
+         background: #FFFFFF; color: #141414; }
+    .d .nav a { font-size: 15px; font-weight: 600; }
+    .d .col { display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .d .owl { width: 96px; height: 96px; margin-bottom: 8px; }
+    .d .word { font-size: clamp(88px, 16vw, 168px); font-weight: 800; letter-spacing: -8px; line-height: 0.9; margin: 0; }
+    .d p { margin: 18px 0 36px; font-size: 18px; color: #555; }
+    .d .under { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #141414; width: 100%; max-width: 380px; padding-bottom: 8px; }
+    .d .under input { flex: 1; min-width: 0; border: 0; outline: none; font-size: 18px; background: none; }
+    .d .under button { border: 0; background: #FFD43B; color: #141414; font-weight: 800; height: 40px; padding: 0 16px; border-radius: 999px; cursor: pointer; }
+    .d .hint { margin-top: 14px; font-size: 13px; color: #888; }
+
+    @media (max-width: 760px) {
+      .b .grid { grid-template-columns: minmax(0, 1fr); }
+      .b .orb { width: 60%; margin: 0 auto; grid-row: 1; }
+      .c .bubble.small { margin-left: 0; }
+      .nav { padding: 18px 20px; }
+      .body { padding: 16px 20px 40px; }
+      .screen { min-height: 560px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- One owl, recolored by each idea's CSS variables -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="owl" viewBox="10 14 100 100">
+    <path d="M30 44 L34 24 L46 36 Z" style="fill:var(--body)"/>
+    <path d="M90 44 L86 24 L74 36 Z" style="fill:var(--body)"/>
+    <ellipse cx="60" cy="68" rx="34" ry="36" style="fill:var(--body)"/>
+    <ellipse cx="29" cy="76" rx="7" ry="16" style="fill:var(--wing)"/>
+    <ellipse cx="91" cy="76" rx="7" ry="16" style="fill:var(--wing)"/>
+    <ellipse cx="60" cy="84" rx="19" ry="15" style="fill:var(--belly)"/>
+    <circle cx="47" cy="58" r="11" fill="#FFFFFF"/>
+    <circle cx="73" cy="58" r="11" fill="#FFFFFF"/>
+    <circle cx="48" cy="59" r="5" style="fill:var(--pupil)"/>
+    <circle cx="72" cy="59" r="5" style="fill:var(--pupil)"/>
+    <path d="M55 70 H65 L60 77 Z" stroke-width="2" stroke-linejoin="round" style="fill:var(--beak);stroke:var(--beak)"/>
+    <ellipse cx="50" cy="104" rx="6" ry="3" style="fill:var(--beak)"/>
+    <ellipse cx="70" cy="104" rx="6" ry="3" style="fill:var(--beak)"/>
+  </symbol>
+</svg>
+
+<div class="intro">
+  <h1>Ervo home page ideas</h1>
+  <p>Four minimal directions, each with its own colors. The owl bounces in all of them.</p>
+</div>
+
+<div class="idea">
+  <div class="tag"><span class="letter">A</span>Paper: warm, calm, editorial
+    <span class="sw"><i style="background:#F6F1E7"></i><i style="background:#1F1B2E"></i><i style="background:#E8623A"></i><i style="background:#FBD9C9"></i></span></div>
+  <div class="screen a">
+    <div class="nav"><span class="logo"><svg><use href="#owl"/></svg>Ervo</span><a href="#">How it works</a></div>
+    <div class="body"><div class="col">
+      <svg class="owl"><use href="#owl"/></svg>
+      <h2>Support that never sleeps.</h2>
+      <p>Ervo reads your docs, answers your customers and calls a human when it should.</p>
+      <form class="pill" onsubmit="return false"><input placeholder="Mobile number or email" aria-label="Mobile number or email"><button aria-label="Continue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></form>
+    </div></div>
+  </div>
+</div>
+
+<div class="idea">
+  <div class="tag"><span class="letter">B</span>Night garden: dark, fresh, techy
+    <span class="sw"><i style="background:#0E1A17"></i><i style="background:#7BE0B5"></i><i style="background:#3FBF8F"></i><i style="background:#F2C14E"></i></span></div>
+  <div class="screen b">
+    <div class="nav"><span class="logo"><svg><use href="#owl"/></svg>Ervo</span><a href="#">How it works</a></div>
+    <div class="body"><div class="grid">
+      <div>
+        <h2>Your customers ask.<br><em>Ervo answers.</em></h2>
+        <p>An AI support agent that learns your docs in minutes and works around the clock.</p>
+        <form class="line" onsubmit="return false"><input placeholder="Mobile number or email" aria-label="Mobile number or email"><button>Get started</button></form>
+      </div>
+      <div class="orb"><svg class="owl"><use href="#owl"/></svg></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="idea">
+  <div class="tag"><span class="letter">C</span>Sky chat: friendly, the page is a conversation
+    <span class="sw"><i style="background:#EAF2FF"></i><i style="background:#0B1F3A"></i><i style="background:#3B6FE0"></i><i style="background:#FFB547"></i></span></div>
+  <div class="screen c">
+    <div class="nav"><span class="logo"><svg><use href="#owl"/></svg>Ervo</span><a href="#">How it works</a></div>
+    <div class="body"><div class="convo">
+      <div class="row"><svg class="owl"><use href="#owl"/></svg>
+        <div class="bubble"><h2>Hi, I'm Ervo.</h2><p>I answer your customers' questions, day and night, using your own docs.</p></div></div>
+      <div class="bubble small">Want me to set up your agent?</div>
+      <form class="composer" onsubmit="return false"><input placeholder="Type your mobile number or email" aria-label="Mobile number or email"><button>Continue</button></form>
+    </div></div>
+  </div>
+</div>
+
+<div class="idea">
+  <div class="tag"><span class="letter">D</span>Mono and yellow: bold, ultra minimal
+    <span class="sw"><i style="background:#FFFFFF"></i><i style="background:#141414"></i><i style="background:#FFD43B"></i></span></div>
+  <div class="screen d">
+    <div class="nav"><span class="logo"><svg><use href="#owl"/></svg>Ervo</span><a href="#">How it works</a></div>
+    <div class="body"><div class="col">
+      <svg class="owl"><use href="#owl"/></svg>
+      <h2 class="word">Ervo</h2>
+      <p>The support agent that reads the manual.</p>
+      <form class="under" onsubmit="return false"><input placeholder="Mobile number or email" aria-label="Mobile number or email"><button>Go</button></form>
+      <span class="hint">Log in or create an account</span>
+    </div></div>
+  </div>
+</div>
+
+</body>
+</html>

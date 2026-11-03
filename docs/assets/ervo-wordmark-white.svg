@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 6 128 52" role="img" aria-label="Ervo">
+  <path d="M33 12.5 H14 V51.5 H33 M14 32 H29" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M48 51.5 V25.5 M48 35 Q51 25 62 25.5" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M71 25.5 L79.5 50 L88 25.5" fill="none" stroke="#F5A623" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M99 27 L97.5 14 L106.5 21.5 Z M119 27 L120.5 14 L111.5 21.5 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="109" cy="38" r="13.5" fill="none" stroke="#FFFFFF" stroke-width="9"/>
+  <circle cx="109" cy="35" r="4.5" fill="#FFFFFF"/>
+</svg>

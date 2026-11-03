@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ervo background colors</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    :root { --bg: #EFE8FA; --ink: #2A1650; --muted: #6A5A88; --field: #FFFFFF; --line: rgba(42,22,80,.12); }
+    body { margin: 0; font-family: "Manrope", system-ui, sans-serif; background: var(--bg); color: var(--ink); transition: background .4s ease, color .4s ease; }
+    .hero { min-height: 100vh; display: flex; flex-direction: column; }
+    .nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 28px; }
+    .logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 20px; letter-spacing: -.5px; }
+    .logo img { width: 34px; height: 34px; }
+    .nav a { color: inherit; font-weight: 600; font-size: 15px; text-decoration: none; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--line); }
+    .main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 16px 20px 150px; gap: 22px; }
+    .owl { width: 190px; height: 190px; animation: bob 3.6s ease-in-out infinite; filter: drop-shadow(0 18px 24px rgba(42,22,80,.18)); }
+    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    h1 { margin: 0; font-size: clamp(38px, 6.5vw, 64px); line-height: 1.05; letter-spacing: -1.8px; font-weight: 800; max-width: 680px; }
+    p.sub { margin: 0; color: var(--muted); font-size: 18px; max-width: 460px; }
+    .pill { display: flex; width: 100%; max-width: 420px; background: var(--field); border-radius: 999px; padding: 6px; border: 1px solid var(--line); margin-top: 6px; }
+    .pill input { flex: 1; min-width: 0; border: 0; outline: none; background: none; padding: 0 18px; font: inherit; font-size: 16px; color: var(--ink); }
+    .pill input::placeholder { color: var(--muted); }
+    .pill button { height: 48px; padding: 0 22px; border-radius: 999px; border: 0; background: #6B2FD0; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+
+    .picker { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); width: min(760px, calc(100% - 24px)); background: rgba(20,16,30,.86); backdrop-filter: blur(12px); color: #fff; border-radius: 22px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; z-index: 5; }
+    .picker .row { display: flex; gap: 8px; overflow-x: auto; padding: 2px; }
+    .chip { flex: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px 0 6px; border-radius: 999px; border: 2px solid transparent; background: rgba(255,255,255,.08); color: #fff; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+    .chip i { width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); }
+    .chip.on { border-color: #B79BF0; background: rgba(183,155,240,.18); }
+    .picker .now { display: flex; justify-content: space-between; font-size: 13px; color: #c9c2da; padding: 0 4px; }
+    .picker .now b { color: #fff; }
+    .picker button.all { background: none; border: 0; color: #B79BF0; font: inherit; font-weight: 700; cursor: pointer; padding: 0; }
+
+    .grid-wrap { padding: 48px 20px 160px; background: #14101E; color: #fff; }
+    .grid-wrap h2 { margin: 0 auto 20px; max-width: 1100px; font-size: 22px; }
+    .grid { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .tile { border: 0; border-radius: 18px; height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; cursor: pointer; font: inherit; font-weight: 700; font-size: 15px; }
+    .tile img { width: 110px; height: 110px; }
+    @media (prefers-reduced-motion: reduce) { .owl { animation: none; } body { transition: none; } }
+  </style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="nav">
+    <span class="logo"><img src="assets/ervo-classic.png" alt="">Ervo</span>
+    <a href="#">How it works</a>
+  </div>
+  <div class="main">
+    <img class="owl" src="assets/ervo-classic.png" alt="Ervo the owl">
+    <h1>Your customers ask. Ervo answers.</h1>
+    <p class="sub">An AI support agent that reads your docs and calls a human when it should.</p>
+    <form class="pill" onsubmit="return false">
+      <input placeholder="Mobile number or email" aria-label="Mobile number or email">
+      <button>Continue</button>
+    </form>
+  </div>
+</section>
+
+<section class="grid-wrap" id="all">
+  <h2>All backgrounds side by side</h2>
+  <div class="grid" id="grid"></div>
+</section>
+
+<div class="picker" role="group" aria-label="Background color">
+  <div class="now"><span>Background: <b id="now-name"></b> <span id="now-hex"></span></span><button class="all" type="button" onclick="document.getElementById('all').scrollIntoView({behavior:'smooth'})">See all at once</button></div>
+  <div class="row" id="chips"></div>
+</div>
+
+<script>
+  // name, background, text, muted text, input field, line
+  const options = [
+    ["Soft lavender", "#EFE8FA", "#2A1650", "#6A5A88", "#FFFFFF", "rgba(42,22,80,.12)"],
+    ["Cream",         "#FBF6EE", "#2A1650", "#6E6458", "#FFFFFF", "rgba(42,22,80,.12)"],
+    ["White",         "#FFFFFF", "#1D1530", "#66607A", "#F4F2F8", "rgba(29,21,48,.10)"],
+    ["Butter",        "#FFF4D1", "#2A1650", "#6E6346", "#FFFFFF", "rgba(42,22,80,.12)"],
+    ["Peach",         "#FFE6D9", "#2A1650", "#76574C", "#FFFFFF", "rgba(42,22,80,.12)"],
+    ["Mint",          "#DFF5EA", "#1E2A3A", "#4C6A60", "#FFFFFF", "rgba(30,42,58,.12)"],
+    ["Sky",           "#E3EEFF", "#16213F", "#4E5F80", "#FFFFFF", "rgba(22,33,63,.12)"],
+    ["Midnight",      "#12101C", "#F5F2FF", "#A9A2C2", "#221E33", "rgba(255,255,255,.12)"],
+    ["Deep plum",     "#2A1650", "#FFFFFF", "#C9B9EC", "#3A2468", "rgba(255,255,255,.16)"],
+    ["Ink green",     "#0F2A24", "#F1FBF7", "#9FC3B7", "#183A32", "rgba(255,255,255,.14)"],
+  ];
+
+  const root = document.documentElement;
+  const chips = document.getElementById("chips");
+  const grid = document.getElementById("grid");
+  const buttons = [];
+
+  function apply(i) {
+    const [name, bg, ink, muted, field, line] = options[i];
+    root.style.setProperty("--bg", bg);
+    root.style.setProperty("--ink", ink);
+    root.style.setProperty("--muted", muted);
+    root.style.setProperty("--field", field);
+    root.style.setProperty("--line", line);
+    document.getElementById("now-name").textContent = name;
+    document.getElementById("now-hex").textContent = bg;
+    buttons.forEach((b, j) => b.classList.toggle("on", j === i));
+    try { localStorage.setItem("ervo-bg", i); } catch (e) {}
+  }
+
+  options.forEach(([name, bg, ink], i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip";
+    b.innerHTML = `<i style="background:${bg}"></i>`;
+    b.append(name);
+    b.addEventListener("click", () => apply(i));
+    chips.append(b); buttons.push(b);
+
+    const t = document.createElement("button");
+    t.type = "button"; t.className = "tile";
+    t.style.background = bg; t.style.color = ink;
+    t.innerHTML = `<img src="assets/ervo-classic.png" alt="">`;
+    t.append(name);
+    t.addEventListener("click", () => { apply(i); window.scrollTo({ top: 0, behavior: "smooth" }); });
+    grid.append(t);
+  });
+
+  let start = 0;
+  try { start = +localStorage.getItem("ervo-bg") || 0; } catch (e) {}
+  apply(Math.min(start, options.length - 1));
+</script>
+</body>
+</html>
