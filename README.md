@@ -18,10 +18,11 @@
   <a href="https://github.com/erickb2021-lgtm/Ervo/releases/latest/download/Ervo.apk">Download for Android</a>
 </p>
 
-## Download
+<h2 align="center">Download</h2>
 
-Scan a code with your phone's camera.
+<p align="center">Scan a code with your phone's camera.</p>
 
+<div align="center">
 <table>
   <tr>
     <th>iPhone</th>
@@ -44,8 +45,9 @@ Scan a code with your phone's camera.
     </td>
   </tr>
 </table>
+</div>
 
-Ervo isn't on the App Store or Google Play yet, so it installs straight from here.
+<p align="center">Ervo isn't on the App Store or Google Play yet, so it installs straight from here.</p>
 
 ## How to use Ervo
 

@@ -213,6 +213,21 @@
     });
   });
   select(/Android/i.test(navigator.userAgent) ? document.getElementById("tab-android") : document.getElementById("tab-ios"));
+
+  // Header dropdown: opens and closes the Download box
+  const trigger = document.getElementById("dl-trigger");
+  const box = document.getElementById("download");
+  if (!trigger || !box) return;
+  function setOpen(open) {
+    box.hidden = !open;
+    trigger.setAttribute("aria-expanded", String(open));
+    if (open) box.querySelector('[aria-selected="true"]').focus();
+  }
+  trigger.addEventListener("click", (e) => { e.stopPropagation(); setOpen(box.hidden); });
+  document.addEventListener("click", (e) => { if (!box.hidden && !box.contains(e.target)) setOpen(false); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !box.hidden) { setOpen(false); trigger.focus(); }
+  });
 })();
 
 // Fade sections in as they scroll into view

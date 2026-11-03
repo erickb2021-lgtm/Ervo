@@ -435,3 +435,19 @@ section.block, section.cta { min-height: 620px; display: flex; flex-direction: c
 .download .dl-btn { background: #2c2a32; color: #fff; min-height: 44px; }
 .download .dl-btn:hover { background: #3a3741; color: #fff; }
 .dl-note { margin: 14px 0 0; font-size: 12.5px; color: #b7b1c0; }
+
+/* Download dropdown in the header */
+.dl-menu { position: relative; }
+.dl-trigger .chev { width: 16px; height: 16px; transition: transform 0.2s; }
+.dl-trigger[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.dl-menu .download { position: absolute; right: 0; top: calc(100% + 12px); margin: 0; width: 340px; z-index: 30; text-align: center; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); animation: dl-in 0.18s ease both; }
+@keyframes dl-in { from { transform: translateY(-6px); } to { transform: none; } }
+@media (max-width: 560px) {
+  .site-header .btn-ghost .lbl { display: none; }
+  .site-header .dl-trigger .lbl { display: inline; }
+  .site-header .btn-ghost { padding: 0 12px; }
+  .dl-menu { position: static; }
+  .dl-menu .download { position: fixed; left: 16px; right: 16px; top: 72px; width: auto; }
+}
+
+[data-theme="dark"] .dl-menu .download { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 24px 60px rgba(0, 0, 0, 0.5); }
