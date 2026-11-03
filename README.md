@@ -1,68 +1,49 @@
 <p align="center">
-  <img src="docs/assets/ervo-symbol.svg" alt="" width="84">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/ervo-symbol-white.svg">
+    <img src="docs/assets/ervo-symbol.svg" alt="" width="84">
+  </picture>
   <br>
-  <img src="docs/assets/ervo-wordmark.svg" alt="Ervo" width="150">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/ervo-wordmark-white.svg">
+    <img src="docs/assets/ervo-wordmark.svg" alt="Ervo" width="150">
+  </picture>
 </p>
 
-<p align="center"><b>Your AI helper, for your life and your business.</b></p>
+<p align="center"><b>Your AI helper, for your life and your business.</b><br>Version 0.1.0 (preview)</p>
 
 <p align="center">
   <a href="https://erickb2021-lgtm.github.io/Ervo/">Website</a> ·
-  <a href="https://github.com/erickb2021-lgtm/Ervo/releases/latest">Download for Android</a> ·
-  <a href="https://erickb2021-lgtm.github.io/Ervo/privacy.html">Privacy</a> ·
-  <a href="https://erickb2021-lgtm.github.io/Ervo/terms.html">Terms</a>
+  <a href="https://github.com/erickb2021-lgtm/Ervo/releases/latest">Download for Android</a>
 </p>
-
----
-
-Ervo comes as two separate products:
-
-- **Ervo Personal** (personal use only): plans your week, books things, shops and handles your own returns.
-- **Ervo for Business** (business use only): answers customer tickets, handles refunds by your policy and keeps your team's schedule on track.
-
-> **Preview:** Ervo isn't connected to real accounts or an AI service yet. Sign-up stays on your device, and Ervo's chat replies are samples.
 
 ## Install on Android
 
-1. Open the [latest release](https://github.com/erickb2021-lgtm/Ervo/releases/latest) on your Android phone.
+1. On your Android phone, open the [latest release](https://github.com/erickb2021-lgtm/Ervo/releases/latest).
 2. Download **Ervo.apk** and open it.
-3. If asked, allow installs from your browser or files app, then tap **Install**.
+3. If your phone asks, allow installs from your browser or files app, then tap **Install**.
 
-iPhone, Google Play and the App Store are planned for later.
+## How to use Ervo
 
-## What's in this repo
+1. Choose **Personal** (for your own life) or **Business** (for your company's customers), then sign in with your number or email.
+2. Text Ervo what you need, or tap the **mic** and just say it. Ervo waits until you finish, then answers.
+3. Tap **+** to send a photo or a link.
 
-| Folder | What it is |
-|---|---|
-| [`docs/`](docs) | The website, served by GitHub Pages |
-| [`android/`](android) | The Android app (Kotlin + the app screens in `app/src/main/assets/www`) |
-| [`brand/`](brand) | Logos, the app icon, Ervo's characters and design explorations |
-| [`.github/workflows/`](.github/workflows) | Builds the Android app automatically |
+This is an early preview: Ervo isn't connected to real accounts or an AI service yet, so its answers are samples.
 
-## Run the website locally
+## Why I built Ervo
 
-```bash
-python -m http.server 5173 --directory docs
-```
+I wanted an AI helper that actually gets things done, not just one that answers questions. Ervo is built to take care of the small tasks that eat up your day, like planning, booking and returns, and to help businesses answer their customers quickly and fairly.
 
-Then open http://localhost:5173.
+Just as important, Ervo keeps you in charge. It asks before it buys anything or shares your information, and the personal and business versions are kept completely separate.
 
-## Build the Android app
+— Erick S. Bardales
 
-You don't need Android Studio: GitHub builds it for you.
+---
 
-- Every push that changes `android/` builds a new APK. Find it under **Actions → Build Android app → Artifacts**.
-- To publish a download for everyone, push a version tag:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-To build on your own computer instead, install [Android Studio](https://developer.android.com/studio), open the `android` folder and press **Run**.
-
-## Credits
-
-Music in the website video: "Ever Changing" by Infraction.
-
-© 2026 Erick S. Bardales. All rights reserved.
+<p align="center">
+  <a href="https://erickb2021-lgtm.github.io/Ervo/docs/privacy.html">Privacy</a> ·
+  <a href="https://erickb2021-lgtm.github.io/Ervo/docs/terms.html">Terms</a> ·
+  <a href="https://erickb2021-lgtm.github.io/Ervo/docs/contact.html">Contact</a>
+  <br><sub>Video music: "Ever Changing" by Infraction. © 2026 Erick S. Bardales.</sub>
+</p>
