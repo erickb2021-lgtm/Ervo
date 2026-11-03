@@ -14,7 +14,7 @@
 
 <p align="center">
   <a href="https://erickb2021-lgtm.github.io/Ervo/">Website</a> ·
-  <a href="https://erickb2021-lgtm.github.io/Ervo/docs/app/">Open on iPhone</a> ·
+  <a href="https://erickb2021-lgtm.github.io/Ervo/app/">Open on iPhone</a> ·
   <a href="https://github.com/erickb2021-lgtm/Ervo/releases/latest/download/Ervo.apk">Download for Android</a>
 </p>
 
@@ -34,7 +34,7 @@
   </tr>
   <tr>
     <td>
-      1. Scan the code, or <a href="https://erickb2021-lgtm.github.io/Ervo/docs/app/">open this link</a> in <b>Safari</b>.<br>
+      1. Scan the code, or <a href="https://erickb2021-lgtm.github.io/Ervo/app/">open this link</a> in <b>Safari</b>.<br>
       2. Tap <b>Share</b>, then <b>Add to Home Screen</b>.<br>
       3. Open Ervo from your home screen.
     </td>
@@ -68,8 +68,8 @@ Just as important, Ervo keeps you in charge. It asks before it buys anything or 
 ---
 
 <p align="center">
-  <a href="https://erickb2021-lgtm.github.io/Ervo/docs/privacy.html">Privacy</a> ·
-  <a href="https://erickb2021-lgtm.github.io/Ervo/docs/terms.html">Terms</a> ·
-  <a href="https://erickb2021-lgtm.github.io/Ervo/docs/contact.html">Contact</a>
+  <a href="https://erickb2021-lgtm.github.io/Ervo/privacy.html">Privacy</a> ·
+  <a href="https://erickb2021-lgtm.github.io/Ervo/terms.html">Terms</a> ·
+  <a href="https://erickb2021-lgtm.github.io/Ervo/contact.html">Contact</a>
   <br><sub>Video music: "Ever Changing" by Infraction. © 2026 Erick S. Bardales.</sub>
 </p>
