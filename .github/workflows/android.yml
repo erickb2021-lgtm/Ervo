@@ -36,6 +36,11 @@ jobs:
       - name: Name the APK
         run: cp android/app/build/outputs/apk/debug/app-debug.apk Ervo.apk
 
+      - name: Check the app screens are inside the APK
+        run: |
+          unzip -l Ervo.apk | grep -E "assets/www/(index.html|app.js|app.css|img/ervo-classic.png)"
+          test "$(unzip -l Ervo.apk | grep -cE 'assets/www/(index.html|app.js|app.css)$')" -eq 3
+
       - uses: actions/upload-artifact@v4
         with:
           name: Ervo-android
