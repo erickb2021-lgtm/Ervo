@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.webkit.GeolocationPermissions
@@ -21,6 +22,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -31,9 +33,14 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
@@ -212,6 +219,33 @@ class MainActivity : AppCompatActivity() {
             if (uri.scheme in setOf("https", "http", "mailto", "market")) openOutside(uri)
         }
 
+        /** This app's version, like "0.2.1", so the screens can check for updates. */
+        @JavascriptInterface
+        fun appVersion(): String = packageManager.getPackageInfo(packageName, 0).versionName ?: "0"
+
+        /** Downloads a new Ervo.apk from Ervo's GitHub releases, then opens the installer. */
+        @JavascriptInterface
+        fun downloadUpdate(url: String) = runOnUiThread {
+            if (!url.startsWith(UPDATE_PREFIX)) {
+                callJs("ervoUpdate", """{"status":"error"}""")
+                return@runOnUiThread
+            }
+            lifecycleScope.launch {
+                val ok = withContext(Dispatchers.IO) { download(url) }
+                if (ok) installUpdate() else callJs("ervoUpdate", """{"status":"error"}""")
+            }
+        }
+
+        /** Tries the install again, after the user allows Ervo to install apps. */
+        @JavascriptInterface
+        fun installUpdate() = runOnUiThread { this@MainActivity.installUpdate() }
+
+        /** Opens Android's "Install unknown apps" switch for Ervo (a one-time step). */
+        @JavascriptInterface
+        fun openInstallSettings() = runOnUiThread {
+            openOutside(Uri.parse("package:$packageName"), Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+        }
+
         /** Colors the phone's status bar (top) and navigation bar (bottom) to match the screen. */
         @JavascriptInterface
         fun setBars(top: String, bottom: String, dark: Boolean) = runOnUiThread {
@@ -294,6 +328,68 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateFile() = File(File(cacheDir, "updates").apply { mkdirs() }, "Ervo.apk")
+
+    /** Saves the APK to the app's private cache, sending progress to window.ervoUpdate. */
+    private fun download(url: String): Boolean {
+        val target = updateFile()
+        return try {
+            val conn = URL(url).openConnection() as HttpURLConnection
+            conn.instanceFollowRedirects = true
+            conn.connectTimeout = 15000
+            conn.readTimeout = 30000
+            conn.connect()
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) return false
+            val total = conn.contentLengthLong
+            var done = 0L
+            var lastPct = -1
+            conn.inputStream.use { input ->
+                target.outputStream().use { output ->
+                    val buf = ByteArray(64 * 1024)
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        output.write(buf, 0, n)
+                        done += n
+                        val pct = if (total > 0) (done * 100 / total).toInt() else -1
+                        if (pct != lastPct) {
+                            lastPct = pct
+                            callJs("ervoUpdate", """{"status":"downloading","percent":$pct}""")
+                        }
+                    }
+                }
+            }
+            total <= 0 || done == total
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Hands the downloaded APK to Android's installer, which asks the user to confirm. */
+    private fun installUpdate() {
+        val apk = updateFile()
+        if (!apk.exists()) {
+            callJs("ervoUpdate", """{"status":"error"}""")
+            return
+        }
+        // The first time, the user has to let Ervo install updates (see openInstallSettings)
+        if (!packageManager.canRequestPackageInstalls()) {
+            callJs("ervoUpdate", """{"status":"needs_permission"}""")
+            return
+        }
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", apk)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            startActivity(intent)
+            callJs("ervoUpdate", """{"status":"installing"}""")
+        } catch (e: ActivityNotFoundException) {
+            callJs("ervoUpdate", """{"status":"error"}""")
+        }
+    }
+
     private fun hasPermission(permission: String) =
         ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 
@@ -301,9 +397,9 @@ class MainActivity : AppCompatActivity() {
         webView.post { webView.evaluateJavascript("window.$function && window.$function(${JSONObject.quote(text)})", null) }
     }
 
-    private fun openOutside(uri: Uri) {
+    private fun openOutside(uri: Uri, action: String = Intent.ACTION_VIEW) {
         try {
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
+            startActivity(Intent(action, uri))
         } catch (e: ActivityNotFoundException) {
             // No app can open it; stay where we are
         }
@@ -333,5 +429,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val APP_HOST = "appassets.androidplatform.net"
         private const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
+        // Updates only ever come from Ervo's own GitHub releases
+        private const val UPDATE_PREFIX = "https://github.com/erickb2021-lgtm/Ervo/releases/download/"
     }
 }

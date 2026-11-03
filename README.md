@@ -10,7 +10,7 @@
   </picture>
 </p>
 
-<p align="center"><b>Your AI helper, for your life and your business.</b><br>Version 0.2.0 (preview)</p>
+<p align="center"><b>Your AI helper, for your life and your business.</b><br>Version 0.2.1 (preview)</p>
 
 <p align="center">
   <a href="https://erickb2021-lgtm.github.io/Ervo/">Website</a> ·
@@ -59,6 +59,7 @@
    - **Connected apps**: turn each app on or off.
    - **Greeting**: your nickname, plus the time, date, weather and today's news when you open Ervo.
 5. Tap **+** to send a photo or a link.
+6. **Updates:** Ervo tells you when a new version is ready. Tap **Update now** (or **⋮ → Check for updates**). On Android the first update asks you once to allow installs from Ervo.
 
 This is an early preview: sign-in codes aren't sent yet, and some answers are samples. To turn on Ervo's full AI and see what each sync needs, read [server/README.md](server/README.md).
 

@@ -1,0 +1,7 @@
+{
+  "version": "0.2.1",
+  "notes": [
+    "Update Ervo right from the app: it tells you when a new version is ready",
+    "Sign in with a real email code (once Ervo's account service is turned on)"
+  ]
+}

@@ -11,13 +11,28 @@ android {
         applicationId = "app.ervo"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.2.1"
+    }
+
+    // Every update must be signed with the same key, or phones refuse to install it.
+    // GitHub Actions writes the key here from the repo's secrets; it is never committed.
+    val ervoKey = file("ervo-release.p12")
+    signingConfigs {
+        create("ervo") {
+            storeFile = ervoKey
+            storeType = "pkcs12"
+            storePassword = System.getenv("ERVO_KEYSTORE_PASSWORD")
+            keyAlias = "ervo"
+            keyPassword = System.getenv("ERVO_KEYSTORE_PASSWORD")
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Without the key (a local test build), fall back to the debug key
+            signingConfig = signingConfigs.getByName(if (ervoKey.exists()) "ervo" else "debug")
         }
     }
 

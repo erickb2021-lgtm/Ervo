@@ -9,6 +9,7 @@ android/.idea/
 *.aab
 *.keystore
 *.jks
+*.p12
 
 # OS and editor files
 .DS_Store

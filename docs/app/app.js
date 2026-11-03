@@ -105,29 +105,94 @@
   const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
   const isPhone = (v) => /^[\d\s().+-]+$/.test(v) && /^\d{7,15}$/.test(v.replace(/[\s().+-]/g, ""));
 
-  document.querySelector('[data-step="contact"]').addEventListener("submit", (e) => {
+  // ---------- real sign-in with Supabase (email codes), when config.js has the keys ----------
+  const CFG = window.ERVO_CONFIG || {};
+  const SB_URL = (CFG.supabaseUrl || "").replace(/\/+$/, "");
+  const SB_KEY = CFG.supabaseKey || "";
+  const SESSION_KEY = "ervo-session";
+  const realAuth = !!(SB_URL && SB_KEY);
+
+  async function auth(path, body, method, token) {
+    const r = await fetch(`${SB_URL}/auth/v1/${path}`, {
+      method: method || "POST",
+      headers: { apikey: SB_KEY, "content-type": "application/json", Authorization: `Bearer ${token || SB_KEY}` },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { const err = new Error(j.msg || j.error_description || j.message || `auth ${r.status}`); err.status = r.status; throw err; }
+    return j;
+  }
+  const session = () => load(SESSION_KEY);
+  // Keeps the sign-in fresh (Supabase sign-ins last an hour, then renew)
+  async function freshToken() {
+    const s = session();
+    if (!s) return null;
+    if (Date.now() < s.expiresAt - 60000) return s.access_token;
+    try {
+      const j = await auth("token?grant_type=refresh_token", { refresh_token: s.refresh_token });
+      save(SESSION_KEY, { access_token: j.access_token, refresh_token: j.refresh_token, expiresAt: Date.now() + j.expires_in * 1000 });
+      return j.access_token;
+    } catch (e) { return null; }
+  }
+  function friendlyAuthError(e) {
+    if (e.status === 429) return "Too many tries. Wait a minute, then try again.";
+    if (/expired|invalid/i.test(e.message)) return "That code didn't work or has expired. Check it, or go back and get a new one.";
+    return "Couldn't reach Ervo's sign-in. Check your connection and try again.";
+  }
+  if (realAuth) {
+    document.querySelector(".demo").textContent = "Check your inbox (and spam folder) for a 6-digit code from Ervo.";
+    $("contact").placeholder = "Your email";
+  }
+
+  document.querySelector('[data-step="contact"]').addEventListener("submit", async (e) => {
     e.preventDefault();
     const v = $("contact").value.trim();
-    if (!v) { $("contact-error").textContent = "Enter your mobile number or email."; return; }
+    if (!v) { $("contact-error").textContent = realAuth ? "Enter your email." : "Enter your mobile number or email."; return; }
     if (!isEmail(v) && !isPhone(v)) { $("contact-error").textContent = "That doesn't look like a valid number or email. Try again."; return; }
+    if (realAuth) {
+      if (!isEmail(v)) { $("contact-error").textContent = "For now, sign in with your email. Text message codes are coming soon."; return; }
+      const btn = e.submitter || document.querySelector('[data-step="contact"] .btn');
+      btn.disabled = true;
+      try { await auth("otp", { email: v, create_user: true }); } catch (err) { $("contact-error").textContent = friendlyAuthError(err); btn.disabled = false; return; }
+      btn.disabled = false;
+    }
     contact = v;
     $("sent-to").textContent = v;
     step("code");
   });
 
   $("code").addEventListener("input", () => { $("code").value = $("code").value.replace(/\D/g, "").slice(0, 6); });
-  document.querySelector('[data-step="code"]').addEventListener("submit", (e) => {
+  document.querySelector('[data-step="code"]').addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!/^\d{6}$/.test($("code").value)) { $("code-error").textContent = "Enter all 6 digits."; return; }
+    if (realAuth) {
+      let j;
+      try { j = await auth("verify", { type: "email", email: contact, token: $("code").value }); } catch (err) { $("code-error").textContent = friendlyAuthError(err); return; }
+      save(SESSION_KEY, { access_token: j.access_token, refresh_token: j.refresh_token, expiresAt: Date.now() + j.expires_in * 1000 });
+      // Coming back? Pick up their name and Personal/Business choice from their account
+      const meta = (j.user && j.user.user_metadata) || {};
+      if (meta.name && PLAN[meta.plan]) {
+        const acc = { plan: meta.plan, name: meta.name, contact, id: j.user.id, createdAt: j.user.created_at };
+        save(ACCOUNT_KEY, acc);
+        openChat(acc, false);
+        return;
+      }
+    }
     step("name");
   });
   document.querySelector("[data-back]").addEventListener("click", () => { $("code").value = ""; step("contact"); });
 
-  document.querySelector('[data-step="name"]').addEventListener("submit", (e) => {
+  document.querySelector('[data-step="name"]').addEventListener("submit", async (e) => {
     e.preventDefault();
     const v = $("name").value.trim();
     if (v.length < 2) { $("name-error").textContent = PLAN[plan].nameError; return; }
     const acc = { plan, name: v, contact, createdAt: new Date().toISOString() };
+    if (realAuth) {
+      try {
+        const u = await auth("user", { data: { name: v, plan } }, "PUT", await freshToken());
+        acc.id = u.id;
+      } catch (err) { $("name-error").textContent = friendlyAuthError(err); return; }
+    }
     save(ACCOUNT_KEY, acc);
     openChat(acc, true);
   });
@@ -1174,7 +1239,135 @@
     if (scrollToApps) setTimeout(() => $("apps-heading").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }
   $("stats-back").addEventListener("click", () => show("chat"));
-  window.ervoResume = () => { if ($("stats").classList.contains("active")) renderStats(); };
+  window.ervoResume = () => {
+    if ($("stats").classList.contains("active")) renderStats();
+    // Back from "Allow from this source": carry on installing the update
+    if (update && update.state === "needs_permission" && !$("update").hidden && native && native.installUpdate) {
+      update.state = "waiting";
+      native.installUpdate();
+    }
+  };
+
+  // ---------- updates: Ervo tells you when a new version is ready ----------
+  // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
+  // On iPhone the files come straight from the website, so updating is a quick refresh.
+  const APP_VERSION = "0.2.1"; // keep in step with version.json and the Android versionName
+  const UPDATE_CHECK_KEY = "ervo-update-checked";
+  const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
+  const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
+  let update = null; // { version, notes, apkUrl }
+
+  function newer(a, b) {
+    const pa = String(a).replace(/^v/, "").split(".").map(Number);
+    const pb = String(b).replace(/^v/, "").split(".").map(Number);
+    for (let i = 0; i < 3; i++) {
+      if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+    }
+    return false;
+  }
+
+  async function findUpdate() {
+    if (native && native.downloadUpdate) {
+      const r = await fetch(RELEASES_API, { headers: { Accept: "application/vnd.github+json" }, cache: "no-store" });
+      if (!r.ok) throw new Error("releases");
+      const rel = await r.json();
+      const apk = (rel.assets || []).find((a) => a.name === "Ervo.apk");
+      if (!apk || !newer(rel.tag_name, currentVersion())) return null;
+      const notes = String(rel.body || "").split("\n").filter((l) => /^\s*[-*•]\s+/.test(l)).map((l) => l.replace(/^\s*[-*•]\s+/, "").replace(/\*\*/g, ""));
+      return { version: rel.tag_name.replace(/^v/, ""), notes, apkUrl: apk.browser_download_url };
+    }
+    const r = await fetch(`version.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!r.ok) throw new Error("version");
+    const v = await r.json();
+    return newer(v.version, APP_VERSION) ? { version: v.version, notes: v.notes || [] } : null;
+  }
+
+  // Quietly checks a few times a day; from the menu it always checks and says if you're up to date
+  async function checkForUpdate(manual) {
+    const last = Number(load(UPDATE_CHECK_KEY)) || 0;
+    if (!manual && Date.now() - last < 6 * 60 * 60 * 1000) return;
+    save(UPDATE_CHECK_KEY, Date.now());
+    let found = null;
+    try { found = await findUpdate(); } catch (e) {
+      if (manual) ervoSays("I couldn't check for updates right now. Check your connection and try again.");
+      return;
+    }
+    if (found) showUpdate(found);
+    else if (manual) ervoSays(`You're up to date ✅ This is Ervo ${currentVersion()}, the newest version.`);
+  }
+
+  function showUpdate(found) {
+    update = found;
+    $("update-title").textContent = "Update available";
+    $("update-sub").textContent = `Ervo ${found.version} is ready. You have ${currentVersion()}.`;
+    $("update-notes").innerHTML = "";
+    found.notes.slice(0, 5).forEach((n) => { const li = document.createElement("li"); li.textContent = n; $("update-notes").append(li); });
+    $("update-progress").hidden = true;
+    $("update-note").textContent = native ? "Ervo downloads the update, then Android asks you to install it. Your chats and settings stay." : "Takes a second. Your chats and settings stay.";
+    $("update-now").textContent = "Update now";
+    $("update-now").disabled = false;
+    $("update-later").hidden = false;
+    $("update").hidden = false;
+  }
+
+  $("update-later").addEventListener("click", () => { $("update").hidden = true; });
+  $("update-now").addEventListener("click", async () => {
+    if (!update) return;
+    if (native && native.downloadUpdate) {
+      if (update.state === "needs_permission" || update.state === "ready") { update.state = "asked"; native.installUpdate(); return; }
+      $("update-now").disabled = true;
+      $("update-progress").hidden = false;
+      $("update-progress").classList.add("busy");
+      $("update-note").textContent = "Downloading…";
+      native.downloadUpdate(update.apkUrl);
+      return;
+    }
+    // iPhone / web: clear the saved copy and load the new files
+    $("update-now").disabled = true;
+    $("update-note").textContent = "Updating…";
+    try {
+      if (window.caches) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+      const reg = navigator.serviceWorker && (await navigator.serviceWorker.getRegistration());
+      if (reg) await reg.update();
+    } catch (e) { /* a plain reload still gets the new files */ }
+    location.reload();
+  });
+
+  // Progress and results from the Android download
+  window.ervoUpdate = (json) => {
+    let s;
+    try { s = JSON.parse(json); } catch (e) { return; }
+    if (!update) return;
+    const before = update.state;
+    update.state = s.status;
+    const bar = $("update-progress");
+    if (s.status === "downloading") {
+      bar.hidden = false;
+      if (s.percent >= 0) { bar.classList.remove("busy"); $("update-bar").style.width = `${s.percent}%`; $("update-note").textContent = `Downloading… ${s.percent}%`; }
+    } else if (s.status === "needs_permission") {
+      bar.hidden = true;
+      $("update-note").textContent = "One-time step: turn on \"Allow from this source\" for Ervo, then come back here.";
+      $("update-now").textContent = "Install";
+      $("update-now").disabled = false;
+      // Open the switch right away, except when they just came back without turning it on
+      if (before !== "waiting") native.openInstallSettings();
+    } else if (s.status === "installing") {
+      bar.hidden = true;
+      $("update-note").textContent = "Tap Update on the next screen to finish. Ervo will restart.";
+      $("update-now").textContent = "Install again";
+      update.state = "ready"; // the button reopens the installer if they closed it
+      $("update-now").disabled = false;
+    } else {
+      bar.hidden = true;
+      $("update-note").textContent = "The download didn't finish. Check your connection and try again.";
+      $("update-now").textContent = "Try again";
+      $("update-now").disabled = false;
+      update.state = null;
+    }
+  };
+
+  $("check-update").addEventListener("click", () => { toggleMenu(false); checkForUpdate(true); });
+  $("menu-version").textContent = `Ervo version ${currentVersion()} (preview)`;
 
   // ---------- greeting settings ----------
   function openGreeting() {
@@ -1373,7 +1566,8 @@
   $("clear-chat").addEventListener("click", () => { toggleMenu(false); openChat(account, false); });
   $("sign-out").addEventListener("click", () => {
     toggleMenu(false);
-    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY].forEach(drop);
+    if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
+    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY].forEach(drop);
     account = null;
     ["contact", "code", "name"].forEach((id) => { $(id).value = ""; });
     setPlan("personal");
@@ -1384,6 +1578,7 @@
   // Android back button: close whatever is open first, then go back to the chat
   window.ervoBack = function () {
     if (!$("perm").hidden) { answerPermission(false); return true; }
+    if (!$("update").hidden) { $("update").hidden = true; return true; }
     if (!$("greet").hidden) { $("greet").hidden = true; return true; }
     if (!voice.hidden) { $("voice-cancel").click(); return true; }
     if (!menu.hidden) { toggleMenu(false); return true; }
@@ -1412,4 +1607,5 @@
     if (saved && saved.plan && saved.name) openChat(saved, false);
     else show("welcome");
   }, 1100);
+  setTimeout(() => checkForUpdate(false), 4000);
 })();

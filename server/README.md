@@ -49,6 +49,37 @@ These let Ervo read and change things for you without opening the other app. Eac
 | Steps on iPhone | Apple Developer Program, plus a Mac with Xcode | $99 a year | Apple only shares Health data with installed App Store apps, not web apps. |
 | Fingerprint and Face ID sign-in | Android: nothing extra. iPhone: same as above | — | Planned for a later version. |
 
-## Step 3: real accounts
+## Step 3: real accounts with Supabase (about 10 minutes)
 
-Right now the sign-in code is a preview and everything is saved on the phone. Before Step 2, Ervo needs real accounts so each person's connections stay private. A service like Supabase or Firebase (free to start) can send the real 6-digit codes and keep each person's settings.
+Ervo's app is already built for this: once it has your project's two public values, sign-in sends a real 6-digit code by email, and each person's name and Personal/Business choice are saved to their account.
+
+1. **Create the project.** In [supabase.com/dashboard](https://supabase.com/dashboard), click **New project**.
+   - Name: `Ervo`
+   - Database password: click **Generate a password** and save it somewhere safe (a password manager). Ervo doesn't need it, but you will later.
+   - Region: the one closest to you (for Texas, **East US** or **Central US**).
+   - Click **Create new project** and wait a minute or two.
+2. **Turn on email codes.** Go to **Authentication → Sign In / Providers**, and make sure **Email** is on. Turn **Confirm email** on.
+3. **Make the email show a code instead of a link.** Go to **Authentication → Emails** (Templates), open **Magic Link**, and replace its body with:
+   ```html
+   <h2>Your Ervo code</h2>
+   <p>Enter this code in Ervo to sign in:</p>
+   <p style="font-size:28px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p>
+   <p>It expires in 1 hour. If you didn't ask for it, you can ignore this email.</p>
+   ```
+   Set the subject to `Your Ervo code`. Do the same for **Confirm signup**, so new people get a code too. Save both.
+4. **Check the code length.** In **Authentication → Sign In / Providers → Email**, set **Email OTP length** to `6`.
+5. **Copy the two public values.** Go to **Project Settings → API Keys** (or **Data API**):
+   - **Project URL**, like `https://abcdefgh.supabase.co`
+   - **Publishable key** (or the **anon public** key)
+
+   Put them in `docs/app/config.js`, or send them to Claude to add:
+   ```js
+   supabaseUrl: "https://abcdefgh.supabase.co",
+   supabaseKey: "sb_publishable_...",
+   ```
+   These two are safe to be public. **Never** put the `service_role` or **secret** key in the app, the repo or a chat.
+
+**Good to know:**
+- Supabase's built-in email only sends to your own team's addresses, and only a few emails an hour. That's perfect for testing with your own email. Before other people sign up, connect a free email sender like [Resend](https://resend.com) in **Authentication → Emails → SMTP Settings**.
+- Text message codes need a texting service like Twilio, which costs money per text. For now Ervo asks people to sign in with email when Supabase is on.
+- Fingerprint and Face ID sign-in come later, on top of these accounts.

@@ -1,12 +1,13 @@
 // Keeps Ervo working offline once it's added to the home screen.
 // Bump VERSION with every release so phones pick up the new files.
-const VERSION = "ervo-0.2.0";
+const VERSION = "ervo-0.2.1";
 const FILES = [
   "./",
   "index.html",
   "app.css",
   "app.js",
   "config.js",
+  "version.json",
   "manifest.webmanifest",
   "img/ervo-symbol.svg",
   "img/ervo-symbol-white.svg",
