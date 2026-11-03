@@ -14,14 +14,38 @@
 
 <p align="center">
   <a href="https://erickb2021-lgtm.github.io/Ervo/">Website</a> ·
-  <a href="https://github.com/erickb2021-lgtm/Ervo/releases/latest">Download for Android</a>
+  <a href="https://erickb2021-lgtm.github.io/Ervo/docs/app/">Open on iPhone</a> ·
+  <a href="https://github.com/erickb2021-lgtm/Ervo/releases/latest/download/Ervo.apk">Download for Android</a>
 </p>
 
-## Install on Android
+## Download
 
-1. On your Android phone, open the [latest release](https://github.com/erickb2021-lgtm/Ervo/releases/latest).
-2. Download **Ervo.apk** and open it.
-3. If your phone asks, allow installs from your browser or files app, then tap **Install**.
+Scan a code with your phone's camera.
+
+<table>
+  <tr>
+    <th>iPhone</th>
+    <th>Android</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/assets/qr-ios.svg" alt="QR code that opens Ervo on iPhone" width="160"></td>
+    <td align="center"><img src="docs/assets/qr-android.svg" alt="QR code that downloads Ervo for Android" width="160"></td>
+  </tr>
+  <tr>
+    <td>
+      1. Scan the code, or <a href="https://erickb2021-lgtm.github.io/Ervo/docs/app/">open this link</a> in <b>Safari</b>.<br>
+      2. Tap <b>Share</b>, then <b>Add to Home Screen</b>.<br>
+      3. Open Ervo from your home screen.
+    </td>
+    <td>
+      1. Scan the code, or <a href="https://github.com/erickb2021-lgtm/Ervo/releases/latest/download/Ervo.apk">download Ervo.apk</a>.<br>
+      2. Open the file.<br>
+      3. If your phone asks, allow the install, then tap <b>Install</b>.
+    </td>
+  </tr>
+</table>
+
+Ervo isn't on the App Store or Google Play yet, so it installs straight from here.
 
 ## How to use Ervo
 

@@ -435,6 +435,12 @@
     return false;
   };
 
+  // ---------- offline support for the home-screen (iPhone) version ----------
+  // The Android app bundles its files already, so it doesn't need this.
+  if ("serviceWorker" in navigator && !window.ErvoNative && location.protocol === "https:") {
+    navigator.serviceWorker.register("sw.js").catch(() => { /* still works online */ });
+  }
+
   // ---------- start ----------
   setPlan("personal");
   setTimeout(() => {

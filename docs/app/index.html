@@ -4,6 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ervo</title>
+  <meta name="description" content="Ervo, your AI helper. Add it to your home screen to use it like an app.">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <!-- Installable on iPhone (Add to Home Screen) and Android -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Ervo">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+  <link rel="icon" href="img/ervo-symbol.svg" type="image/svg+xml">
   <link rel="stylesheet" href="app.css">
   <script>try{var t=localStorage.getItem("ervo-theme")}catch(e){}document.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")</script>
 </head>
@@ -79,6 +90,7 @@
       <p class="menu-who" id="menu-who"></p>
       <button type="button" id="clear-chat">Clear chat</button>
       <button type="button" id="sign-out">Sign out</button>
+      <p class="menu-version">Ervo version 0.1.0 (preview)</p>
     </div>
   </header>
 

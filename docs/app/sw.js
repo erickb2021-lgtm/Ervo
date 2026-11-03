@@ -1,0 +1,45 @@
+// Keeps Ervo working offline once it's added to the home screen.
+// Bump VERSION with every release so phones pick up the new files.
+const VERSION = "ervo-0.1.0";
+const FILES = [
+  "./",
+  "index.html",
+  "app.css",
+  "app.js",
+  "manifest.webmanifest",
+  "img/ervo-symbol.svg",
+  "img/ervo-symbol-white.svg",
+  "img/ervo-wordmark.svg",
+  "img/ervo-wordmark-white.svg",
+  "img/ervo-classic.png",
+  "img/ervo-business.png",
+  "img/apple-touch-icon.png",
+  "img/icon-192.png",
+  "img/icon-512.png",
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+// Network first so updates show up right away; fall back to the saved copy offline
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+  event.respondWith(
+    fetch(event.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(VERSION).then((cache) => cache.put(event.request, copy));
+        return res;
+      })
+      .catch(() => caches.match(event.request).then((hit) => hit || caches.match("index.html")))
+  );
+});

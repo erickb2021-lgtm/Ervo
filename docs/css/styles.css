@@ -420,3 +420,18 @@ section.block, section.cta { min-height: 620px; display: flex; flex-direction: c
 [data-theme="dark"] .btn-ghost:hover, [data-theme="dark"] .doc a.btn-ghost:hover { background: #ece6f2; color: #000000; }/* The header button flips with the mode: white in light mode, dark in dark mode */
 [data-theme="dark"] .site-header .btn-ghost { background: var(--surface); color: #ffffff; box-shadow: inset 0 0 0 1px var(--line); }
 [data-theme="dark"] .site-header .btn-ghost:hover { background: var(--surface-2); color: #ffffff; }
+/* Download now box: always a dark card with a white QR tile, in light and dark mode */
+.download { width: min(380px, 100%); margin: 32px auto 0; background: #1c1a21; color: #fff; border-radius: 26px; padding: 20px; text-align: center; box-shadow: 0 20px 50px rgba(31, 18, 53, 0.2); }
+[data-theme="dark"] .download { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12); }
+.download h3 { margin: 0 0 14px; font-size: 20px; font-weight: 800; }
+.dl-tabs { display: grid; grid-template-columns: 1fr 1fr; background: #2c2a32; border-radius: 999px; padding: 4px; margin-bottom: 18px; }
+.dl-tabs button { min-height: 40px; border: 0; border-radius: 999px; background: none; color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; }
+.dl-tabs button[aria-selected="true"] { background: #4a4752; }
+.dl-tabs button:focus-visible { outline: 3px solid #c9b3ff; outline-offset: 2px; }
+.dl-panel .qr { width: 188px; height: 188px; margin: 0 auto 14px; background: #fff; border-radius: 22px; display: flex; align-items: center; justify-content: center; }
+.dl-panel .qr img { width: 168px; height: 168px; }
+.dl-panel p { margin: 0 0 14px; color: #d6d2dd; font-size: 14px; line-height: 1.5; }
+.dl-panel p b { color: #fff; }
+.download .dl-btn { background: #2c2a32; color: #fff; min-height: 44px; }
+.download .dl-btn:hover { background: #3a3741; color: #fff; }
+.dl-note { margin: 14px 0 0; font-size: 12.5px; color: #b7b1c0; }
