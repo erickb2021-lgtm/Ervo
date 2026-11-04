@@ -23,6 +23,11 @@
             <data android:mimeType="image/*" />
         </intent>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- The phone's calendar app, for "Phone calendar" -->
+        <intent>
+            <action android:name="android.intent.action.INSERT" />
+            <data android:mimeType="vnd.android.cursor.dir/event" />
+        </intent>
     </queries>
 
     <application

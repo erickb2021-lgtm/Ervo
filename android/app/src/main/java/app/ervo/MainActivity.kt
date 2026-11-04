@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.provider.CalendarContract
 import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
@@ -217,6 +218,26 @@ class MainActivity : AppCompatActivity() {
         fun openUrl(url: String) = runOnUiThread {
             val uri = Uri.parse(url)
             if (uri.scheme in setOf("https", "http", "mailto", "market")) openOutside(uri)
+        }
+
+        /**
+         * Opens the phone's own calendar app with the event filled in. The user picks
+         * which calendar (Samsung, Google, Outlook...) and taps Save there.
+         */
+        @JavascriptInterface
+        fun addCalendarEvent(title: String, beginMs: Double, endMs: Double, allDay: Boolean, notes: String) = runOnUiThread {
+            val intent = Intent(Intent.ACTION_INSERT, CalendarContract.Events.CONTENT_URI).apply {
+                putExtra(CalendarContract.Events.TITLE, title)
+                putExtra(CalendarContract.Events.DESCRIPTION, notes)
+                putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, beginMs.toLong())
+                putExtra(CalendarContract.EXTRA_EVENT_END_TIME, endMs.toLong())
+                putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, allDay)
+            }
+            try {
+                startActivity(intent)
+            } catch (e: ActivityNotFoundException) {
+                callJs("ervoCalendarError", "no-app")
+            }
         }
 
         /** This app's version, like "0.2.1", so the screens can check for updates. */

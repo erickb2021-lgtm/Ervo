@@ -77,7 +77,8 @@
     <div class="who">
       <span class="avatar"><img id="chat-avatar" src="img/ervo-classic.png" alt=""></span>
       <b>Ervo</b>
-      <span class="badge" id="mode-badge">Personal</span>
+      <!-- What Ervo is doing right now, like "Searching for insoles" -->
+      <span class="status" id="status" aria-live="polite"><span class="status-ico" id="status-ico" aria-hidden="true"></span><span id="status-text">Personal</span></span>
     </div>
     <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch to dark mode">
       <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
@@ -95,14 +96,14 @@
       <button type="button" id="check-update">Check for updates</button>
       <button type="button" id="clear-chat">Clear chat</button>
       <button type="button" id="sign-out">Sign out</button>
-      <p class="menu-version" id="menu-version">Ervo version 0.2.1 (preview)</p>
+      <p class="menu-version" id="menu-version">Ervo version 0.2.2 (preview)</p>
     </div>
   </header>
 
-  <p class="preview-note" id="preview-note">Preview: some answers are samples while Ervo learns. Ervo always asks before it opens or uses another app.</p>
-
   <div class="thread" id="thread" aria-live="polite"></div>
 
+  <!-- Bottom bar: suggestions, attachments and the message box. See-through, like iMessage. -->
+  <div class="dock" id="dock">
   <div class="chips" id="chips"></div>
 
   <!-- Attach a photo or a link -->
@@ -140,6 +141,7 @@
       </button>
     </div>
   </form>
+  </div>
 
   <!-- Voice: Ervo listens until you finish, then answers out loud -->
   <div class="voice" id="voice" hidden role="dialog" aria-modal="true" aria-labelledby="voice-status">
@@ -207,6 +209,25 @@
     <div class="sheet-actions">
       <button class="pill ghost" type="button" id="perm-deny">Deny</button>
       <button class="pill" type="button" id="perm-allow">Allow</button>
+    </div>
+  </div>
+</div>
+
+<!-- Which calendar should Ervo add events to? -->
+<div class="sheet-wrap" id="calpick" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="calpick-title">
+    <h2 id="calpick-title">Which calendar?</h2>
+    <p class="muted">Ervo will use this one from now on. You can change it anytime.</p>
+    <button class="choice" type="button" id="cal-phone">
+      <span class="app-ico calendar-phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M10 18.5h4"/></svg></span>
+      <span class="txt"><b>Phone calendar</b><small>Your phone's own calendar app. You pick which calendar it goes on.</small></span>
+    </button>
+    <button class="choice" type="button" id="cal-google">
+      <span class="app-ico calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span>
+      <span class="txt"><b>Google Calendar</b><small>Opens Google Calendar, where you can pick any of your Google calendars.</small></span>
+    </button>
+    <div class="sheet-actions">
+      <button class="pill ghost" type="button" id="cal-cancel">Not now</button>
     </div>
   </div>
 </div>

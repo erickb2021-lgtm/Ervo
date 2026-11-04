@@ -66,14 +66,14 @@
       hint: "Personal use only: planning, shopping, your own returns and more.",
       question: "What should Ervo call you?", nameLabel: "Your name", placeholder: "Alex", nameError: "Enter your name.",
       chips: ["Book a table for 4 tonight", "Gym Friday at 6pm", "Buy paper towels", "What's coming up?", "Weather"],
-      apps: ["calendar", "amazon", "health", "location"],
+      apps: ["phonecal", "calendar", "amazon", "health", "location"],
     },
     business: {
       label: "Business", avatar: "img/ervo-business.png",
       hint: "Business use only: customer support, refunds by your policy, scheduling and more.",
       question: "What's your company called?", nameLabel: "Company name", placeholder: "Acme Coffee Co.", nameError: "Enter your company's name.",
       chips: ["Refund order #5512", "Summarize today's tickets", "Call with Northwind Thursday at 2pm", "Draft a reply to an upset customer"],
-      apps: ["calendar", "mail", "location"],
+      apps: ["phonecal", "calendar", "mail", "location"],
     },
   };
   let plan = "personal";
@@ -229,9 +229,14 @@
 
   // Apps Ervo can work with. Allow opens the app (or its sign-in page if you're signed out).
   const CONNECTORS = {
+    phonecal: {
+      name: "Phone calendar", ico: "calendar",
+      does: ["Open your calendar app with events Ervo plans for you", "You pick which calendar it goes on, then tap Save"],
+      note: "Works with your phone's own calendar app. Ervo can't see your other events.",
+    },
     calendar: {
       name: "Google Calendar", ico: "calendar", login: "https://calendar.google.com/calendar/",
-      does: ["Add events and reservations Ervo plans for you", "You save each one yourself, in Google Calendar"],
+      does: ["Add events and reservations Ervo plans for you", "You pick which Google calendar and tap Save"],
       note: "Ervo opens Google Calendar (or its sign-in page). Ervo never sees your password.",
     },
     amazon: {
@@ -413,25 +418,85 @@
     if (/\bstandup\b/.test(t)) return "Team standup";
     if (/\b(interview)\b/.test(t)) return "Interview";
     if (/\b(demo)\b/.test(t)) return "Demo";
+    // "something on my calendar tomorrow to go to the store" → "Go to the store"
+    if ((m = raw.match(/\b(?:calendar|schedule|reminder|something|an event)\b.*?\b(?:to|so i can|i need to|i have to)\s+((?:go|pick|call|buy|get|do|see|meet|visit|take|pay|finish|clean|work|watch|study|cook|walk|run|drop|bring|fix|send|check|wash|start|book)\b.+)$/i))) {
+      const purpose = tidy(m[1]).replace(/\s+(for|on|at|in|to)$/i, "");
+      if (purpose) return cap(purpose);
+    }
     let s = raw.replace(/^(please |can you |could you |ervo,? )*(schedule|add|put|plan|set up|book|make|create|block( off)?|fit)( me)?( an?| the| my)?\s*/i, "");
-    s = s.replace(/\b(to|on|in|into) (my )?(calendar|schedule)\b/gi, "");
-    s = tidy(s);
+    s = s.replace(/^(something|an event|a reminder|an appointment|it)\s+/i, "");
+    s = s.replace(/\b(to|on|in|into) (my )?(\w+ )?(calendar|schedule)\b/gi, "");
+    s = tidy(s).replace(/^(for|to|on|at)\s+|\s+(for|to|on|at|in)$/gi, "").trim();
     return s ? cap(s) : "New event";
   }
 
+  // "can you find me some insoles to buy" → "insoles"
   function shopItem(raw) {
-    let s = raw.replace(/^(please |can you |could you |ervo,? |i need to |i want to |i'd like to )*(buy|order|purchase|get( me)?|shop for|find( me)?|add|look for|reorder)\s+(me\s+)?(some |a |an |the |more |new )?/i, "");
-    s = s.replace(/^i need (some |a |an |more |new )?/i, "");
-    s = s.replace(/\b(on|from|off) amazon\b|\bto (my )?cart\b|\bonline\b/gi, "");
-    return tidy(s);
+    let s = raw.replace(/^(please |can you |could you |ervo,? |i need to |i want to |i'd like to |help me )*(buy|order|purchase|get( me)?|shop for|find( me)?|add|look(ing)? for|reorder|recommend( me)?|search( for)?)\s+(me\s+)?(some |a |an |the |more |new |good |a good |some good )?/i, "");
+    s = s.replace(/^(i need|we need|i want) (some |a |an |more |new )?/i, "");
+    s = s.replace(/\s+(to|that i can|i can) (buy|purchase|order|get)\b.*$/i, "");
+    s = s.replace(/\b(on|from|off) amazon\b|\bto (my )?cart\b|\bonline\b|\bfor me\b|\bplease\b/gi, "");
+    return tidy(s).replace(/^(some|a|an|the)\s+/i, "");
+  }
+  // "insoles for long work hours", "best headphones under $100": worth researching, not just searching
+  const wantsAdvice = (item, t) => /\b(for|best|recommend|good|top|under \$?\d|that|which|comfortable|durable|cheap|budget)\b/.test(`${item} ${t}`);
+
+  // Settings you can change just by asking: nickname, light/dark, greeting, which calendar
+  function parseSettings(raw, t) {
+    let m = raw.match(/\b(?:change|set|update|switch|make|rename)\s+(?:my\s+)?(?:nick ?name|name)\s+(?:to|as|into|=)\s*["“']?(.+?)["”']?\s*[.!]*$/i)
+      || raw.match(/^(?:please\s+)?(?:call me|my (?:nick ?name|name) is|i go by)\s+["“']?(.+?)["”']?\s*[.!]*$/i)
+      || raw.match(/\b(?:nick ?name)\s+(?:to|=|should be)\s*["“']?(.+?)["”']?\s*[.!]*$/i);
+    if (m && m[1].trim().length <= 30) return { kind: "nickname", value: m[1].trim() };
+    if (/\b(dark|night) (mode|theme)\b/.test(t)) return { kind: "theme", value: /\b(off|disable|stop)\b/.test(t) ? "light" : "dark" };
+    if (/\blight (mode|theme)\b/.test(t)) return { kind: "theme", value: "light" };
+    const items = ["weather", "news", "time", "date"].filter((w) => new RegExp(`\\b${w}\\b`).test(t));
+    if (items.length && /\b(greeting|greet me|when i open|turn (on|off)|show|hide|stop (showing|telling)|add|remove)\b/.test(t) && !/\bwhat'?s\b/.test(t)) {
+      return { kind: "greeting", items, on: !/\b(off|remove|hide|stop|don'?t|no more)\b/.test(t) };
+    }
+    if (/\bcalendar\b/.test(t) && /\b(use|switch|instead|change|prefer|rather|default|from now on|do it|put it|move it)\b/.test(t) && !/\b(remind|schedule|appointment|meeting)\b/.test(t)) {
+      if (/\b(phone|samsung|apple|iphone|ios|my own|default|regular|normal|built.?in)\b/.test(t) || /calendar app/.test(t)) return { kind: "calendar", value: "phone" };
+      if (/\bgoogle\b/.test(t)) return { kind: "calendar", value: "google" };
+    }
+    return null;
+  }
+
+  async function applySettings(s) {
+    const p = prefs();
+    if (s.kind === "nickname") {
+      p.nickname = s.value;
+      save(PREFS_KEY, p);
+      return ervoSays(`Done ✅ I'll call you ${s.value} from now on.`, { status: ["✏️", "Updating your nickname"] });
+    }
+    if (s.kind === "theme") {
+      try { localStorage.setItem(THEME_KEY, s.value); } catch (e) { /* ignore */ }
+      applyTheme(s.value);
+      return ervoSays(`Switched to ${s.value} mode.`);
+    }
+    if (s.kind === "greeting") {
+      if (s.on && s.items.some((i) => i === "weather" || i === "news") && !allowed("location")) {
+        if (!(await ensure("location", "Show the weather and local news in your greeting"))) return ervoSays("Okay, I'll leave your greeting as it is.");
+        getPlace().catch(() => { /* the phone said no */ });
+      }
+      s.items.forEach((i) => { p[i] = s.on; });
+      save(PREFS_KEY, p);
+      return ervoSays(`Done ✅ ${s.on ? "I'll include" : "I'll leave out"} the ${listJoin(s.items)} when I greet you.`);
+    }
+    if (s.kind === "calendar") return switchCalendar(s.value);
   }
 
   // ---------- understanding: what does the person want? ----------
   const BUSINESS_WORDS = /\b(customer|customers|ticket|tickets|employee|employees|staff|invoice|invoices|client|clients|sales team|my team|payroll|vendor|vendors)\b/i;
   const PERSONAL_WORDS = /\b(buy me|for me to eat|groceries|snacks|gym|workout|my birthday|my headphones|vacation|date night|my mom|my dad|my kids|dentist|haircut)\b/i;
 
+  // Common typos, so "calander" and "tmrw" still make sense
+  const fixSpelling = (s) => s
+    .replace(/\b(calander|calandar|calender|calandr|calendr)\b/gi, "calendar")
+    .replace(/\b(tmrw|tmr|tmrow|tommorow|tomorow|tommorrow|tomm?orrow)\b/gi, "tomorrow")
+    .replace(/\b(nick name|nickanme|nicname)\b/gi, "nickname")
+    .replace(/\b(resturant|restraunt|restaraunt)\b/gi, "restaurant");
+
   function understand(text) {
-    const raw = text.trim();
+    const raw = fixSpelling(text.trim());
     const t = raw.toLowerCase().replace(/[’‘]/g, "'");
     const evening = /\b(dinner|tonight|evening|drinks|supper)\b/.test(t);
     const when = parseWhen(t, new Date(), evening);
@@ -439,7 +504,9 @@
     const is = (re) => re.test(t);
     const biz = account.plan === "business";
 
-    if (is(/^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|sounds good|please do|book it|add it|confirm|let'?s do it|correct|perfect)\b/)) d.intent = "yes";
+    d.settings = parseSettings(raw, t);
+    if (d.settings) d.intent = "settings";
+    else if (is(/^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|sounds good|please do|book it|add it|confirm|let'?s do it|correct|perfect)\b/)) d.intent = "yes";
     else if (is(/^(no|nope|nah|not now|cancel|stop|never ?mind|don'?t)\b/)) d.intent = "no";
     else if (is(/what can you do|how do you work|what do you do|^help\b|^menu$/)) d.intent = "help";
     else if (is(/^(thanks|thank you|thx|ty|appreciate it|cool|great|awesome|nice)\b/) && t.length < 30) d.intent = "thanks";
@@ -459,7 +526,7 @@
       if (is(/where'?s my (order|package)|track (my )?(order|package)|has my .*(shipped|arrived)|order status/)) d.intent = "track";
       else if (is(/\b(return|refund|send back|exchange)\b/)) d.intent = "return";
       else if (is(/\b(table|reservation|reserve|restaurant)\b|(book|get|find) (us |me )?(a )?(spot|place) (for|to eat)|(book|get) (us |me )?(a )?(dinner|lunch|brunch)\b|\b(dinner|lunch|brunch) for (\d|two|three|four|five|six)/)) d.intent = "reserve";
-      else if (is(/\b(buy|purchase|shop|add to (my )?cart|get me|amazon|reorder)\b|^order\b|^(i need|we need|we'?re out of|i'?m out of) /)) d.intent = "shop";
+      else if (is(/\b(buy|purchase|shop|add to (my )?cart|get me|amazon|reorder|find me|look(ing)? for|recommend|shopping for)\b|^order\b|^(i need|we need|we'?re out of|i'?m out of) |\bbest [a-z ]+ (for|under)\b/)) d.intent = "shop";
       else if (is(/schedule|calendar|remind|appointment|meeting|meet with|call with|\bbook\b|\bplan\b|set up|gym|workout|dentist|doctor|haircut|lunch with|coffee with|dinner with|\bfit\b|block (off|out)|\badd\b/) || when.date) d.intent = "event";
     }
     if (d.intent === "reserve") d.cuisine = CUISINES.find((c) => new RegExp(`\\b${c}\\b`).test(t)) || null;
@@ -533,31 +600,9 @@
     return m;
   }
 
-  // The little "Understood:" line Ervo shows before answering
-  function understoodTags(tk) {
-    const tags = [];
-    const miss = missing(tk);
-    if (tk.intent === "reserve") {
-      tags.push("Reservation");
-      if (tk.party) tags.push(`${tk.party} ${tk.party === 1 ? "person" : "people"}`);
-      if (tk.cuisine) tags.push(cap(tk.cuisine));
-      if (tk.place) tags.push(tk.place);
-    }
-    if (tk.intent === "event") {
-      const kind = account.plan === "business" ? "Meeting" : "Event";
-      tags.push(kind);
-      if (tk.title !== kind) tags.push(tk.title);
-    }
-    if (tk.intent === "shop") { tags.push("Shopping"); if (tk.item) tags.push(tk.item); }
-    if (tk.date) tags.push(fmtDate(tk.date));
-    if (tk.allDay) tags.push("All day");
-    else if (tk.time) tags.push(fmtTime(tk.time));
-    return { tags, miss: miss.map((k) => ({ party: "how many?", date: "what day?", time: "what time?", item: "what item?" })[k]) };
-  }
-
   function askForMissing(tk) {
     const miss = missing(tk);
-    const opts = { understood: understoodTags(tk) };
+    const opts = {};
     if (tk.intent === "reserve") {
       const parts = [];
       if (miss.includes("party")) parts.push("how many people");
@@ -577,7 +622,7 @@
 
   function propose(tk) {
     confirming = true;
-    const opts = { understood: understoodTags(tk), chips: ["Yes", "No"] };
+    const opts = { chips: ["Yes", "No"] };
     if (tk.date && startOfDay(tk.date) < startOfDay(new Date())) {
       confirming = false;
       tk.date = null;
@@ -588,17 +633,89 @@
       return ervoSays(`${what}, ${fmtWhen(tk)}.\n\nWant me to save it to your plans and add it to your calendar? I'll also show you places with open tables.`, opts);
     }
     if (tk.intent === "event") return ervoSays(`"${tk.title}" on ${fmtWhen(tk)}.\n\nShould I add it to your calendar?`, opts);
-    if (tk.intent === "shop") return ervoSays(`I'll look up "${tk.item}" on Amazon for you. I never buy anything without your OK.\n\nOpen Amazon now?`, opts);
+    if (tk.intent === "shop") return ervoSays(`Want me to find ${tk.item} for you on Amazon? I never buy anything without your OK.`, opts);
   }
 
-  function calendarLink(title, tk, minutes) {
-    const pad = (n) => String(n).padStart(2, "0");
-    const stamp = (x, withTime) => `${x.getFullYear()}${pad(x.getMonth() + 1)}${pad(x.getDate())}` + (withTime ? `T${pad(x.getHours())}${pad(x.getMinutes())}00` : "");
-    let dates;
-    if (tk.allDay || !tk.time) dates = `${stamp(tk.date)}/${stamp(addDays(tk.date, 1))}`;
-    else { const s = at(tk); dates = `${stamp(s, true)}/${stamp(new Date(s.getTime() + minutes * 60000), true)}`; }
-    const q = new URLSearchParams({ action: "TEMPLATE", text: title, dates, details: "Planned with Ervo", ctz: Intl.DateTimeFormat().resolvedOptions().timeZone || "" });
+  // ---------- calendars: the phone's own calendar app, or Google Calendar ----------
+  // An event is { title, start: Date, end: Date, allDay, notes }.
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const stamp = (x, withTime) => `${x.getFullYear()}${pad2(x.getMonth() + 1)}${pad2(x.getDate())}` + (withTime ? `T${pad2(x.getHours())}${pad2(x.getMinutes())}00` : "");
+  const CAL_NAMES = { phone: "your phone's calendar", google: "Google Calendar" };
+  let lastEvent = null;
+
+  function eventFromTask(tk, title, minutes) {
+    const allDay = !!(tk.allDay || !tk.time);
+    const start = allDay ? startOfDay(tk.date) : at(tk);
+    const end = allDay ? addDays(start, 1) : new Date(start.getTime() + minutes * 60000);
+    return { title, start, end, allDay, notes: "Planned with Ervo" };
+  }
+
+  function googleLink(ev) {
+    const dates = ev.allDay ? `${stamp(ev.start)}/${stamp(ev.end)}` : `${stamp(ev.start, true)}/${stamp(ev.end, true)}`;
+    const q = new URLSearchParams({ action: "TEMPLATE", text: ev.title, dates, details: ev.notes || "Planned with Ervo", ctz: Intl.DateTimeFormat().resolvedOptions().timeZone || "" });
     return `https://calendar.google.com/calendar/render?${q}`;
+  }
+
+  // iPhone (and computers): a calendar file. iPhone shows "Add to Calendar", where you pick the calendar.
+  function openIcs(ev) {
+    const esc = (s) => String(s).replace(/\\/g, "\\\\").replace(/[,;]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+    const utc = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+    const when = (d) => (ev.allDay ? `;VALUE=DATE:${stamp(d)}` : `:${stamp(d, true)}`);
+    const ics = [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Ervo//Ervo app//EN", "BEGIN:VEVENT",
+      `UID:${Date.now().toString(36)}@ervo.app`, `DTSTAMP:${utc}`, `DTSTART${when(ev.start)}`, `DTEND${when(ev.end)}`,
+      `SUMMARY:${esc(ev.title)}`, `DESCRIPTION:${esc(ev.notes || "Planned with Ervo")}`, "END:VEVENT", "END:VCALENDAR",
+    ].join("\r\n");
+    const url = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) { location.href = url; return; }
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ervo-event.ics";
+    document.body.append(a);
+    a.click();
+    a.remove();
+  }
+
+  // Asks once which calendar to use; you can change it in Connected apps or by asking Ervo
+  let calResolve = null;
+  function pickCalendar() {
+    $("calpick").hidden = false;
+    return new Promise((resolve) => { calResolve = resolve; });
+  }
+  function answerCalendar(which) {
+    $("calpick").hidden = true;
+    const r = calResolve;
+    calResolve = null;
+    if (r) r(which);
+  }
+  $("cal-phone").addEventListener("click", () => answerCalendar("phone"));
+  $("cal-google").addEventListener("click", () => answerCalendar("google"));
+  $("cal-cancel").addEventListener("click", () => answerCalendar(null));
+  $("calpick").addEventListener("click", (e) => { if (e.target === $("calpick")) answerCalendar(null); });
+  // Android: no calendar app on the phone, so offer Google Calendar instead
+  window.ervoCalendarError = () => {
+    if (!lastEvent) return;
+    const ev = lastEvent;
+    ervoSays("I couldn't find a calendar app on your phone. Want to use Google Calendar instead?", { acts: [{ label: "Use Google Calendar", icon: "calendar", onClick: () => switchCalendar("google").then(() => ev) }] });
+  };
+  function setCalendarChoice(which) { const p = prefs(); p.calendar = which; save(PREFS_KEY, p); }
+
+  // Returns which calendar it opened, false if they said no, or null if they backed out
+  async function addToCalendar(ev, which) {
+    which = which || prefs().calendar;
+    if (!which) {
+      which = await pickCalendar();
+      if (!which) return null;
+      setCalendarChoice(which);
+    }
+    const key = which === "phone" ? "phonecal" : "calendar";
+    if (!(await ensure(key, `Add "${ev.title}" to your calendar`))) return false;
+    setStatus("📅", "Adding to calendar");
+    lastEvent = ev;
+    if (which === "google") openOutside(googleLink(ev));
+    else if (native && native.addCalendarEvent) native.addCalendarEvent(ev.title, ev.start.getTime(), ev.end.getTime(), !!ev.allDay, ev.notes || "Planned with Ervo");
+    else openIcs(ev);
+    return which;
   }
 
   async function runTask(tk) {
@@ -607,29 +724,44 @@
     if (tk.intent === "reserve" || tk.intent === "event") {
       const reserve = tk.intent === "reserve";
       const title = reserve ? `${meal(tk.time)} for ${tk.party}${tk.place ? ` at ${tk.place}` : ""}` : tk.title;
-      const link = calendarLink(title, tk, reserve ? 90 : 60);
+      const ev = eventFromTask(tk, title, tk.minutes || (reserve ? 90 : 60));
       const acts = [];
       if (reserve) {
         const q = `${tk.cuisine ? tk.cuisine + " " : ""}restaurants${tk.place ? " " + tk.place : ""} near me`;
         acts.push({ label: "Find a table", icon: "food", href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` });
       }
-      logActivity({ kind: tk.intent, ico: reserve ? "food" : "calendar", title, detail: reserve ? `${tk.party} ${tk.party === 1 ? "person" : "people"}` : "", when: at(tk).toISOString(), allDay: !!(tk.allDay || !tk.time), link });
-      const ok = await ensure("calendar", `Add "${title}" to your calendar`);
-      if (ok) {
-        openOutside(link);
-        acts.unshift({ label: "Open in Google Calendar", icon: "calendar", href: link });
-        return ervoSays(`Done ✅ "${title}", ${fmtWhen(tk)}. It's in your Ervo Stats, and I opened Google Calendar so you can save it there too.${reserve ? "\n\nI can't call restaurants myself yet, so tap Find a table to pick a place." : ""}`, { acts });
-      }
-      return ervoSays(`No problem, I won't use Google Calendar. "${title}" is saved in your Ervo Stats under Upcoming.`, { acts });
+      logActivity({ kind: tk.intent, ico: reserve ? "food" : "calendar", title, detail: reserve ? `${tk.party} ${tk.party === 1 ? "person" : "people"}` : "", when: ev.start.toISOString(), allDay: ev.allDay, link: googleLink(ev) });
+      return finishCalendar(ev, await addToCalendar(ev), acts, reserve ? "\n\nI can't call restaurants myself yet, so tap Find a table to pick a place." : "");
     }
     if (tk.intent === "shop") {
       const url = `https://www.amazon.com/s?k=${encodeURIComponent(tk.item)}`;
       const ok = await ensure("amazon", `Look up "${tk.item}"`);
       if (!ok) return ervoSays("Okay, I won't open Amazon. You can allow it anytime from Connected apps in the menu.");
       logActivity({ kind: "shop", ico: "shop", title: `Looked up ${tk.item}`, detail: "Amazon", link: url });
+      setStatus("🔍", `Searching for ${tk.item}`);
       openOutside(url);
-      return ervoSays(`Opened Amazon with results for "${tk.item}". Pick the one you like. I'll never check out for you without asking.`, { acts: [{ label: "Open Amazon again", icon: "shop", href: url }] });
+      return ervoSays(`Opened Amazon with results for "${tk.item}". Pick the one you like. Want me to narrow it down? Tell me what it's for, like "for long work shifts".`, { status: ["🔍", `Searching for ${tk.item}`], acts: [{ label: "Open Amazon again", icon: "shop", href: url }] });
     }
+  }
+
+  function finishCalendar(ev, which, acts, extra) {
+    acts = acts || [];
+    const when = `${fmtDate(ev.start)}${ev.allDay ? "" : ` at ${fmtTime({ h: ev.start.getHours(), m: ev.start.getMinutes() })}`}`;
+    if (which === "phone" || which === "google") {
+      const other = which === "phone" ? "google" : "phone";
+      acts.push({ label: which === "google" ? "Open in Google Calendar" : "Open calendar again", icon: "calendar", onClick: () => addToCalendar(ev, which) });
+      acts.push({ label: `Use ${other === "google" ? "Google Calendar" : "phone calendar"} instead`, icon: "calendar", onClick: () => switchCalendar(other) });
+      return ervoSays(`Done ✅ "${ev.title}", ${when}. I opened ${CAL_NAMES[which]} with it filled in, so pick the calendar you want and tap Save. It's in your Ervo Stats too.${extra || ""}`, { acts });
+    }
+    if (which === null) return ervoSays(`Okay. "${ev.title}" is saved in your Ervo Stats, and I didn't add it to a calendar.`, { acts });
+    return ervoSays(`No problem, I won't open your calendar. "${ev.title}" is saved in your Ervo Stats under Upcoming.`, { acts });
+  }
+
+  async function switchCalendar(which) {
+    setCalendarChoice(which);
+    if (!lastEvent) return ervoSays(`Got it. I'll use ${CAL_NAMES[which]} from now on.`);
+    const ev = lastEvent;
+    return finishCalendar(ev, await addToCalendar(ev, which), [], `\n\nI'll use ${CAL_NAMES[which]} from now on.`);
   }
 
   // ---------- chat ----------
@@ -647,14 +779,62 @@
     return el;
   }
 
-  function showUnderstood(u) {
-    if (!u || (!u.tags.length && !u.miss.length)) return;
-    const el = document.createElement("div");
-    el.className = "understood";
-    el.append("Understood:");
-    u.tags.forEach((x) => { const s = document.createElement("span"); s.className = "tag"; s.textContent = x; el.append(s); });
-    u.miss.forEach((x) => { const s = document.createElement("span"); s.className = "tag missing"; s.textContent = x; el.append(s); });
-    thread.append(el);
+  // Product picks from Ervo's research: name, price, rating, why it fits, and buttons
+  const asinOf = (url) => { const m = String(url || "").match(/amazon\.[a-z.]+\/(?:[^/]+\/)?(?:dp|gp\/product)\/([A-Z0-9]{10})/i); return m ? m[1].toUpperCase() : null; };
+  function showProducts(products) {
+    const row = document.createElement("div");
+    row.className = "products";
+    products.slice(0, 5).forEach((p) => {
+      const card = document.createElement("div");
+      card.className = "product";
+      const name = document.createElement("b");
+      name.textContent = p.name;
+      const meta = document.createElement("small");
+      meta.textContent = [p.price, p.rating].filter(Boolean).join(" · ");
+      const why = document.createElement("p");
+      why.textContent = p.why || "";
+      const btns = document.createElement("div");
+      btns.className = "product-btns";
+      const asin = asinOf(p.url);
+      const search = `https://www.amazon.com/s?k=${encodeURIComponent(p.name)}`;
+      const view = document.createElement("button");
+      view.type = "button";
+      view.className = "act";
+      view.textContent = "View";
+      view.addEventListener("click", () => openShop(p.url && /^https:\/\//.test(p.url) ? p.url : search, `Look at ${p.name}`));
+      const cart = document.createElement("button");
+      cart.type = "button";
+      cart.className = "act primary";
+      cart.innerHTML = ICON.shop;
+      cart.append(asin ? "Add to cart" : "Find on Amazon");
+      cart.addEventListener("click", () => addToCart(p, asin, search));
+      btns.append(view, cart);
+      card.append(name);
+      if (meta.textContent) card.append(meta);
+      if (why.textContent) card.append(why);
+      card.append(btns);
+      row.append(card);
+    });
+    thread.append(row);
+  }
+  async function openShop(url, reason) {
+    if (!(await ensure("amazon", reason))) return ervoSays("Okay, I won't open Amazon.");
+    openOutside(url);
+  }
+  // Amazon's own "add to cart" page: you see the item and confirm. You check out yourself.
+  async function addToCart(p, asin, search) {
+    if (!(await ensure("amazon", `Add ${p.name} to your Amazon cart`))) return ervoSays("Okay, I won't open Amazon.");
+    if (!asin) {
+      openOutside(search);
+      return ervoSays(`I opened Amazon with "${p.name}". Tap Add to Cart on the one you want.`);
+    }
+    setStatus("🛒", "Adding to cart");
+    openOutside(`https://www.amazon.com/gp/aws/cart/add.html?ASIN.1=${asin}&Quantity.1=1`);
+    logActivity({ kind: "cart", ico: "shop", title: `Added ${p.name} to cart`, detail: [p.price, "Amazon"].filter(Boolean).join(" · "), link: "https://www.amazon.com/gp/cart/view.html" });
+    return ervoSays(`Amazon will ask you to confirm adding ${p.name} to your cart. When you're ready, check out there with your saved card. I'll never pay for anything myself.`, {
+      status: ["🛒", "Adding to cart"],
+      acts: [{ label: "Open my cart", icon: "shop", href: "https://www.amazon.com/gp/cart/view.html" }],
+    });
   }
 
   function showActs(acts) {
@@ -679,11 +859,38 @@
     thread.append(row);
   }
 
+  // ---------- status pill: what Ervo is doing right now ----------
+  function setStatus(ico, text) {
+    $("status-ico").textContent = ico || "";
+    $("status-text").textContent = text;
+    $("status").classList.add("busy");
+  }
+  function idleStatus() {
+    $("status-ico").textContent = "";
+    $("status-text").textContent = account ? PLAN[account.plan].label : "";
+    $("status").classList.remove("busy");
+  }
+
+  // The messages scroll behind the see-through header and bottom bar
+  if ("ResizeObserver" in window) {
+    const head = document.querySelector(".chat-header");
+    const ro = new ResizeObserver(() => {
+      const near = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 120;
+      $("chat").style.setProperty("--head-h", `${head.offsetHeight}px`);
+      $("chat").style.setProperty("--dock-h", `${$("dock").offsetHeight}px`);
+      if (near) thread.scrollTop = thread.scrollHeight;
+    });
+    ro.observe(head);
+    ro.observe($("dock"));
+  }
+
   // Ervo "types", then answers. `text` can be a promise (weather, AI server).
+  // opts.status: [emoji, words] for the status pill while Ervo works on it.
   let lastWasVoice = false;
   async function ervoSays(text, opts) {
     opts = opts || {};
-    if (opts.understood) showUnderstood(opts.understood);
+    if (opts.status) setStatus(opts.status[0], opts.status[1]);
+    else setStatus("", "Typing…");
     const t = document.createElement("div");
     t.className = "typing";
     t.setAttribute("aria-label", "Ervo is typing");
@@ -694,10 +901,16 @@
     lastWasVoice = false;
     let said;
     try { said = await Promise.resolve(text); } catch (e) { said = "Sorry, something went wrong. Try again in a moment."; }
+    if (said && typeof said === "object") {
+      opts = Object.assign({}, opts, { products: said.products, chips: said.chips || opts.chips, acts: said.acts || opts.acts });
+      said = said.text;
+    }
     await delay(500 + Math.min(String(said).length * 8, 900));
     t.remove();
+    idleStatus();
     bubble(said, "them");
     history.push({ role: "assistant", text: said });
+    if (opts.products && opts.products.length) showProducts(opts.products);
     if (opts.acts && opts.acts.length) showActs(opts.acts);
     setChips(opts.chips || PLAN[account.plan].chips);
     thread.scrollTop = thread.scrollHeight;
@@ -737,9 +950,13 @@
     account = acc;
     const p = PLAN[acc.plan];
     $("chat-avatar").src = p.avatar;
-    $("mode-badge").textContent = p.label;
     $("menu-who").textContent = `${acc.name} · Ervo ${acc.plan === "business" ? "for Business" : "Personal"}`;
     thread.innerHTML = "";
+    const note = document.createElement("p");
+    note.className = "preview-note";
+    note.textContent = "Preview: Ervo always asks before it opens or uses another app, and never buys anything for you.";
+    thread.append(note);
+    idleStatus();
     history = [];
     task = null;
     confirming = false;
@@ -850,7 +1067,7 @@
     const gl = (place && place.country) || (lang.split("-")[1] || "US");
     const newsUrl = `https://news.google.com/search?q=${encodeURIComponent(area || "local news")}&hl=${lang}&gl=${gl}&ceid=${gl}:${lang.split("-")[0]}`;
     if (AI_URL) {
-      const text = askServer({ task: "news" }).catch(() => null);
+      const text = askServer({ task: "news" }).then((j) => j.reply).catch(() => null);
       const said = await ervoSays(text.then((x) => x || `Here's today's news${area ? ` for ${place.city}` : ""}.`), { acts: [{ label: "More news", icon: "open", href: newsUrl }] });
       return said;
     }
@@ -862,7 +1079,7 @@
     let place = null;
     try { place = allowed("location") ? load(PLACE_KEY) : null; } catch (e) { /* ignore */ }
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 45000);
+    const timer = setTimeout(() => ctrl.abort(), 75000); // research with web search can take a bit
     try {
       const r = await fetch(`${AI_URL}/chat`, {
         method: "POST",
@@ -872,6 +1089,7 @@
           plan: account.plan,
           name: prefs().nickname || account.name,
           messages: history.slice(-16),
+          memory: memory(),
           context: {
             now: new Date().toString(),
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -879,12 +1097,72 @@
           },
         }, extra || {})),
       });
-      if (!r.ok) throw new Error(`server ${r.status}`);
-      const j = await r.json();
-      return j.reply;
+      if (!r.ok && r.status !== 429) throw new Error(`server ${r.status}`);
+      return await r.json();
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  // ---------- learning: small facts Ervo remembers about you ("I work 12-hour shifts") ----------
+  const MEMORY_KEY = "ervo-memory";
+  const memory = () => load(MEMORY_KEY) || [];
+  function remember(facts) {
+    const m = memory();
+    facts.forEach((f) => { const x = String(f || "").trim().slice(0, 200); if (x && !m.includes(x)) m.push(x); });
+    save(MEMORY_KEY, m.slice(-40));
+  }
+
+  // What the status pill says while the AI works on it
+  function guessStatus(d) {
+    if (d.intent === "shop") {
+      const item = shopItem(d.raw) || "that";
+      return wantsAdvice(item, d.t) ? ["🔍", `Researching ${item}`] : ["🔍", `Looking for ${item}`];
+    }
+    if (d.intent === "event" || d.intent === "reserve") return ["📅", "Planning it"];
+    if (/\b(how|what|why|when|where|who|which|best|recommend|compare)\b/.test(d.t)) return ["🔎", "Looking it up"];
+    return ["💭", "Thinking"];
+  }
+
+  // Sends the message to Ervo's AI, then does what it asked for: show products,
+  // offer to add an event, search Amazon, or change a setting. Anything that
+  // opens another app still waits for your yes and your Allow.
+  function askAI(d) {
+    const status = guessStatus(d);
+    const result = askServer().then((j) => {
+      if (j.memories && j.memories.length) remember(j.memories);
+      const out = { text: j.reply || "Done.", products: [], chips: null };
+      (j.actions || []).forEach((a) => {
+        if (a.type === "show_products" && Array.isArray(a.products)) {
+          out.products = a.products;
+          logActivity({ kind: "research", ico: "shop", title: `Found picks for ${a.query || "you"}`, detail: `${a.products.length} options` });
+        } else if (a.type === "add_calendar_event" && a.title && a.start) {
+          const m = String(a.start).match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+          if (!m) return;
+          const date = new Date(+m[1], +m[2] - 1, +m[3]);
+          const time = m[4] && !a.all_day ? { h: +m[4], m: +m[5] } : null;
+          let minutes = 60;
+          const e = String(a.end || "").match(/(\d{2}):(\d{2})(?::\d{2})?$/);
+          if (time && e) minutes = Math.max(15, (+e[1] * 60 + +e[2]) - (time.h * 60 + time.m)) || 60;
+          task = { intent: "event", title: String(a.title).slice(0, 80), date, time, allDay: !time, minutes };
+          confirming = true;
+          out.chips = ["Yes", "No"];
+        } else if (a.type === "amazon_search" && a.query) {
+          task = { intent: "shop", item: String(a.query).slice(0, 80) };
+          confirming = true;
+          out.chips = ["Yes", "No"];
+        } else if (a.type === "update_settings") {
+          const p = prefs();
+          if (a.nickname) p.nickname = String(a.nickname).slice(0, 30);
+          ["weather", "news", "time", "date"].forEach((k) => { if (typeof a[k] === "boolean") p[k] = a[k]; });
+          if (a.calendar === "phone" || a.calendar === "google") p.calendar = a.calendar;
+          save(PREFS_KEY, p);
+          if (a.theme === "dark" || a.theme === "light") { try { localStorage.setItem(THEME_KEY, a.theme); } catch (e) { /* ignore */ } applyTheme(a.theme); }
+        }
+      });
+      return out;
+    }).catch(() => "I couldn't reach my AI service just now. Try again in a moment.");
+    return ervoSays(result, { status });
   }
 
   // ---------- answering ----------
@@ -936,7 +1214,10 @@
       confirming = false;
     }
 
+    if (AI_URL && ["unknown", "event", "reserve", "shop"].includes(d.intent)) return askAI(d);
+
     switch (d.intent) {
+      case "settings": return applySettings(d.settings);
       case "reserve": case "event": case "shop": {
         task = newTask(d);
         if (biz && d.intent === "event" && task.title === "New event") task.title = "Meeting";
@@ -968,19 +1249,17 @@
           yes: "Refund sent ✅ $64.00 back to the customer's card, and I emailed them a return label. Ticket closed.", no: "Okay, I've left it for your team to review.",
           log: { kind: "refund", ico: "done", title: "Refunded order #5512", detail: "$64.00 · damaged on arrival" },
         };
-        return ervoSays("Order #5512: a blender that arrived cracked, $64.00, delivered 4 days ago.\nYour policy: damaged on arrival → full refund ✓\n\nShould I issue the refund and reply to the customer?", { understood: { tags: ["Refund", "Order #5512"], miss: [] }, chips: ["Yes, refund it", "Send to my team"] });
+        return ervoSays("Order #5512: a blender that arrived cracked, $64.00, delivered 4 days ago.\nYour policy: damaged on arrival → full refund ✓\n\nShould I issue the refund and reply to the customer?", { chips: ["Yes, refund it", "Send to my team"] });
       case "tickets":
-        return ervoSays("Today so far (sample):\n• 42 customer tickets\n• 38 resolved by me, average 41 seconds\n• 4 sent to your team (2 bulk orders, 1 billing question, 1 upset customer)", { understood: { tags: ["Ticket summary", "Today"], miss: [] } });
+        return ervoSays("Today so far (sample):\n• 42 customer tickets\n• 38 resolved by me, average 41 seconds\n• 4 sent to your team (2 bulk orders, 1 billing question, 1 upset customer)", {  });
       case "email": {
         const body = "Hi Jordan,\n\nI'm really sorry your order arrived late. I've refunded your shipping and added a 15% credit to your account. If there's anything else I can do, just reply here.\n\nThanks for your patience.";
         const mail = `mailto:?subject=${encodeURIComponent("About your order")}&body=${encodeURIComponent(body)}`;
         return ervoSays(`Here's a draft:\n\n"${body}"\n\nWant to send it from your email?`, {
-          understood: { tags: ["Customer reply", "Apologize + make it right"], miss: [] },
           acts: [{ label: "Open in email", icon: "mail", onClick: () => ensure("mail", "Open this draft in your email").then((ok) => { if (ok) { logActivity({ kind: "email", ico: "mail", title: "Drafted a customer reply" }); openOutside(mail); } }) }],
         });
       }
       default:
-        if (AI_URL) return ervoSays(askServer().catch(() => "I couldn't reach my AI service just now. Try again in a moment."));
         return ervoSays(biz
           ? "I want to make sure I get this right. Is it about a customer, a refund, or a meeting?"
           : "I want to make sure I get this right. Should I plan something, add it to your calendar, or find something to buy?",
@@ -1151,7 +1430,9 @@
       if (key === "health" && !(native && native.stepsStatus)) return; // phones without the Android app can't share steps yet
       const state = connections()[key];
       const on = state && state.status === "allowed";
-      const sub = on ? `Allowed ${ago(state.at).toLowerCase()}` : state && state.status === "denied" ? "Not allowed" : "Not connected";
+      let sub = on ? `Allowed ${ago(state.at).toLowerCase()}` : state && state.status === "denied" ? "Not allowed" : "Not connected";
+      const calKind = key === "phonecal" ? "phone" : key === "calendar" ? "google" : null;
+      if (calKind && prefs().calendar === calKind) sub = `Used for new events · ${sub.toLowerCase()}`;
       const r = row(c.ico, c.name, sub);
       const btn = document.createElement("button");
       btn.type = "button";
@@ -1176,7 +1457,9 @@
     if (!ok) { setConnection(key, "denied"); renderApps(); return; }
     setConnection(key, "allowed");
     logActivity({ kind: "connect", ico: c.ico, title: `Connected ${c.name}` });
+    if (key === "phonecal" || key === "calendar") setCalendarChoice(key === "phonecal" ? "phone" : "google");
     if (key === "health" && native && native.requestSteps) native.requestSteps();
+    else if (key === "phonecal") { /* nothing to sign in to */ }
     else if (key === "location") getPlace().catch(() => { /* the phone said no */ }).then(renderStats);
     else if (c.login) openOutside(c.login); // signs in, or opens the app if you're signed in already
     renderStats();
@@ -1251,7 +1534,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.2.1"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.2.2"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -1567,7 +1850,7 @@
   $("sign-out").addEventListener("click", () => {
     toggleMenu(false);
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
-    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY].forEach(drop);
+    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory"].forEach(drop);
     account = null;
     ["contact", "code", "name"].forEach((id) => { $(id).value = ""; });
     setPlan("personal");
