@@ -1208,7 +1208,7 @@
     return ervoSays(`Here's today's news${area ? ` for ${place.city}` : ""}. Tap to read it.`, { acts: [{ label: "Today's news", icon: "open", href: newsUrl }] });
   }
 
-  // ---------- Ervo's private AI server (optional, see server/README.md) ----------
+  // ---------- Ervo's private AI server (optional; its code is kept private) ----------
   async function askServer(extra) {
     let place = null;
     try { place = allowed("location") ? load(PLACE_KEY) : null; } catch (e) { /* ignore */ }

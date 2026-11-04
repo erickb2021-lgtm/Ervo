@@ -61,7 +61,7 @@
 5. Tap **+** to send a photo or a link.
 6. **Updates:** Ervo tells you when a new version is ready. Tap **Update now** (or **⋮ → Check for updates**). On Android the first update asks you once to allow installs from Ervo.
 
-This is an early preview: sign-in codes aren't sent yet, and some answers are samples. To turn on Ervo's full AI and see what each sync needs, read [server/README.md](server/README.md).
+This is an early preview: sign-in codes aren't sent yet, and a few answers are samples. Ervo's AI runs on a private server, so its code isn't in this repo.
 
 ## Why I built Ervo
 
@@ -77,5 +77,5 @@ Just as important, Ervo keeps you in charge. It asks before it buys anything or 
   <a href="https://erickb2021-lgtm.github.io/Ervo/privacy.html">Privacy</a> ·
   <a href="https://erickb2021-lgtm.github.io/Ervo/terms.html">Terms</a> ·
   <a href="https://erickb2021-lgtm.github.io/Ervo/contact.html">Contact</a>
-  <br><sub>Video music: "Ever Changing" by Infraction. © 2026 Erick S. Bardales.</sub>
+  <br><sub>Video music: "Ever Changing" by Infraction. © 2026 Erick S. Bardales. All rights reserved (see <a href="LICENSE">LICENSE</a>).</sub>
 </p>
