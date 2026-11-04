@@ -9,7 +9,13 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.provider.AlarmClock
 import android.provider.CalendarContract
+import android.provider.ContactsContract
+import android.speech.RecognitionListener
+import android.speech.SpeechRecognizer
+import android.telephony.PhoneNumberUtils
+import android.telephony.TelephonyManager
 import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
@@ -105,6 +111,39 @@ class MainActivity : AppCompatActivity() {
         else callJs("ervoEvents", """{"status":"denied"}""")
     }
 
+    // Microphone for Ervo's own listening screen (the owl). Without it, the phone's voice popup is used.
+    private val micLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) listenInApp() else listenWithPopup()
+    }
+
+    // "Hey Ervo": microphone, plus notifications on Android 13+ so the listening notice shows
+    private val wakeLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        if (result[Manifest.permission.RECORD_AUDIO] == true || hasPermission(Manifest.permission.RECORD_AUDIO)) {
+            WakeService.setEnabled(this, true)
+            WakeService.start(this)
+        }
+        webView.postDelayed({ callJs("ervoWakeState", wakeStatusJson()) }, 400)
+    }
+
+    // Contacts: asked the first time someone asks Ervo to call a person
+    private var pendingContact: String? = null
+    private val contactsLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val name = pendingContact
+        pendingContact = null
+        if (granted && name != null) findContactsNow(name) else callJs("ervoContacts", """{"status":"denied"}""")
+    }
+
+    // Calls: with this, the call starts right away; without it, the dialer opens with the number in
+    private var pendingCall: String? = null
+    private val callLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val number = pendingCall ?: return@registerForActivityResult
+        pendingCall = null
+        placeCall(number, granted)
+    }
+
+    private var recognizer: SpeechRecognizer? = null
+    private var pendingWake: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -179,6 +218,12 @@ class MainActivity : AppCompatActivity() {
             if (ttsReady) tts?.language = Locale.getDefault()
         }
 
+        // "Hey Ervo" was on: start listening again (Android only allows this while Ervo is open)
+        if (WakeService.isEnabled(this) && hasPermission(Manifest.permission.RECORD_AUDIO) && !WakeService.running) {
+            try { WakeService.start(this) } catch (e: Exception) { /* try again next time */ }
+        }
+        takeWakeIntent(intent)
+
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
         } else {
@@ -196,24 +241,117 @@ class MainActivity : AppCompatActivity() {
 
     /** Methods the app screens can call as ErvoNative.method(). */
     inner class Bridge {
+        /** Listens on Ervo's own screen (words show up as you talk); falls back to the phone's voice popup. */
         @JavascriptInterface
         fun startListening() = runOnUiThread {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Talk to Ervo")
-            }
-            try {
-                voiceLauncher.launch(intent)
-            } catch (e: ActivityNotFoundException) {
-                callJs("ervoVoiceError", "This phone doesn't have a speech recognizer. Try typing instead.")
+            when {
+                !SpeechRecognizer.isRecognitionAvailable(this@MainActivity) -> listenWithPopup()
+                hasPermission(Manifest.permission.RECORD_AUDIO) -> listenInApp()
+                else -> micLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
         }
 
+        /** "Done": stop and use what was heard so far. */
         @JavascriptInterface
-        fun stopListening() {
-            // The system voice screen closes on its own when you stop talking
+        fun stopListening() = runOnUiThread { recognizer?.stopListening() }
+
+        /** "Cancel": stop and throw it away. */
+        @JavascriptInterface
+        fun cancelListening() = runOnUiThread { endListening() }
+
+        // ---------- "Hey Ervo" ----------
+        @JavascriptInterface
+        fun wakeStatus(): String = wakeStatusJson()
+
+        @JavascriptInterface
+        fun setWake(on: Boolean) = runOnUiThread {
+            if (!on) {
+                WakeService.setEnabled(this@MainActivity, false)
+                WakeService.stop(this@MainActivity)
+                webView.postDelayed({ callJs("ervoWakeState", wakeStatusJson()) }, 400)
+                return@runOnUiThread
+            }
+            val ask = mutableListOf(Manifest.permission.RECORD_AUDIO)
+            if (android.os.Build.VERSION.SDK_INT >= 33) ask.add(Manifest.permission.POST_NOTIFICATIONS)
+            wakeLauncher.launch(ask.toTypedArray())
         }
+
+        /** "Display over other apps", so "Hey Ervo" can open Ervo while you're in another app. */
+        @JavascriptInterface
+        fun openOverlaySettings() = runOnUiThread {
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            } catch (e: ActivityNotFoundException) { /* not on this phone */ }
+        }
+
+        /** Where the user picks Ervo as the phone's digital assistant app. */
+        @JavascriptInterface
+        fun openAssistantSettings() = runOnUiThread {
+            val tries = listOf(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS), Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS), Intent(Settings.ACTION_SETTINGS))
+            for (i in tries) {
+                try { startActivity(i); break } catch (e: Exception) { /* try the next one */ }
+            }
+        }
+
+        /** What Ervo was opened with ("Hey Ervo, ..." or the assistant button), once. */
+        @JavascriptInterface
+        fun takeWake(): String {
+            val w = pendingWake ?: return ""
+            pendingWake = null
+            return w
+        }
+
+        /** Let "Hey Ervo" listen again after Ervo has finished talking or listening. */
+        @JavascriptInterface
+        fun resumeWake() { WakeService.resume(this@MainActivity) }
+
+        // ---------- contacts and calls ----------
+        /** People in the phone's contacts whose name matches, sent to window.ervoContacts. */
+        @JavascriptInterface
+        fun findContacts(name: String) = runOnUiThread {
+            if (hasPermission(Manifest.permission.READ_CONTACTS)) findContactsNow(name)
+            else { pendingContact = name; contactsLauncher.launch(Manifest.permission.READ_CONTACTS) }
+        }
+
+        /** Calls a number the user picked. Emergency numbers are never called by Ervo. */
+        @JavascriptInterface
+        fun callNumber(number: String) = runOnUiThread {
+            if (isEmergency(number)) { callJs("ervoCall", """{"status":"emergency"}"""); return@runOnUiThread }
+            if (hasPermission(Manifest.permission.CALL_PHONE)) placeCall(number, true)
+            else { pendingCall = number; callLauncher.launch(Manifest.permission.CALL_PHONE) }
+        }
+
+        /** Opens the phone's dialer with a number filled in. You tap Call yourself. */
+        @JavascriptInterface
+        fun dialNumber(number: String) = runOnUiThread { openOutside(Uri.fromParts("tel", number, null), Intent.ACTION_DIAL) }
+
+        // ---------- clock ----------
+        /** Starts a timer in the phone's Clock app. */
+        @JavascriptInterface
+        fun setTimer(seconds: Int, label: String) = runOnUiThread {
+            clock(Intent(AlarmClock.ACTION_SET_TIMER).apply {
+                putExtra(AlarmClock.EXTRA_LENGTH, seconds.coerceIn(1, 86400))
+                if (label.isNotBlank()) putExtra(AlarmClock.EXTRA_MESSAGE, label)
+                putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+            }, "timer")
+        }
+
+        /** Sets an alarm in the phone's Clock app. days: "2,3,4,5,6" (Mon-Fri), or "" for once. */
+        @JavascriptInterface
+        fun setAlarm(hour: Int, minute: Int, label: String, days: String) = runOnUiThread {
+            clock(Intent(AlarmClock.ACTION_SET_ALARM).apply {
+                putExtra(AlarmClock.EXTRA_HOUR, hour.coerceIn(0, 23))
+                putExtra(AlarmClock.EXTRA_MINUTES, minute.coerceIn(0, 59))
+                if (label.isNotBlank()) putExtra(AlarmClock.EXTRA_MESSAGE, label)
+                val list = ArrayList(days.split(",").mapNotNull { it.trim().toIntOrNull() }.filter { it in 1..7 })
+                if (list.isNotEmpty()) putExtra(AlarmClock.EXTRA_DAYS, list)
+                putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+            }, "alarm")
+        }
+
+        /** Opens the alarms list in the Clock app. */
+        @JavascriptInterface
+        fun showAlarms() = runOnUiThread { clock(Intent(AlarmClock.ACTION_SHOW_ALARMS), "show") }
 
         @JavascriptInterface
         fun speak(text: String) = runOnUiThread {
@@ -603,6 +741,174 @@ class MainActivity : AppCompatActivity() {
     private fun hasPermission(permission: String) =
         ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 
+    // ---------- listening on Ervo's own screen ----------
+    private fun listenInApp() {
+        WakeService.pause(this)
+        recognizer?.destroy()
+        val r = SpeechRecognizer.createSpeechRecognizer(this)
+        recognizer = r
+        r.setRecognitionListener(object : RecognitionListener {
+            override fun onPartialResults(partialResults: Bundle?) {
+                val text = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+                if (!text.isNullOrBlank()) callJs("ervoVoicePartial", text)
+            }
+            override fun onResults(results: Bundle?) {
+                val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
+                endListening()
+                callJs("ervoVoiceResult", text)
+            }
+            override fun onError(error: Int) {
+                endListening()
+                when (error) {
+                    SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> callJs("ervoVoiceResult", "")
+                    SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> callJs("ervoVoiceError", "I need an internet connection to hear you. Try again in a moment.")
+                    else -> callJs("ervoVoiceError", "Something went wrong with the microphone. Try again.")
+                }
+            }
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        }
+        // Give the "Hey Ervo" listener a moment to let go of the microphone
+        webView.postDelayed({
+            try { r.startListening(intent) } catch (e: Exception) { endListening(); listenWithPopup() }
+        }, if (WakeService.running) 350L else 0L)
+    }
+
+    private fun endListening() {
+        recognizer?.destroy()
+        recognizer = null
+        WakeService.resume(this)
+    }
+
+    private fun listenWithPopup() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Talk to Ervo")
+        }
+        try {
+            voiceLauncher.launch(intent)
+        } catch (e: ActivityNotFoundException) {
+            callJs("ervoVoiceError", "This phone doesn't have a speech recognizer. Try typing instead.")
+        }
+    }
+
+    // ---------- "Hey Ervo" and the assistant button ----------
+    private fun wakeStatusJson(): String {
+        val assistant = try {
+            android.os.Build.VERSION.SDK_INT >= 29 &&
+                getSystemService(android.app.role.RoleManager::class.java).isRoleHeld(android.app.role.RoleManager.ROLE_ASSISTANT)
+        } catch (e: Exception) { false }
+        return JSONObject()
+            .put("on", WakeService.isEnabled(this) && WakeService.running)
+            .put("mic", hasPermission(Manifest.permission.RECORD_AUDIO))
+            .put("overlay", Settings.canDrawOverlays(this))
+            .put("assistant", assistant)
+            .toString()
+    }
+
+    /** Opened by "Hey Ervo" or as the phone's assistant: hand it to the page. */
+    private fun takeWakeIntent(intent: Intent?): Boolean {
+        val action = intent?.action ?: return false
+        if (action != ACTION_WAKE && action != Intent.ACTION_ASSIST) return false
+        val command = intent.getStringExtra(EXTRA_COMMAND).orEmpty()
+        pendingWake = JSONObject().put("command", command).toString()
+        intent.action = Intent.ACTION_MAIN // don't run it again after a rotation
+        return true
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (takeWakeIntent(intent)) {
+            val w = pendingWake ?: return
+            pendingWake = null
+            callJs("ervoWake", w)
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        visible = true
+    }
+
+    override fun onStop() {
+        visible = false
+        super.onStop()
+    }
+
+    // ---------- contacts, calls and clock ----------
+    private fun findContactsNow(name: String) {
+        lifecycleScope.launch {
+            val json = withContext(Dispatchers.IO) {
+                try {
+                    val words = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }.take(3)
+                    val where = words.joinToString(" AND ") { "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?" }
+                    val args = words.map { "%$it%" }.toTypedArray()
+                    val list = JSONArray()
+                    val seen = HashSet<String>()
+                    contentResolver.query(
+                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        arrayOf(
+                            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER,
+                            ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.LABEL,
+                            ContactsContract.CommonDataKinds.Phone.IS_SUPER_PRIMARY
+                        ),
+                        if (words.isEmpty()) null else where, if (words.isEmpty()) null else args,
+                        "${ContactsContract.CommonDataKinds.Phone.IS_SUPER_PRIMARY} DESC, ${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
+                    )?.use { c ->
+                        while (c.moveToNext() && list.length() < 12) {
+                            val number = c.getString(1) ?: continue
+                            val key = (c.getString(0) ?: "") + "|" + number.filter { it.isDigit() }.takeLast(10)
+                            if (!seen.add(key)) continue
+                            val label = ContactsContract.CommonDataKinds.Phone.getTypeLabel(resources, c.getInt(2), c.getString(3)).toString()
+                            list.put(JSONObject().put("name", c.getString(0) ?: "").put("number", number).put("label", label))
+                        }
+                    }
+                    JSONObject().put("status", "ready").put("contacts", list).toString()
+                } catch (e: Exception) {
+                    """{"status":"error"}"""
+                }
+            }
+            callJs("ervoContacts", json)
+        }
+    }
+
+    private fun isEmergency(number: String): Boolean {
+        val digits = number.filter { it.isDigit() || it == '+' }
+        if (digits in setOf("911", "112", "999", "000", "110", "119", "118", "100", "101", "102", "108", "988", "15", "17", "18")) return true
+        return try {
+            if (android.os.Build.VERSION.SDK_INT >= 29) getSystemService(TelephonyManager::class.java).isEmergencyNumber(digits)
+            else PhoneNumberUtils.isEmergencyNumber(digits)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun placeCall(number: String, direct: Boolean) {
+        if (isEmergency(number)) { callJs("ervoCall", """{"status":"emergency"}"""); return }
+        val uri = Uri.fromParts("tel", number, null)
+        try {
+            startActivity(Intent(if (direct) Intent.ACTION_CALL else Intent.ACTION_DIAL, uri))
+            callJs("ervoCall", JSONObject().put("status", if (direct) "calling" else "dialing").toString())
+        } catch (e: Exception) {
+            callJs("ervoCall", """{"status":"error"}""")
+        }
+    }
+
+    private fun clock(intent: Intent, what: String) {
+        val ok = try { startActivity(intent); true } catch (e: Exception) { false }
+        callJs("ervoClock", JSONObject().put("ok", ok).put("what", what).toString())
+    }
+
     private fun callJs(function: String, text: String) {
         webView.post { webView.evaluateJavascript("window.$function && window.$function(${JSONObject.quote(text)})", null) }
     }
@@ -627,6 +933,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        recognizer?.destroy()
         tts?.shutdown()
         super.onDestroy()
     }
@@ -641,5 +948,8 @@ class MainActivity : AppCompatActivity() {
         private const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
         // Updates only ever come from Ervo's own GitHub releases
         private const val UPDATE_PREFIX = "https://github.com/erickb2021-lgtm/Ervo/releases/download/"
+        const val ACTION_WAKE = "app.ervo.WAKE"
+        const val EXTRA_COMMAND = "command"
+        @Volatile var visible = false
     }
 }

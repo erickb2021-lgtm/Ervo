@@ -56,7 +56,10 @@
 
   // ---------- screens ----------
   function show(id) {
+    const chatWas = $("chat").classList.contains("active");
+    if (chatWas && id !== "chat") savedScroll = $("thread").scrollTop;
     document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("active", s.id === id));
+    if (id === "chat" && !chatWas && savedScroll !== null) { const keep = savedScroll; savedScroll = null; requestAnimationFrame(() => { if (!stuck) $("thread").scrollTop = keep; else $("thread").scrollTop = $("thread").scrollHeight; }); }
     syncBars();
   }
 
@@ -67,14 +70,14 @@
       hint: "Personal use only: planning, shopping, your own returns and more.",
       question: "What should Ervo call you?", nameLabel: "Your name", placeholder: "Alex", nameError: "Enter your name.",
       chips: ["Book a table for 4 tonight", "Gym Friday at 6pm", "Buy paper towels", "What's coming up?", "Weather"],
-      apps: ["phonecal", "calendar", "amazon", "health", "location"],
+      apps: ["phonecal", "calendar", "contacts", "clock", "amazon", "health", "location"],
     },
     business: {
       label: "Business", avatar: "img/ervo-business.png",
       hint: "Business use only: customer support, refunds by your policy, scheduling and more.",
       question: "What's your company called?", nameLabel: "Company name", placeholder: "Acme Coffee Co.", nameError: "Enter your company's name.",
       chips: ["Refund order #5512", "Summarize today's tickets", "Call with Northwind Thursday at 2pm", "Draft a reply to an upset customer"],
-      apps: ["phonecal", "calendar", "mail", "location"],
+      apps: ["phonecal", "calendar", "contacts", "clock", "mail", "location"],
     },
   };
   let plan = "personal";
@@ -226,6 +229,9 @@
     food: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8a2 2 0 0 0 2 2v8M5 3v5a2 2 0 0 0 4 0V3M17 21V3c-2 1-3 4-3 7h3"/></svg>',
     undo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
     open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h3.5l1.8 4.5-2.3 1.4a11 11 0 0 0 6.1 6.1l1.4-2.3L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4z"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M5 3.5 2.5 6M19 3.5 21.5 6"/></svg>',
+    mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
     stats: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>',
   };
 
@@ -255,6 +261,16 @@
       name: "Location", ico: "location",
       does: ["Show the weather in your greeting", "Find local news and places near you", "Only your city is used, never your exact address"],
       note: "Your phone will ask you one more time. You can turn it off anytime.",
+    },
+    contacts: {
+      name: "Contacts & calls", ico: "phone",
+      does: ["Find people in your contacts when you ask Ervo to call them", "Start the call you pick", "Ervo never calls emergency services"],
+      note: "Your phone will ask you one more time. Your contacts stay on your phone.",
+    },
+    clock: {
+      name: "Clock", ico: "clock",
+      does: ["Set timers and alarms in your phone's Clock app", "Show your alarms"],
+      note: "Uses your phone's own Clock app. You can change or delete them there anytime.",
     },
     mail: {
       name: "Email", ico: "mail",
@@ -538,9 +554,15 @@
     if (d.settings) d.intent = "settings";
     else if (is(/^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|sounds good|please do|book it|add it|confirm|let'?s do it|correct|perfect)\b/)) d.intent = "yes";
     else if (is(/^(no|nope|nah|not now|stop|never ?mind|don'?t)\b|^cancel( it| that| this)?[.!]?$/)) d.intent = "no";
+    else if (is(/\bhey ervo\b.*\b(on|off|settings?|set ?up|work)\b|\b(turn on|turn off|enable|disable|set up|setup)\b.*\b(hey ervo|wake word|hands.?free|voice activation)\b/)) { d.intent = "wake"; d.wakeTurn = /\b(off|disable)\b/.test(t) ? false : /\b(on|enable)\b/.test(t) ? true : undefined; }
+    else if (is(/\b(timer|countdown)\b/) && !is(/\b(cancel|stop|delete)\b/)) { d.intent = "timer"; d.seconds = parseDuration(t); const lb = t.match(/\b(?:for|called|named) (?:the |my )?([a-z][a-z ]{1,25})$/); d.label = lb && !parseDuration(lb[1]) ? cap(lb[1].trim()) : ""; }
+    else if (is(/\balarms?\b|\bwake me\b/) && !is(/\b(cancel|delete|remove|turn off)\b/)) { d.intent = is(/\b(show|see|what|list|check)\b.*\balarms\b/) ? "alarms" : "alarm"; d.alarm = parseAlarm(t); }
+    else if (is(/^(?:\s*(?:please|can you|could you|would you|hey|ok|okay|ervo|hey ervo)[,!]?\s+)*(?:call|phone|ring|dial|facetime|give)\b/) && !is(/\b(call|phone) with\b|\bschedule\b|\bset up\b|\bbook\b|\bcalled\b/) && !(is(/^give\b/) && !is(/\ba call\b/))) { d.intent = "call"; d.callee = callName(raw); }
+    else if (EMERGENCY_RE.test(t) && is(/\b(call|phone|dial|text|contact|get|send)\b/)) d.intent = "emergency";
     else if (is(/what can you do|how do you work|what do you do|^help\b|^menu$/)) d.intent = "help";
     else if (is(/^(thanks|thank you|thx|ty|appreciate it|cool|great|awesome|nice)\b/) && t.length < 30) d.intent = "thanks";
     else if (is(/^(hi|hey|hello|yo|sup|hiya|good (morning|afternoon|evening)|what'?s up)\b/) && t.length < 25) d.intent = "hello";
+    else if (is(/\b(delete|remove|cancel|scrap|drop) (it|that|this( one)?)\b|\b(got|was|has been|is|been) (cancell?ed|called off)\b/) && !is(/\b(order|subscription|cart|membership|account|photo|file)\b/)) { d.intent = "remove"; d.removeLast = true; }
     else if (is(/\b(remove|delete|cancel|take off|clear|get rid of)\b/) && (is(/\b(calendar|events?|appointments?|meetings?|reservations?|plans?|reminders?)\b|\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/) || is(/^(please |can you |could you |ervo,? )*(cancel|remove|delete) (my |the )/) ) && !is(/\b(order|subscription|membership|account|cart|amazon|package|photo|photos|file|files|email|message)\b/)) d.intent = "remove";
     else if (is(/what time is it|what'?s the time|current time|time is it/)) d.intent = "time";
     else if (is(/what'?s (the |today'?s )?date|what day is (it|today)|today'?s date/)) d.intent = "date";
@@ -935,7 +957,7 @@
       });
     });
     thread.append(card);
-    thread.scrollTop = thread.scrollHeight;
+    toBottom();
   }
 
   async function undoRemove(done, rows, btn, update) {
@@ -1050,6 +1072,38 @@
 
   // ---------- chat ----------
   const thread = $("thread");
+
+  // Scrolling: stays at the newest message unless you scroll up; then it stays where you left it
+  let stuck = true;
+  let savedScroll = null;
+  const newBtn = document.createElement("button");
+  newBtn.type = "button";
+  newBtn.className = "to-latest";
+  newBtn.hidden = true;
+  newBtn.setAttribute("aria-label", "Go to the newest message");
+  newBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
+  newBtn.addEventListener("click", () => toBottom(true));
+  thread.after(newBtn);
+  let lastH = 0;
+  thread.addEventListener("scroll", () => {
+    if (!$("chat").classList.contains("active")) return;
+    // The keyboard opened or the screen changed size: that's not you scrolling
+    if (thread.clientHeight !== lastH) { lastH = thread.clientHeight; keepPlace(); return; }
+    stuck = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 48;
+    if (stuck) newBtn.hidden = true;
+  }, { passive: true });
+  function toBottom(force) {
+    if (force || stuck) {
+      thread.scrollTop = thread.scrollHeight;
+      stuck = true;
+      newBtn.hidden = true;
+    } else {
+      newBtn.hidden = false;
+    }
+  }
+  // The window or keyboard changed size: keep the newest message in view, or your spot
+  function keepPlace() { lastH = thread.clientHeight; if (stuck) { thread.scrollTop = thread.scrollHeight; requestAnimationFrame(() => { if (stuck) thread.scrollTop = thread.scrollHeight; }); } }
+  window.addEventListener("resize", keepPlace);
   let account = null;
   let history = []; // the conversation, for the AI server
   let pending = null; // business sample flows waiting for a yes/no
@@ -1076,7 +1130,7 @@
       el.textContent = text;
     }
     thread.append(el);
-    thread.scrollTop = thread.scrollHeight;
+    toBottom();
     return el;
   }
 
@@ -1177,14 +1231,17 @@
   if ("ResizeObserver" in window) {
     const head = document.querySelector(".chat-header");
     const ro = new ResizeObserver(() => {
-      const near = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 120;
       $("chat").style.setProperty("--head-h", `${head.offsetHeight}px`);
       $("chat").style.setProperty("--dock-h", `${$("dock").offsetHeight}px`);
-      if (near) thread.scrollTop = thread.scrollHeight;
+      keepPlace();
     });
     ro.observe(head);
     ro.observe($("dock"));
+    ro.observe(thread);
   }
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", keepPlace);
+  // Typing: show the newest messages above the keyboard
+  $("message").addEventListener("focus", () => { setTimeout(() => toBottom(true), 50); setTimeout(() => toBottom(true), 350); });
 
   // While Ervo works: its picture, name and what it's doing ("checking your calendar")
   let liveTyping = null;
@@ -1201,7 +1258,7 @@
       liveTyping.querySelector("em").textContent = w.charAt(0).toLowerCase() + w.slice(1);
     }
     thread.append(liveTyping); // keep it last
-    thread.scrollTop = thread.scrollHeight;
+    toBottom();
     return liveTyping;
   }
   function hideTyping() { if (liveTyping) liveTyping.remove(); liveTyping = null; }
@@ -1230,7 +1287,7 @@
     if (opts.products && opts.products.length) showProducts(opts.products);
     if (opts.acts && opts.acts.length) showActs(opts.acts);
     setChips(opts.chips || PLAN[account.plan].chips);
-    thread.scrollTop = thread.scrollHeight;
+    toBottom();
     if (speakIt) speak(said);
     return said;
   }
@@ -1269,6 +1326,8 @@
     $("chat-avatar").src = p.avatar;
     $("menu-who").textContent = `${acc.name} · Ervo ${acc.plan === "business" ? "for Business" : "Personal"}`;
     thread.innerHTML = "";
+    stuck = true;
+    newBtn.hidden = true;
     const note = document.createElement("p");
     note.className = "preview-note";
     note.textContent = "Preview: Ervo always asks before it opens or uses another app, and never buys anything for you.";
@@ -1471,6 +1530,12 @@
         } else if (a.type === "show_links" && Array.isArray(a.links)) {
           out.acts = a.links.filter((l) => l && /^https:\/\//.test(String(l.url))).slice(0, 4)
             .map((l) => ({ label: String(l.title || "Open").slice(0, 60), icon: "open", href: String(l.url) }));
+        } else if (a.type === "set_timer" && a.seconds) {
+          out.after = () => doTimer(Math.round(Number(a.seconds)), String(a.label || ""));
+        } else if (a.type === "set_alarm" && a.hour !== undefined) {
+          out.after = () => doAlarm({ h: Number(a.hour), m: Number(a.minute || 0), label: String(a.label || ""), days: Array.isArray(a.days) ? a.days.map(Number).filter((x) => x >= 1 && x <= 7) : [] });
+        } else if (a.type === "call_contact" && a.name) {
+          out.after = () => doCall(String(a.name));
         } else if (a.type === "remove_calendar_event") {
           const m = String(a.date || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
           const asked = parseRemove(d);
@@ -1488,6 +1553,254 @@
     }).catch(() => "I couldn't reach my AI service just now. Try again in a moment.");
     return ervoSays(result, { status }).then(() => result).then((r) => { if (r && r.after) return r.after(); });
   }
+
+  // ---------- phone: timers, alarms, calls and "Hey Ervo" (Android) ----------
+  const waiters = {};
+  const waitFor = (name, ms) => new Promise((resolve) => {
+    waiters[name] = resolve;
+    setTimeout(() => { if (waiters[name] === resolve) { delete waiters[name]; resolve({ status: "timeout", ok: false }); } }, ms);
+  });
+  ["ervoContacts", "ervoCall", "ervoClock"].forEach((fn) => {
+    window[fn] = (json) => {
+      const r = waiters[fn];
+      delete waiters[fn];
+      let v;
+      try { v = JSON.parse(json); } catch (e) { v = { status: "error", ok: false }; }
+      if (r) r(v); else if (fn === "ervoCall") afterCall(v);
+    };
+  });
+
+  const DUR_WORDS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, fifteen: 15, twenty: 20, thirty: 30, "forty five": 45, forty: 40, fifty: 50, sixty: 60, ninety: 90, "half an": 0.5, "half a": 0.5 };
+  function parseDuration(t) {
+    const re = /(\d+(?:\.\d+)?|half an?|forty five|an?|one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|thirty|forty|fifty|sixty|ninety)[\s-]*(hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\b(\s+and a half)?/g;
+    let secs = 0;
+    let m;
+    while ((m = re.exec(t))) {
+      const n = /^\d/.test(m[1]) ? parseFloat(m[1]) : DUR_WORDS[m[1]];
+      const unit = /^h/.test(m[2]) ? 3600 : /^m/.test(m[2]) ? 60 : 1;
+      secs += (n + (m[3] ? 0.5 : 0)) * unit;
+    }
+    return Math.round(secs);
+  }
+  const durText = (s) => {
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+    return [h && `${h} hour${h > 1 ? "s" : ""}`, m && `${m} minute${m > 1 ? "s" : ""}`, x && `${x} second${x > 1 ? "s" : ""}`].filter(Boolean).join(" ");
+  };
+
+  // "wake me up at 6:30", "alarm for 7am every weekday", "alarm in 20 minutes"
+  function parseAlarm(t) {
+    let h = null, mi = 0;
+    if (/\bnoon\b/.test(t)) h = 12;
+    else if (/\bmidnight\b/.test(t)) h = 0;
+    const m = t.match(/\b(?:at|for|to)?\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?(?=\s|$|[,.!?])/) ;
+    const inDur = /\bin\s+(?:\d|an?\b|one|two|three|four|five|ten|fifteen|twenty|thirty|half)/.test(t) ? parseDuration(t) : 0;
+    if (inDur) {
+      const at = new Date(Date.now() + inDur * 1000);
+      h = at.getHours(); mi = at.getMinutes();
+    } else if (h === null && m && +m[1] <= 23) {
+      h = +m[1]; mi = m[2] ? +m[2] : 0;
+      const pm = m[3] && /p/.test(m[3]);
+      const am = m[3] && /a/.test(m[3]);
+      if (pm && h < 12) h += 12;
+      else if (am && h === 12) h = 0;
+      else if (!m[3] && h < 12 && /\b(tonight|evening|pm|afternoon)\b/.test(t)) h += 12;
+    }
+    let days = [];
+    if (/\b(every ?day|daily)\b/.test(t)) days = [1, 2, 3, 4, 5, 6, 7];
+    else if (/\bweekdays?\b/.test(t)) days = [2, 3, 4, 5, 6];
+    else if (/\bweekends?\b/.test(t)) days = [1, 7];
+    else if (/\bevery\b/.test(t)) DAY_NAMES.forEach((n, i) => { if (new RegExp(`\\b${n}s?\\b`).test(t)) days.push(i + 1); });
+    const lab = t.match(/\bto ((?:go|get|take|leave|call|pick|start|finish|feed|walk)\b[a-z' ]{2,40})/);
+    return { h, m: mi, days, label: lab ? cap(lab[1].trim()) : "" };
+  }
+
+  let clockAsk = null; // waiting for an alarm time
+  async function doTimer(seconds, label) {
+    if (!(native && native.setTimer)) return ervoSays("I can set timers in the Ervo Android app ⏲️ On iPhone, ask Siri or use the Clock app.");
+    if (!seconds) return ervoSays("How long should the timer be? ⏲️", { chips: ["1 minute", "5 minutes", "10 minutes", "30 minutes"] }).then(() => { clockAsk = { kind: "timer", label }; });
+    if (!(await ensure("clock", "Set timers and alarms in your Clock app"))) return ervoSays("Okay, I won't touch your Clock app.");
+    setStatus("⏲️", "Setting a timer");
+    native.setTimer(seconds, label || "");
+    const r = await waitFor("ervoClock", 6000);
+    if (!r.ok) return ervoSays("I couldn't find a Clock app that takes timers 😕");
+    logActivity({ kind: "timer", ico: "clock", title: `Timer for ${durText(seconds)}`, detail: label || "Clock app" });
+    return ervoSays(`⏲️ Timer set for ${durText(seconds)}${label ? ` (${label})` : ""}.`);
+  }
+  async function doAlarm(a) {
+    if (!(native && native.setAlarm)) return ervoSays("I can set alarms in the Ervo Android app ⏰ On iPhone, ask Siri or use the Clock app.");
+    if (a.h === null || a.h === undefined) {
+      clockAsk = { kind: "alarm", days: a.days, label: a.label };
+      return ervoSays("What time should I set it for? ⏰", { chips: ["6:00 AM", "6:30 AM", "7:00 AM", "8:00 AM"] });
+    }
+    if (!(await ensure("clock", "Set timers and alarms in your Clock app"))) return ervoSays("Okay, I won't touch your Clock app.");
+    setStatus("⏰", "Setting an alarm");
+    native.setAlarm(a.h, a.m, a.label || "", a.days.join(","));
+    const r = await waitFor("ervoClock", 6000);
+    if (!r.ok) return ervoSays("I couldn't find a Clock app that takes alarms 😕");
+    const time = fmtTime({ h: a.h, m: a.m });
+    const when = a.days.length === 7 ? " every day" : a.days.join() === "2,3,4,5,6" ? " on weekdays" : a.days.join() === "1,7" ? " on weekends" : a.days.length ? ` every ${a.days.map((d) => cap(DAY_NAMES[d - 1])).join(", ")}` : "";
+    logActivity({ kind: "alarm", ico: "clock", title: `Alarm for ${time}${when}`, detail: a.label || "Clock app" });
+    return ervoSays(`⏰ Alarm set for ${time}${when}.`, { acts: [{ label: "See my alarms", icon: "clock", onClick: () => native.showAlarms() }] });
+  }
+
+  // Calls: Ervo never calls emergency services. It points you to the dialer instead.
+  const EMERGENCY_RE = /\b(911|9-1-1|112|999|988|emergency|police|cops|ambulance|paramedics?|fire ?(department|fighters?|station)|poison control)\b/;
+  function emergencyReply() {
+    const acts = native && native.dialNumber
+      ? [{ label: "Open dialer with 911", icon: "phone", onClick: () => native.dialNumber("911") }]
+      : [{ label: "Call 911", icon: "phone", href: "tel:911" }];
+    return ervoSays("I can't call emergency services for you. If you or someone else is in danger, call 911 yourself right now 🚨", { acts });
+  }
+  const callName = (raw) => raw
+    .replace(/^(?:\s*(?:please|can you|could you|would you|hey|ok|okay|ervo|hey ervo)[,!]?\s+)*(?:call|phone|ring|dial|facetime|give)\s+/i, "")
+    .replace(/\b(a call|for me|please|right now|now|real quick|quickly|on speaker(?: ?phone)?|back|up|on (?:the|my) phone)\b/gi, "")
+    .replace(/^\s*(my|the)\s+/i, "").replace(/[.,!?]+$/g, "").replace(/\s+/g, " ").trim();
+
+  let lastCallName = "";
+  async function doCall(name) {
+    name = String(name || "").trim();
+    if (!name) return ervoSays("Who should I call? 📞");
+    const digits = name.replace(/[^\d+]/g, "");
+    if (EMERGENCY_RE.test(name.toLowerCase()) || /^(\+?1)?(911|112|999|988)$/.test(digits)) return emergencyReply();
+    if (!(native && native.findContacts)) {
+      if (digits.length >= 7) return ervoSays(`Tap to call ${name} 📞`, { acts: [{ label: `Call ${name}`, icon: "phone", href: `tel:${digits}` }] });
+      return ervoSays("I can call people in your contacts in the Ervo Android app 📞");
+    }
+    if (!(await ensure("contacts", `Call ${name}`))) return ervoSays("Okay, I won't look at your contacts.");
+    const voiceMode = lastWasVoice;
+    if (digits.length >= 7 && digits.length >= name.replace(/\s/g, "").length - 2) {
+      return confirmCall([{ name: digits, number: digits, label: "" }], voiceMode);
+    }
+    showTyping("looking in your contacts");
+    setStatus("📇", "Looking in your contacts");
+    native.findContacts(name);
+    const r = await waitFor("ervoContacts", 8000);
+    if (r.status === "denied") return ervoSays("I need permission to see your contacts to call someone. You can allow it in Settings → Apps → Ervo → Permissions → Contacts.");
+    if (r.status !== "ready") return ervoSays("I couldn't read your contacts just now. Try again in a moment.");
+    if (!r.contacts.length) return ervoSays(`I couldn't find "${name}" in your contacts 🤔 Try their name the way it's saved.`);
+    return confirmCall(r.contacts, voiceMode);
+  }
+
+  // One match by voice: call after a short countdown you can cancel. Otherwise, tap who to call.
+  async function confirmCall(list, voiceMode) {
+    const card = document.createElement("div");
+    card.className = "daycard";
+    if (list.length === 1 && voiceMode) {
+      const c = list[0];
+      await ervoSays(`Calling ${c.name} 📞`);
+      const row = document.createElement("div");
+      row.className = "callrow";
+      row.innerHTML = '<span class="callring"></span>';
+      const who = document.createElement("span");
+      who.className = "dn";
+      who.textContent = c.name;
+      const sub = document.createElement("small");
+      sub.textContent = [c.label, c.number].filter(Boolean).join(" · ");
+      who.append(sub);
+      row.append(who);
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "pill ghost";
+      let left = 3;
+      cancel.textContent = `Cancel (${left})`;
+      card.append(row, cancel);
+      thread.append(card);
+      toBottom();
+      const tick = setInterval(() => {
+        left -= 1;
+        if (left > 0) { cancel.textContent = `Cancel (${left})`; return; }
+        clearInterval(tick);
+        cancel.remove();
+        lastCallName = c.name;
+        native.callNumber(c.number);
+      }, 1000);
+      cancel.addEventListener("click", () => { clearInterval(tick); card.classList.add("busy"); cancel.remove(); ervoSays("Okay, I won't call 👍"); });
+      return;
+    }
+    await ervoSays(list.length === 1 ? `Found ${list[0].name} 📞 Tap to call.` : `Who should I call? 📞`);
+    list.slice(0, 8).forEach((c) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "dayrow";
+      const ini = document.createElement("span");
+      ini.className = "initial";
+      ini.textContent = (c.name || "?").trim().charAt(0).toUpperCase();
+      const who = document.createElement("span");
+      who.className = "dn";
+      who.textContent = c.name;
+      const sub = document.createElement("small");
+      sub.textContent = [c.label, c.number].filter(Boolean).join(" · ");
+      who.append(sub);
+      const ico = document.createElement("span");
+      ico.className = "callico";
+      ico.innerHTML = ICON.phone;
+      row.append(ini, who, ico);
+      row.addEventListener("click", () => {
+        if (card.classList.contains("busy")) return;
+        card.classList.add("busy");
+        row.setAttribute("aria-pressed", "true");
+        lastCallName = c.name;
+        native.callNumber(c.number);
+      });
+      card.append(row);
+    });
+    thread.append(card);
+    toBottom();
+  }
+  function afterCall(r) {
+    if (r.status === "emergency") return emergencyReply();
+    if (r.status === "calling" || r.status === "dialing") {
+      logActivity({ kind: "call", ico: "phone", title: `Called ${lastCallName || "someone"}`, detail: r.status === "calling" ? "Phone call" : "Opened the dialer" });
+      if (r.status === "dialing") ervoSays("I opened your dialer with the number in. Tap Call when you're ready 📞");
+      return;
+    }
+    ervoSays("I couldn't start the call 😕 Try again from your Phone app.");
+  }
+
+  // "Hey Ervo": listens for Ervo's name while it's on, then opens Ervo
+  let wakeWanted = false;
+  const wakeState = () => { try { return JSON.parse(native.wakeStatus()); } catch (e) { return { on: false }; } };
+  function wakeActs(s) {
+    return [
+      s.on ? { label: "Turn off Hey Ervo", icon: "mic", onClick: () => { wakeWanted = false; native.setWake(false); } }
+        : { label: "Turn on Hey Ervo", icon: "mic", onClick: () => { wakeWanted = true; native.setWake(true); } },
+      s.on && !s.overlay ? { label: "Let Ervo pop up over apps", icon: "open", onClick: () => native.openOverlaySettings() } : null,
+      !s.assistant ? { label: "Make Ervo my phone's assistant", icon: "open", onClick: () => native.openAssistantSettings() } : null,
+    ].filter(Boolean);
+  }
+  function heyErvo(turn) {
+    if (!(native && native.setWake)) return ervoSays("\"Hey Ervo\" works in the Ervo Android app 🦉 On iPhone, tap the mic to talk to me.");
+    if (turn === true) { wakeWanted = true; native.setWake(true); return; }
+    if (turn === false) { wakeWanted = false; native.setWake(false); return; }
+    const s = wakeState();
+    return ervoSays(s.on
+      ? `Hey Ervo is on 🦉 Say "Hey Ervo" and what you need, like "Hey Ervo, set a timer for 5 minutes". ${s.overlay ? "" : "To let me pop up while you're in other apps, turn on \"Display over other apps\" for Ervo."}`
+      : "Talk to me hands-free 🦉 Turn on Hey Ervo, then say \"Hey Ervo, call Mom\" or \"Hey Ervo, wake me up at 7\" while your phone is unlocked. A small notification shows while I listen, and you can turn me off from there.",
+    { acts: wakeActs(s) });
+  }
+  window.ervoWakeState = (json) => {
+    let s;
+    try { s = JSON.parse(json); } catch (e) { return; }
+    if (s.on) return ervoSays(`Hey Ervo is on ✅ Just say "Hey Ervo" and what you need.${s.overlay ? "" : " One more step: turn on \"Display over other apps\" so I can pop up over other apps."}`, { acts: wakeActs(s) });
+    if (wakeWanted && !s.mic) return ervoSays("I need the microphone to hear my name 🎙️ You can allow it in Settings → Apps → Ervo → Permissions → Microphone.");
+    if (wakeWanted) return ervoSays("Android didn't let me start listening. Open Ervo and try again 🙏");
+    return ervoSays("Hey Ervo is off. I'm not listening for my name anymore 👍");
+  };
+
+  // Opened by "Hey Ervo" (or as the phone's assistant): the owl pops up and listens, or does what you said
+  function handleWake(w) {
+    if (!account) return;
+    toggleMenu(false);
+    show("chat");
+    const cmd = String((w && w.command) || "").trim();
+    if (!cmd) return startVoice();
+    openVoice();
+    voice.classList.add("thinking");
+    $("voice-status").textContent = "Got it";
+    $("voice-text").textContent = `"${cmd}"`;
+    setTimeout(() => { closeVoice(); send(cmd, true); if (native && native.resumeWake) native.resumeWake(); }, 800);
+  }
+  window.ervoWake = (json) => { try { handleWake(JSON.parse(json)); } catch (e) { /* ignore */ } };
 
   // ---------- answering ----------
   function reply(text) {
@@ -1513,6 +1826,17 @@
     }
 
     // Working on something: a yes/no, a change ("make it 8pm"), or a missing detail
+    if (task && d.removeLast) {
+      task = null; confirming = false;
+      return ervoSays("No problem, I dropped it 👍 Nothing was added to your calendar.");
+    }
+    // Waiting for a timer length or alarm time
+    if (clockAsk) {
+      const c = clockAsk;
+      clockAsk = null;
+      if (c.kind === "timer" && parseDuration(d.t)) return doTimer(parseDuration(d.t), c.label);
+      if (c.kind === "alarm") { const a = parseAlarm(d.t); if (a.h !== null) return doAlarm(Object.assign(a, { days: a.days.length ? a.days : c.days, label: a.label || c.label })); }
+    }
     if (task) {
       const newRequest = !["unknown", "yes", "no", "thanks"].includes(d.intent) && !onlyDetails(d);
       if (!newRequest) {
@@ -1540,8 +1864,15 @@
 
     if (d.intent === "remove") {
       task = null; confirming = false;
+      if (d.removeLast && lastEvent) return removeEvents({ title: lastEvent.title, range: dayRange(lastEvent.start) });
       return removeEvents(parseRemove(d));
     }
+    if (d.intent === "timer") { task = null; confirming = false; return doTimer(d.seconds, d.label); }
+    if (d.intent === "alarm") { task = null; confirming = false; return doAlarm(d.alarm); }
+    if (d.intent === "alarms") return native && native.showAlarms ? (native.showAlarms(), ervoSays("Here are your alarms ⏰")) : ervoSays("I can show your alarms in the Ervo Android app ⏰");
+    if (d.intent === "call") { task = null; confirming = false; return doCall(d.callee); }
+    if (d.intent === "emergency") return emergencyReply();
+    if (d.intent === "wake") return heyErvo(d.wakeTurn);
     // Ervo asked "when is it?": a day or "this week" answers it
     if (removeAsk) {
       const q = removeAsk;
@@ -1562,7 +1893,7 @@
       case "thanks": return ervoSays("Anytime! 😊");
       case "help": return ervoSays(biz
         ? "Here's what I can do:\n• Answer customers and summarize tickets\n• Refunds by your policy\n• Book meetings on your calendar\n• Draft replies for your email\n\nJust tell me in your own words, like \"Call with Northwind Thursday at 2pm\"."
-        : "Here's what I can do:\n• Plan reservations and events and put them on your calendar\n• Find things on Amazon, start returns and track orders\n• Show your steps, plans and recent activity in Ervo Stats\n• Weather and news in your greeting\n\nJust say it your way, like \"dinner for 4 in two weeks at 7\".");
+        : "Here's what I can do:\n• Plan reservations and events and put them on your calendar\n• Find things on Amazon, start returns and track orders\n• Set timers and alarms, and call people in your contacts\n• Talk hands-free: turn on Hey Ervo in the menu\n• Show your steps, plans and recent activity in Ervo Stats\n• Weather and news in your greeting\n\nJust say it your way, like \"dinner for 4 in two weeks at 7\".");
       case "time": return ervoSays(`It's ${new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`);
       case "date": return ervoSays(`Today is ${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}.`);
       case "weather": return weatherReply();
@@ -1652,6 +1983,7 @@
     const v = text.trim();
     if (!v || !account) return;
     bubble(v, "me");
+    toBottom(true);
     history.push({ role: "user", text: v });
     $("chips").innerHTML = "";
     lastWasVoice = !!byVoice;
@@ -1911,6 +2243,7 @@
   $("stats-back").addEventListener("click", () => show("chat"));
   window.ervoResume = () => {
     if ($("stats").classList.contains("active")) renderStats();
+    setTimeout(() => checkForUpdate(false), 1500);
     // Back from "Allow from this source": carry on installing the update
     if (update && update.state === "needs_permission" && !$("update").hidden && native && native.installUpdate) {
       update.state = "waiting";
@@ -1921,7 +2254,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.2.4"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.2.5"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -1955,13 +2288,15 @@
   // Quietly checks a few times a day; from the menu it always checks and says if you're up to date
   async function checkForUpdate(manual) {
     const last = Number(load(UPDATE_CHECK_KEY)) || 0;
-    if (!manual && Date.now() - last < 6 * 60 * 60 * 1000) return;
+    if (!manual && Date.now() - last < 20 * 60 * 1000) return;
+    if (!manual && update && !$("update").hidden) return;
     save(UPDATE_CHECK_KEY, Date.now());
     let found = null;
     try { found = await findUpdate(); } catch (e) {
       if (manual) ervoSays("I couldn't check for updates right now. Check your connection and try again.");
       return;
     }
+    if (found && !manual && dismissedUpdate === found.version) return;
     if (found) showUpdate(found);
     else if (manual) ervoSays(`You're up to date ✅ This is Ervo ${currentVersion()}, the newest version.`);
   }
@@ -1980,7 +2315,8 @@
     $("update").hidden = false;
   }
 
-  $("update-later").addEventListener("click", () => { $("update").hidden = true; });
+  let dismissedUpdate = null; // "Later" hides it until Ervo is opened fresh
+  $("update-later").addEventListener("click", () => { $("update").hidden = true; if (update) dismissedUpdate = update.version; });
   $("update-now").addEventListener("click", async () => {
     if (!update) return;
     if (native && native.downloadUpdate) {
@@ -2096,7 +2432,7 @@
       const img = document.createElement("img");
       img.src = reader.result;
       img.alt = "Photo you sent";
-      img.onload = () => { thread.scrollTop = thread.scrollHeight; };
+      img.onload = () => { toBottom(); };
       el.append(img);
       thread.append(el);
       $("chips").innerHTML = "";
@@ -2139,7 +2475,7 @@
     el.innerHTML = '<div class="link-top"></div>';
     el.append(a);
     thread.append(el);
-    thread.scrollTop = thread.scrollHeight;
+    toBottom();
     $("chips").innerHTML = "";
     history.push({ role: "user", text: `(shared a link: ${url.href})` });
     if (/amazon\./i.test(url.hostname) && account.plan === "personal") {
@@ -2183,6 +2519,7 @@
 
   // Android: the phone's own speech recognizer listens until you stop talking
   window.ervoVoiceResult = (text) => finishVoice(text);
+  window.ervoVoicePartial = (text) => { if (!voice.hidden && text) { heard = text; $("voice-text").textContent = text; } };
   window.ervoVoiceError = (msg) => {
     if (voice.hidden) return;
     $("voice-status").textContent = "Voice isn't available";
@@ -2190,7 +2527,8 @@
     $("voice-done").hidden = true;
   };
 
-  $("mic-btn").addEventListener("click", () => {
+  $("mic-btn").addEventListener("click", () => startVoice());
+  function startVoice() {
     openVoice();
     if (native && native.startListening) {
       native.startListening();
@@ -2212,13 +2550,14 @@
     };
     recognizer.onend = () => { recognizer = null; if (!voice.hidden) finishVoice(heard); };
     recognizer.start();
-  });
+  }
   $("voice-done").addEventListener("click", () => {
     if (recognizer) recognizer.stop(); // onend sends what was heard
     else if (native && native.stopListening) native.stopListening();
   });
   $("voice-cancel").addEventListener("click", () => {
-    if (native && native.stopListening) native.stopListening();
+    if (native && native.cancelListening) native.cancelListening();
+    else if (native && native.stopListening) native.stopListening();
     closeVoice();
   });
 
@@ -2233,6 +2572,7 @@
   $("open-stats").addEventListener("click", () => openStats(false));
   $("open-apps").addEventListener("click", () => openStats(true));
   $("open-greeting").addEventListener("click", openGreeting);
+  $("open-wake").addEventListener("click", () => { toggleMenu(false); heyErvo(); });
   $("clear-chat").addEventListener("click", () => { toggleMenu(false); openChat(account, false); });
   $("sign-out").addEventListener("click", () => {
     toggleMenu(false);
@@ -2278,5 +2618,12 @@
     if (saved && saved.plan && saved.name) openChat(saved, false);
     else show("welcome");
   }, 1100);
-  setTimeout(() => checkForUpdate(false), 4000);
+  setTimeout(() => checkForUpdate(false), 3000);
+  // iPhone / web: check again when Ervo comes back to the screen
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && !native) checkForUpdate(false); });
+  // Opened by "Hey Ervo" or the assistant button
+  setTimeout(() => {
+    const w = native && native.takeWake ? native.takeWake() : "";
+    if (w) { try { handleWake(JSON.parse(w)); } catch (e) { /* ignore */ } }
+  }, 1500);
 })();

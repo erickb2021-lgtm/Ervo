@@ -10,7 +10,7 @@
   </picture>
 </p>
 
-<p align="center"><b>Your AI helper, for your life and your business.</b><br>Version 0.2.4 (preview)</p>
+<p align="center"><b>Your AI helper, for your life and your business.</b><br>Version 0.2.5 (preview)</p>
 
 <p align="center">
   <a href="https://erickb2021-lgtm.github.io/Ervo/">Website</a> ·

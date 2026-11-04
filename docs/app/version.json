@@ -1,10 +1,11 @@
 {
-  "version": "0.2.4",
+  "version": "0.2.5",
   "notes": [
-    "Remove events the easy way: Ervo shows your calendar, you tap the ones to remove 📅",
-    "Undo button if you remove the wrong thing ↩️",
-    "Say \"remove my next two events\" or \"clear tomorrow\" and Ervo picks them for you",
-    "Repeating events: removes just that day, not the whole series",
-    "New working bubble shows what Ervo is doing, like \"checking your calendar\""
+    "\"Hey Ervo\": turn it on in the menu and talk hands-free 🦉",
+    "Timers and alarms in your Clock app ⏰",
+    "Call people in your contacts 📞 (never emergency services)",
+    "Ervo can be your phone's assistant app",
+    "The chat stays on your newest message when you type, and keeps your spot when you scroll",
+    "Updates now pop up on their own"
   ]
 }

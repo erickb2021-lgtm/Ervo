@@ -12,6 +12,18 @@
     <!-- Finding and removing events you ask Ervo to remove. Ervo asks first, and deletes only what you tap. -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <!-- Ervo's listening screen and "Hey Ervo". Ervo asks first; "Hey Ervo" is off until you turn it on. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Lets "Hey Ervo" open Ervo while you're in another app (you turn this on in Settings). -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Calling people in your contacts when you ask. Ervo never calls emergency numbers. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- Timers and alarms in your phone's Clock app. -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
     <!-- Lets Ervo find the phone's speech recognizer, text-to-speech and Health Connect (Android 11+) -->
     <queries>
@@ -26,6 +38,10 @@
             <data android:mimeType="image/*" />
         </intent>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- The phone's speech recognizer, for Ervo's own listening screen -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
         <!-- The phone's calendar app, for "Phone calendar" -->
         <intent>
             <action android:name="android.intent.action.INSERT" />
@@ -45,12 +61,24 @@
             android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Lets you pick Ervo as the phone's digital assistant app -->
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
+
+        <!-- "Hey Ervo": listens only while you have it turned on, with a notification showing -->
+        <service
+            android:name=".WakeService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
         <!-- Shares a downloaded update with Android's installer -->
         <provider
