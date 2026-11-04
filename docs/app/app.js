@@ -224,6 +224,7 @@
     mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M4 7l8 6 8-6"/></svg>',
     done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
     food: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8a2 2 0 0 0 2 2v8M5 3v5a2 2 0 0 0 4 0V3M17 21V3c-2 1-3 4-3 7h3"/></svg>',
+    undo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
     open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>',
     stats: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>',
   };
@@ -519,7 +520,7 @@
 
   // Common typos, so "calander" and "tmrw" still make sense
   const fixSpelling = (s) => s
-    .replace(/\b(calander|calandar|calender|calandr|calendr)\b/gi, "calendar")
+    .replace(/\bcal[aeiou]n?d[aeiou]?r+s?\b/gi, "calendar")
     .replace(/\b(tmrw|tmr|tmrow|tommorow|tomorow|tommorrow|tomm?orrow)\b/gi, "tomorrow")
     .replace(/\b(nick name|nickanme|nicname)\b/gi, "nickname")
     .replace(/\b(resturant|restraunt|restaraunt)\b/gi, "restaurant");
@@ -536,11 +537,11 @@
     d.settings = parseSettings(raw, t);
     if (d.settings) d.intent = "settings";
     else if (is(/^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|sounds good|please do|book it|add it|confirm|let'?s do it|correct|perfect)\b/)) d.intent = "yes";
-    else if (is(/^(no|nope|nah|not now|cancel|stop|never ?mind|don'?t)\b/)) d.intent = "no";
+    else if (is(/^(no|nope|nah|not now|stop|never ?mind|don'?t)\b|^cancel( it| that| this)?[.!]?$/)) d.intent = "no";
     else if (is(/what can you do|how do you work|what do you do|^help\b|^menu$/)) d.intent = "help";
     else if (is(/^(thanks|thank you|thx|ty|appreciate it|cool|great|awesome|nice)\b/) && t.length < 30) d.intent = "thanks";
     else if (is(/^(hi|hey|hello|yo|sup|hiya|good (morning|afternoon|evening)|what'?s up)\b/) && t.length < 25) d.intent = "hello";
-    else if (is(/\b(remove|delete|cancel|take off|clear|get rid of)\b/) && is(/\b(calendar|event|appointment|meeting|reservation|plans?|reminder)\b|\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/)) d.intent = "remove";
+    else if (is(/\b(remove|delete|cancel|take off|clear|get rid of)\b/) && (is(/\b(calendar|events?|appointments?|meetings?|reservations?|plans?|reminders?)\b|\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/) || is(/^(please |can you |could you |ervo,? )*(cancel|remove|delete) (my |the )/) ) && !is(/\b(order|subscription|membership|account|cart|amazon|package|photo|photos|file|files|email|message)\b/)) d.intent = "remove";
     else if (is(/what time is it|what'?s the time|current time|time is it/)) d.intent = "time";
     else if (is(/what'?s (the |today'?s )?date|what day is (it|today)|today'?s date/)) d.intent = "date";
     else if (is(/\bweather\b|temperature|forecast|\brain(ing)?\b|\bsnow|umbrella|how (hot|cold)/)) d.intent = "weather";
@@ -723,88 +724,254 @@
   $("cal-cancel").addEventListener("click", () => answerCalendar(null));
   $("calpick").addEventListener("click", (e) => { if (e.target === $("calpick")) answerCalendar(null); });
   // ---------- removing events ----------
-  // Android reads and deletes events in the phone's calendar (which includes Google calendars
-  // synced to the phone). iPhone web apps can't, so there Ervo opens the calendar for you.
+  // Android reads and removes events in the phone's calendar (Google calendars synced to the
+  // phone included). Ervo shows them in a day card; the user taps the ones to remove, then
+  // can Undo. iPhone web apps can't read the calendar, so there Ervo opens the calendar.
   let eventsWaiter = null;
   window.ervoEvents = (json) => { const r = eventsWaiter; eventsWaiter = null; if (r) { try { r(JSON.parse(json)); } catch (e) { r({ status: "error" }); } } };
   let deleteWaiter = null;
   window.ervoEventDeleted = (json) => { const r = deleteWaiter; deleteWaiter = null; if (r) { try { r(JSON.parse(json)); } catch (e) { r({ ok: false }); } } };
+  let restoreWaiter = null;
+  window.ervoEventRestored = (json) => { const r = restoreWaiter; restoreWaiter = null; if (r) { try { r(JSON.parse(json)); } catch (e) { r({ ok: false }); } } };
+  let removeAsk = null; // Ervo asked "when is it?" and is waiting for a day
 
   function forgetPlanned(title, start) {
     const t = String(title || "").toLowerCase();
     save(ACTIVITY_KEY, activity().filter((a) => !(a.when && a.title.toLowerCase() === t && (!start || Math.abs(new Date(a.when) - start) < 60000))));
   }
 
+  // Words that describe the request, not the event's name
+  const REMOVE_STOP = new Set(("hi hey hello yo ervo please pls plz can could would will you u ya me i i'd i'm id im want wanna need to " +
+    "remove delete cancel clear take off get rid of erase drop the my a an that this these those next upcoming first last both all every " +
+    "everything event events appointment appointments plan plans reservation reservations reminder reminders thing things stuff from " +
+    "on in at for calendar calendars today tonight tomorrow week weeks month months day days and set are is it its it's them they " +
+    "scheduled schedule there one two three four five six seven eight nine ten couple of up coming soon thanks thank " +
+    "monday tuesday wednesday thursday friday saturday sunday").split(" "));
+  const cleanTitle = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}'&\s-]/gu, " ").split(/\s+/)
+    .filter((w) => w && !REMOVE_STOP.has(w) && !/^\d+(st|nd|rd|th|am|pm)?$/.test(w)).join(" ");
+
+  const NUM = { one: 1, two: 2, couple: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+  const dayRange = (date) => ({ from: startOfDay(date), to: addDays(startOfDay(date), 1), label: sameDay(date, new Date()) ? "today" : sameDay(date, addDays(new Date(), 1)) ? "tomorrow" : `on ${fmtDate(date)}` });
+  const sameDay = (a, b) => startOfDay(a).getTime() === startOfDay(b).getTime();
+  function weekRange(next) {
+    const today = startOfDay(new Date());
+    const monday = addDays(today, ((8 - today.getDay()) % 7) || 7); // the coming Monday
+    return next ? { from: monday, to: addDays(monday, 7), label: "next week" } : { from: today, to: monday, label: "this week" };
+  }
+  function monthRange() {
+    const today = startOfDay(new Date());
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    return { from: today, to: end - today < 7 * 864e5 ? addDays(today, 14) : end, label: end - today < 7 * 864e5 ? "in the next two weeks" : "this month" };
+  }
+  const upcomingRange = () => ({ from: new Date(), to: addDays(new Date(), 90), label: "coming up" });
+
+  // "remove the next two events from my calendar" -> { count: 2 }; "cancel the dentist friday" -> { title, range }
+  function parseRemove(d) {
+    const t = d.t;
+    const m = t.match(/\b(?:next|first|upcoming)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|couple)\b/) ||
+      t.match(/\b(\d+|two|three|four|five|six|seven|eight|nine|ten)\s+(?:next|upcoming)\b/);
+    let count = m ? (NUM[m[1]] || +m[1] || 0) : /\b(next|upcoming) (event|appointment|meeting|thing|plan)\b/.test(t) ? 1 : 0;
+    if (!count && /\bboth\b/.test(t)) count = 2;
+    let range = null;
+    if (/\bthis week\b/.test(t)) range = weekRange(false);
+    else if (/\bnext week\b/.test(t)) range = weekRange(true);
+    else if (/\b(this|the) month\b/.test(t)) range = monthRange();
+    else if (d.when.date) range = dayRange(d.when.date);
+    return { title: cleanTitle(t), count: Math.min(count, 10), all: /\b(all|everything|every)\b/.test(t), range };
+  }
+
+  // Quick day buttons, so nobody has to type
+  function rangeButtons(q, skip) {
+    return [["Today", () => dayRange(new Date())], ["Tomorrow", () => dayRange(addDays(new Date(), 1))], ["This week", () => weekRange(false)], ["Next week", () => weekRange(true)], ["This month", monthRange]]
+      .filter(([label]) => label.toLowerCase() !== skip)
+      .map(([label, make]) => ({ label, icon: "calendar", onClick: (e) => { e.currentTarget.closest(".acts").remove(); bubble(label, "me"); history.push({ role: "user", text: label }); removeEvents(Object.assign({}, q, { range: make() })); } }));
+  }
+
+  function readCalendar(title, range) {
+    return new Promise((resolve) => {
+      eventsWaiter = resolve;
+      native.findEvents(title || "", range.from.getTime(), range.to.getTime());
+      setTimeout(() => { if (eventsWaiter === resolve) { eventsWaiter = null; resolve({ status: "error" }); } }, 10000);
+    });
+  }
+
   async function removeEvents(q) {
-    const words = String(q.title || "").trim();
-    const what = words ? `"${words}"` : "that event";
-    if (native && native.findEvents) {
-      if (!(await ensure("phonecal", "Find and remove events on your calendar"))) return ervoSays("Okay, I won't touch your calendar.");
-      setStatus("📅", "Looking in your calendar");
-      const from = q.date ? startOfDay(q.date) : addDays(startOfDay(new Date()), -1);
-      const to = q.date ? addDays(startOfDay(q.date), 1) : addDays(startOfDay(new Date()), 180);
-      const found = await new Promise((resolve) => { eventsWaiter = resolve; native.findEvents(words, from.getTime(), to.getTime()); setTimeout(() => resolve({ status: "error" }), 10000); });
-      if (found.status === "denied") return ervoSays("I need permission to see your calendar to remove events. You can allow it in your phone's Settings → Apps → Ervo → Permissions.");
-      if (found.status !== "ready") return ervoSays("I couldn't read your calendar just now. Try again in a moment.");
-      if (!found.events.length) return ervoSays(`I couldn't find ${what} on your calendar${q.date ? ` on ${fmtDate(q.date)}` : " in the next 6 months"} 🤔`);
-      await ervoSays(found.events.length === 1 ? "Found it 📅 Tap Remove to delete it." : `Found ${found.events.length} events 📅 Tap Remove on the one to delete.`);
-      showEventCards(found.events);
-      return;
+    q = Object.assign({ title: "", count: 0, all: false, range: null }, q);
+    q.title = cleanTitle(q.title);
+    removeAsk = null;
+    if (!(native && native.findEvents)) return removeOnWeb(q);
+    if (!(await ensure("phonecal", "Find and remove events on your calendar"))) return ervoSays("Okay, I won't touch your calendar.");
+    // No day and no name: ask with buttons instead of guessing
+    if (!q.title && !q.range && !q.count) {
+      removeAsk = q;
+      return ervoSays("Sure 🗓️ When is it?", { acts: rangeButtons(q) });
     }
-    // iPhone and computers: take it off Ervo's list, then open the calendar to delete it there
-    const t = words.toLowerCase();
-    const mine = activity().filter((a) => a.when && (!t || a.title.toLowerCase().includes(t)) && (!q.date || startOfDay(new Date(a.when)).getTime() === startOfDay(q.date).getTime()));
+    const range = q.range || (q.count ? upcomingRange() : { from: startOfDay(new Date()), to: addDays(startOfDay(new Date()), 180), label: "in the next 6 months" });
+    showTyping("checking your calendar");
+    setStatus("📅", "Checking your calendar");
+    const found = await readCalendar(q.title, range);
+    if (found.status === "denied") return ervoSays("I need permission to see your calendar. You can allow it in Settings → Apps → Ervo → Permissions → Calendar.");
+    if (found.status !== "ready") return ervoSays("I couldn't read your calendar just now. Try again in a moment.");
+    let events = found.events;
+    let shown = range;
+    let lead = "";
+    if (!events.length && q.title) {
+      // Nothing by that name, so show what's there and let them pick
+      shown = q.range || monthRange();
+      const all = await readCalendar("", shown);
+      events = all.status === "ready" ? all.events : [];
+      if (events.length) lead = `I couldn't find "${q.title}", but here's what's on ${shown.label === "today" || shown.label === "tomorrow" ? shown.label : `your calendar ${shown.label}`} 👇`;
+    }
+    if (!events.length) {
+      return ervoSays(`I don't see anything on your calendar ${shown.label} 🤔 If you use Google Calendar, make sure it syncs to this phone (Settings → Accounts → Google → Calendar).`,
+        { acts: rangeButtons(Object.assign({}, q, { title: "" }), shown.label) });
+    }
+    let picked = [];
+    if (q.count) picked = events.slice(0, q.count).map((_, i) => i);
+    else if (q.all || (q.title && !lead && events.length === 1)) picked = events.map((_, i) => i);
+    if (!lead) {
+      const where = shown.label === "today" || shown.label === "tomorrow" ? shown.label : `what's ${shown.label}`;
+      lead = q.count && q.range ? `Here's ${where} 📅 I picked ${q.count === 1 ? "one" : `${Math.min(q.count, events.length)}`}, so tap to change or just hit Remove.`
+        : q.count ? `Here ${q.count === 1 ? "is your next event" : `are your next ${Math.min(q.count, events.length)}`} 📅 I've picked ${q.count === 1 ? "it" : "them"}, so just tap Remove.`
+        : picked.length ? `Found ${picked.length === 1 ? "it" : "them"} 📅 Tap Remove to delete.`
+        : `Here's ${shown.label === "today" || shown.label === "tomorrow" ? shown.label : `what's ${shown.label}`} 📅 Tap the ones you want gone.`;
+    }
+    await ervoSays(lead);
+    showEventPicker(events, picked);
+  }
+
+  // A day card like a calendar: tap events to pick them, then Remove
+  const dayName = (d) => sameDay(d, new Date()) ? "Today" : sameDay(d, addDays(new Date(), 1)) ? "Tomorrow" : d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  function showEventPicker(events, chosen) {
+    const card = document.createElement("div");
+    card.className = "daycard";
+    const picked = new Set(chosen);
+    const rows = [];
+    let lastDay = "";
+    const list = events.slice(0, 40);
+    list.forEach((ev, i) => {
+      const start = new Date(ev.start);
+      const day = dayName(start);
+      if (day !== lastDay) {
+        const h = document.createElement("h3");
+        h.textContent = day;
+        card.append(h);
+        lastDay = day;
+      }
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "dayrow";
+      const time = document.createElement("span");
+      time.className = "dt";
+      time.textContent = ev.allDay ? "All day" : fmtTime({ h: start.getHours(), m: start.getMinutes() });
+      const name = document.createElement("span");
+      name.className = "dn";
+      name.textContent = ev.title || "(No title)";
+      if (ev.repeats || ev.calendar) {
+        const sub = document.createElement("small");
+        sub.textContent = [ev.repeats ? "Repeats, removes this day only" : "", ev.calendar].filter(Boolean).join(" · ");
+        name.append(sub);
+      }
+      const tick = document.createElement("span");
+      tick.className = "tick";
+      tick.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+      row.append(time, name, tick);
+      row.addEventListener("click", () => {
+        if (card.classList.contains("busy") || row.classList.contains("gone")) return;
+        picked.has(i) ? picked.delete(i) : picked.add(i);
+        update();
+      });
+      rows.push(row);
+      card.append(row);
+    });
+    if (events.length > list.length) {
+      const more = document.createElement("p");
+      more.className = "daycard-note";
+      more.textContent = `Showing the first ${list.length} of ${events.length}.`;
+      card.append(more);
+    }
+    const go = document.createElement("button");
+    go.type = "button";
+    go.className = "pill danger";
+    card.append(go);
+    function update() {
+      rows.forEach((r, i) => r.setAttribute("aria-pressed", String(picked.has(i))));
+      const n = [...picked].filter((i) => !rows[i].classList.contains("gone")).length;
+      go.disabled = !n;
+      go.textContent = n ? `Remove ${n} ${n === 1 ? "event" : "events"}` : "Tap the events to remove";
+    }
+    update();
+    go.addEventListener("click", async () => {
+      const todo = [...picked].filter((i) => !rows[i].classList.contains("gone")).sort((a, b) => a - b);
+      if (!todo.length) return;
+      card.classList.add("busy");
+      go.disabled = true;
+      showTyping(todo.length === 1 ? "removing it" : `removing ${todo.length} events`);
+      setStatus("🗑️", "Removing from your calendar");
+      const done = [];
+      for (const i of todo) {
+        const ev = list[i];
+        const r = await new Promise((resolve) => {
+          deleteWaiter = resolve;
+          native.deleteEvent(String(ev.id), Number(ev.rawBegin || ev.start), !!ev.repeats);
+          setTimeout(() => { if (deleteWaiter === resolve) { deleteWaiter = null; resolve({ ok: false }); } }, 8000);
+        });
+        if (!r.ok) continue;
+        rows[i].classList.add("gone");
+        picked.delete(i);
+        const start = new Date(ev.start);
+        forgetPlanned(ev.title, start);
+        const logId = `rm-${ev.id}-${ev.start}`;
+        logActivity({ id: logId, kind: "remove", ico: "calendar", title: `Removed ${ev.title || "an event"}`, detail: `${fmtDate(start)}${ev.allDay ? ", all day" : ` at ${fmtTime({ h: start.getHours(), m: start.getMinutes() })}`}` });
+        done.push({ i, token: r.undo, logId, ev });
+      }
+      card.classList.remove("busy");
+      update();
+      const failed = todo.length - done.length;
+      if (!done.length) return ervoSays("I couldn't remove that. Try deleting it in your calendar app.");
+      const what = done.length === 1 ? `"${done[0].ev.title || "That event"}" is` : `${done.length} events are`;
+      return ervoSays(`Done ✅ ${what} off your calendar.${failed ? ` I couldn't remove ${failed} of them.` : ""}`, {
+        acts: [{ label: "Undo", icon: "undo", onClick: (e) => undoRemove(done, rows, e.currentTarget, update) }],
+      });
+    });
+    thread.append(card);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  async function undoRemove(done, rows, btn, update) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    showTyping(done.length === 1 ? "putting it back" : "putting them back");
+    setStatus("↩️", "Putting it back");
+    let back = 0;
+    for (const d of done) {
+      const r = await new Promise((resolve) => {
+        restoreWaiter = resolve;
+        native.restoreEvent(String(d.token || ""));
+        setTimeout(() => { if (restoreWaiter === resolve) { restoreWaiter = null; resolve({ ok: false }); } }, 8000);
+      });
+      if (!r.ok) continue;
+      back++;
+      rows[d.i].classList.remove("gone");
+      save(ACTIVITY_KEY, activity().filter((a) => a.id !== d.logId));
+    }
+    btn.closest(".acts").remove();
+    update();
+    if (!back) return ervoSays("Sorry, I couldn't put it back 😕 You may need to add it again in your calendar app.");
+    return ervoSays(back === done.length ? `Undone ↩️ ${back === 1 ? "It's" : "They're"} back on your calendar.` : `I put back ${back} of ${done.length}.`);
+  }
+
+  // iPhone and computers: take it off Ervo's list, then open the calendar to delete it there
+  function removeOnWeb(q) {
+    const t = q.title;
+    const day = q.range && q.range.to - q.range.from <= 864e5 ? q.range.from : null;
+    const mine = activity().filter((a) => a.when && (!t || a.title.toLowerCase().includes(t)) && (!day || sameDay(new Date(a.when), day)));
     mine.forEach((a) => forgetPlanned(a.title, new Date(a.when)));
     const google = prefs().calendar === "google";
     const acts = [google
-      ? { label: "Open Google Calendar", icon: "calendar", href: `https://calendar.google.com/calendar/r/search?q=${encodeURIComponent(words)}` }
+      ? { label: "Open Google Calendar", icon: "calendar", href: t ? `https://calendar.google.com/calendar/r/search?q=${encodeURIComponent(t)}` : "https://calendar.google.com/calendar/r" }
       : { label: "Open Calendar", icon: "calendar", href: /iPhone|iPad/.test(navigator.userAgent) ? "calshow:" : "https://calendar.google.com/calendar/r" }];
-    return ervoSays(`${mine.length ? "Removed it from your Ervo Stats ✅ " : ""}I can't delete events from here on this phone, so tap below, open ${what} and choose Delete Event.`, { acts });
-  }
-
-  function showEventCards(events) {
-    const box = document.createElement("div");
-    box.className = "products";
-    events.slice(0, 6).forEach((ev) => {
-      const start = new Date(ev.start);
-      const card = document.createElement("div");
-      card.className = "product";
-      const name = document.createElement("b");
-      name.textContent = ev.title || "(No title)";
-      const meta = document.createElement("small");
-      meta.textContent = `${fmtDate(start)}${ev.allDay ? ", all day" : ` at ${fmtTime({ h: start.getHours(), m: start.getMinutes() })}`}`;
-      const cal = document.createElement("p");
-      cal.textContent = ev.calendar ? `On ${ev.calendar}` : "";
-      const btns = document.createElement("div");
-      btns.className = "product-btns";
-      if (ev.repeats) {
-        const note = document.createElement("small");
-        note.textContent = "Repeats, so remove it in your calendar app";
-        btns.append(note);
-      } else {
-        const del = document.createElement("button");
-        del.type = "button";
-        del.className = "act danger";
-        del.textContent = "Remove";
-        del.addEventListener("click", async () => {
-          del.disabled = true;
-          setStatus("🗑️", "Removing it");
-          const r = await new Promise((resolve) => { deleteWaiter = resolve; native.deleteEvent(String(ev.id)); setTimeout(() => resolve({ ok: false }), 8000); });
-          if (!r.ok) { del.disabled = false; idleStatus(); return ervoSays("I couldn't remove that one. Try deleting it in your calendar app."); }
-          card.classList.add("gone");
-          forgetPlanned(ev.title, start);
-          logActivity({ kind: "remove", ico: "calendar", title: `Removed ${ev.title || "an event"}`, detail: meta.textContent });
-          return ervoSays(`Removed ✅ "${ev.title}" is off your calendar.`);
-        });
-        btns.append(del);
-      }
-      card.append(name, meta);
-      if (cal.textContent) card.append(cal);
-      card.append(btns);
-      box.append(card);
-    });
-    thread.append(box);
-    thread.scrollTop = thread.scrollHeight;
+    return ervoSays(`${mine.length ? "Removed it from your Ervo Stats ✅ " : ""}I can't delete events from here on this phone, so tap below, open ${t ? `"${t}"` : "the event"} and choose Delete Event.`, { acts });
   }
 
   // Android: no calendar app on the phone, so offer Google Calendar instead
@@ -995,6 +1162,7 @@
 
   // ---------- status pill: what Ervo is doing right now ----------
   function setStatus(ico, text) {
+    if (liveTyping && text && !/^typing/i.test(text)) showTyping(text);
     $("status-ico").textContent = ico || "";
     $("status-text").textContent = text;
     $("status").classList.add("busy");
@@ -1018,19 +1186,34 @@
     ro.observe($("dock"));
   }
 
+  // While Ervo works: its picture, name and what it's doing ("checking your calendar")
+  let liveTyping = null;
+  function showTyping(words) {
+    if (!liveTyping) {
+      liveTyping = document.createElement("div");
+      liveTyping.className = "typing";
+      liveTyping.setAttribute("role", "status");
+      liveTyping.innerHTML = '<img src="img/ervo-classic.png" alt=""><span class="typing-body"><b>Ervo</b><small><span class="spin"></span><span class="dots"><i></i><i></i><i></i></span><em></em></small></span>';
+    }
+    if (words) {
+      const w = String(words).replace(/[….]+$/, "");
+      liveTyping.classList.toggle("is-typing", /^typing$/i.test(w));
+      liveTyping.querySelector("em").textContent = w.charAt(0).toLowerCase() + w.slice(1);
+    }
+    thread.append(liveTyping); // keep it last
+    thread.scrollTop = thread.scrollHeight;
+    return liveTyping;
+  }
+  function hideTyping() { if (liveTyping) liveTyping.remove(); liveTyping = null; }
+
   // Ervo "types", then answers. `text` can be a promise (weather, AI server).
   // opts.status: [emoji, words] for the status pill while Ervo works on it.
   let lastWasVoice = false;
   async function ervoSays(text, opts) {
     opts = opts || {};
+    showTyping(opts.status ? opts.status[1] : liveTyping ? null : "typing");
     if (opts.status) setStatus(opts.status[0], opts.status[1]);
     else setStatus("", "Typing…");
-    const t = document.createElement("div");
-    t.className = "typing";
-    t.setAttribute("aria-label", "Ervo is typing");
-    t.innerHTML = "<i></i><i></i><i></i>";
-    thread.append(t);
-    thread.scrollTop = thread.scrollHeight;
     const speakIt = lastWasVoice;
     lastWasVoice = false;
     let said;
@@ -1040,7 +1223,7 @@
       said = said.text;
     }
     await delay(500 + Math.min(String(said).length * 8, 900));
-    t.remove();
+    hideTyping();
     idleStatus();
     bubble(said, "them");
     history.push({ role: "assistant", text: said });
@@ -1290,7 +1473,8 @@
             .map((l) => ({ label: String(l.title || "Open").slice(0, 60), icon: "open", href: String(l.url) }));
         } else if (a.type === "remove_calendar_event") {
           const m = String(a.date || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-          out.after = () => removeEvents({ title: String(a.title || ""), date: m ? new Date(+m[1], +m[2] - 1, +m[3]) : null });
+          const asked = parseRemove(d);
+          out.after = () => removeEvents({ title: String(a.title || ""), count: asked.count, all: asked.all, range: m ? dayRange(new Date(+m[1], +m[2] - 1, +m[3])) : asked.range });
         } else if (a.type === "update_settings") {
           const p = prefs();
           if (a.nickname) p.nickname = String(a.nickname).slice(0, 30);
@@ -1356,9 +1540,14 @@
 
     if (d.intent === "remove") {
       task = null; confirming = false;
-      const title = d.raw.replace(/^(please |can you |could you |ervo,? )*(remove|delete|cancel|take off|clear|get rid of)\s+(my |the |that |an? )?/i, "")
-        .replace(/\b(from|off|on|in) (my |the )?(\w+ )?calendar\b/gi, "").replace(/\b(event|appointment|reservation|plans?)\b/gi, "");
-      return removeEvents({ title: tidy(title).replace(/^(for|on|at)\s+|\s+(for|on|at)$/gi, ""), date: d.when.date });
+      return removeEvents(parseRemove(d));
+    }
+    // Ervo asked "when is it?": a day or "this week" answers it
+    if (removeAsk) {
+      const q = removeAsk;
+      removeAsk = null;
+      const r = parseRemove(d);
+      if (r.range || r.count || (d.intent === "unknown" && r.title && d.t.split(/\s+/).length <= 4)) return removeEvents(Object.assign({}, q, r, { title: r.title || q.title }));
     }
     if (AI_URL && ["unknown", "event", "reserve", "shop"].includes(d.intent)) return askAI(d);
 
@@ -1732,7 +1921,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.2.3"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.2.4"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);

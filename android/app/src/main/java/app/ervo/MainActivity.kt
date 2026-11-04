@@ -261,20 +261,36 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        /** Deletes one event the user tapped Remove on, sent to window.ervoEventDeleted. */
+        /**
+         * Removes one event the user picked, sent to window.ervoEventDeleted with an undo token.
+         * For a repeating event only that one day is cancelled, not the whole series.
+         */
         @JavascriptInterface
-        fun deleteEvent(id: String) = runOnUiThread {
+        fun deleteEvent(id: String, rawBegin: Double, repeats: Boolean) = runOnUiThread {
+            lifecycleScope.launch {
+                val token = withContext(Dispatchers.IO) {
+                    try {
+                        if (hasPermission(Manifest.permission.WRITE_CALENDAR)) removeEventNow(id.toLong(), rawBegin.toLong(), repeats) else null
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                callJs("ervoEventDeleted", JSONObject().put("id", id).put("ok", token != null).put("undo", token ?: "").toString())
+            }
+        }
+
+        /** Puts back an event removed with deleteEvent, sent to window.ervoEventRestored. */
+        @JavascriptInterface
+        fun restoreEvent(token: String) = runOnUiThread {
             lifecycleScope.launch {
                 val ok = withContext(Dispatchers.IO) {
                     try {
-                        val eventId = id.toLong()
-                        hasPermission(Manifest.permission.WRITE_CALENDAR) &&
-                            contentResolver.delete(ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId), null, null) > 0
+                        hasPermission(Manifest.permission.WRITE_CALENDAR) && restoreEventNow(token)
                     } catch (e: Exception) {
                         false
                     }
                 }
-                callJs("ervoEventDeleted", JSONObject().put("id", id).put("ok", ok).toString())
+                callJs("ervoEventRestored", JSONObject().put("token", token).put("ok", ok).toString())
             }
         }
 
@@ -449,36 +465,52 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Up to 20 matching events between two times; every word in `query` must be in the title. */
+    /**
+     * Every event the user can edit between two times, in all calendars on the phone (Google
+     * calendars synced to the phone included). Uses Instances, so each day of a repeating event
+     * shows up too. If `query` has words, every word must be in the title.
+     */
     private fun findEventsNow(query: String, fromMs: Long, toMs: Long) {
         lifecycleScope.launch {
             val json = withContext(Dispatchers.IO) {
                 try {
+                    val day = 24L * 60 * 60 * 1000
+                    // All-day events are stored at midnight UTC, so look a day wider and let the app trim
+                    val uri = CalendarContract.Instances.CONTENT_URI.buildUpon()
+                        .appendPath((fromMs - day).toString()).appendPath((toMs + day).toString()).build()
                     val words = query.split(Regex("\\s+")).filter { it.length > 1 }.take(4)
-                    val where = StringBuilder("${CalendarContract.Events.DELETED} = 0 AND ${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} < ?")
-                    val args = mutableListOf(fromMs.toString(), toMs.toString())
+                    val where = StringBuilder(
+                        "${CalendarContract.Events.DELETED} = 0 AND " +
+                            "${CalendarContract.Instances.CALENDAR_ACCESS_LEVEL} >= ${CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR} AND " +
+                            "(${CalendarContract.Instances.STATUS} IS NULL OR ${CalendarContract.Instances.STATUS} != ${CalendarContract.Events.STATUS_CANCELED})"
+                    )
+                    val args = mutableListOf<String>()
                     words.forEach {
-                        where.append(" AND ${CalendarContract.Events.TITLE} LIKE ?")
+                        where.append(" AND ${CalendarContract.Instances.TITLE} LIKE ?")
                         args.add("%$it%")
                     }
                     val projection = arrayOf(
-                        CalendarContract.Events._ID, CalendarContract.Events.TITLE, CalendarContract.Events.DTSTART,
-                        CalendarContract.Events.ALL_DAY, CalendarContract.Events.RRULE, CalendarContract.Events.CALENDAR_DISPLAY_NAME
+                        CalendarContract.Instances.EVENT_ID, CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN,
+                        CalendarContract.Instances.END, CalendarContract.Instances.ALL_DAY, CalendarContract.Instances.RRULE,
+                        CalendarContract.Instances.CALENDAR_DISPLAY_NAME
                     )
                     val events = JSONArray()
-                    contentResolver.query(
-                        CalendarContract.Events.CONTENT_URI, projection, where.toString(), args.toTypedArray(),
-                        "${CalendarContract.Events.DTSTART} ASC"
-                    )?.use { c ->
-                        while (c.moveToNext() && events.length() < 20) {
+                    contentResolver.query(uri, projection, where.toString(), args.toTypedArray(), "${CalendarContract.Instances.BEGIN} ASC")?.use { c ->
+                        while (c.moveToNext() && events.length() < 80) {
+                            val allDay = c.getInt(4) == 1
+                            val begin = c.getLong(2)
+                            val start = if (allDay) utcDayToLocal(begin) else begin
+                            if (start < fromMs || start >= toMs) continue
                             events.put(
                                 JSONObject()
                                     .put("id", c.getLong(0).toString())
                                     .put("title", c.getString(1) ?: "")
-                                    .put("start", c.getLong(2))
-                                    .put("allDay", c.getInt(3) == 1)
-                                    .put("repeats", !c.getString(4).isNullOrBlank())
-                                    .put("calendar", c.getString(5) ?: "")
+                                    .put("start", start)
+                                    .put("end", if (allDay) utcDayToLocal(c.getLong(3)) else c.getLong(3))
+                                    .put("rawBegin", begin)
+                                    .put("allDay", allDay)
+                                    .put("repeats", !c.getString(5).isNullOrBlank())
+                                    .put("calendar", c.getString(6) ?: "")
                             )
                         }
                     }
@@ -488,6 +520,83 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             callJs("ervoEvents", json)
+        }
+    }
+
+    /** Midnight UTC of a day -> midnight of that same day on this phone. */
+    private fun utcDayToLocal(ms: Long): Long {
+        val date = java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+        return date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    }
+
+    // What Ervo needs to put an event back if the user taps Undo (kept until Ervo closes)
+    private sealed class Undo {
+        class Restore(val values: android.content.ContentValues, val reminders: List<Pair<Int, Int>>) : Undo()
+        class DropException(val exceptionId: Long) : Undo()
+    }
+    private val undoStore = HashMap<String, Undo>()
+
+    private fun removeEventNow(eventId: Long, rawBegin: Long, repeats: Boolean): String? {
+        val token = java.util.UUID.randomUUID().toString()
+        if (repeats) {
+            // Cancel just this day of the repeating event
+            val values = android.content.ContentValues().apply {
+                put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, rawBegin)
+                put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CANCELED)
+            }
+            val made = contentResolver.insert(Uri.withAppendedPath(CalendarContract.Events.CONTENT_EXCEPTION_URI, eventId.toString()), values) ?: return null
+            undoStore[token] = Undo.DropException(ContentUris.parseId(made))
+            return token
+        }
+        // Copy the event first, so Undo can put it back
+        val cols = arrayOf(
+            CalendarContract.Events.CALENDAR_ID, CalendarContract.Events.TITLE, CalendarContract.Events.DESCRIPTION,
+            CalendarContract.Events.EVENT_LOCATION, CalendarContract.Events.DTSTART, CalendarContract.Events.DTEND,
+            CalendarContract.Events.DURATION, CalendarContract.Events.ALL_DAY, CalendarContract.Events.EVENT_TIMEZONE,
+            CalendarContract.Events.EVENT_END_TIMEZONE, CalendarContract.Events.AVAILABILITY, CalendarContract.Events.ACCESS_LEVEL
+        )
+        val eventUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
+        val values = android.content.ContentValues()
+        contentResolver.query(eventUri, cols, null, null, null)?.use { c ->
+            if (!c.moveToFirst()) return null
+            cols.forEachIndexed { i, col ->
+                when (c.getType(i)) {
+                    android.database.Cursor.FIELD_TYPE_INTEGER -> values.put(col, c.getLong(i))
+                    android.database.Cursor.FIELD_TYPE_STRING -> values.put(col, c.getString(i))
+                    else -> {}
+                }
+            }
+        } ?: return null
+        if (!values.containsKey(CalendarContract.Events.DTEND) && !values.containsKey(CalendarContract.Events.DURATION)) {
+            values.put(CalendarContract.Events.DTEND, (values.getAsLong(CalendarContract.Events.DTSTART) ?: 0L) + 60 * 60 * 1000)
+        }
+        if (!values.containsKey(CalendarContract.Events.EVENT_TIMEZONE)) values.put(CalendarContract.Events.EVENT_TIMEZONE, java.util.TimeZone.getDefault().id)
+        val reminders = mutableListOf<Pair<Int, Int>>()
+        contentResolver.query(
+            CalendarContract.Reminders.CONTENT_URI, arrayOf(CalendarContract.Reminders.MINUTES, CalendarContract.Reminders.METHOD),
+            "${CalendarContract.Reminders.EVENT_ID} = ?", arrayOf(eventId.toString()), null
+        )?.use { c -> while (c.moveToNext()) reminders.add(c.getInt(0) to c.getInt(1)) }
+        if (contentResolver.delete(eventUri, null, null) <= 0) return null
+        undoStore[token] = Undo.Restore(values, reminders)
+        return token
+    }
+
+    private fun restoreEventNow(token: String): Boolean {
+        return when (val undo = undoStore.remove(token)) {
+            is Undo.DropException -> contentResolver.delete(ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, undo.exceptionId), null, null) > 0
+            is Undo.Restore -> {
+                val made = contentResolver.insert(CalendarContract.Events.CONTENT_URI, undo.values) ?: return false
+                val newId = ContentUris.parseId(made)
+                undo.reminders.forEach { (minutes, method) ->
+                    contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, android.content.ContentValues().apply {
+                        put(CalendarContract.Reminders.EVENT_ID, newId)
+                        put(CalendarContract.Reminders.MINUTES, minutes)
+                        put(CalendarContract.Reminders.METHOD, method)
+                    })
+                }
+                true
+            }
+            null -> false
         }
     }
 

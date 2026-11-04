@@ -1,10 +1,10 @@
 {
-  "version": "0.2.3",
+  "version": "0.2.4",
   "notes": [
-    "Shorter answers with a few emojis 🦉",
-    "Links are buttons you can tap, for flights, websites and more",
-    "Shop at H-E-B, Sprouts, Walmart, Target, DoorDash, Grubhub, Uber Eats and Instacart",
-    "Remove events from your calendar by asking (on Android, right from Ervo)",
-    "Ervo Stats shows your 3 latest events, with a full list you can filter by year and month"
+    "Remove events the easy way: Ervo shows your calendar, you tap the ones to remove 📅",
+    "Undo button if you remove the wrong thing ↩️",
+    "Say \"remove my next two events\" or \"clear tomorrow\" and Ervo picks them for you",
+    "Repeating events: removes just that day, not the whole series",
+    "New working bubble shows what Ervo is doing, like \"checking your calendar\""
   ]
 }

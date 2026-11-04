@@ -135,10 +135,21 @@ button { cursor: pointer; }
 .msg.link .link-top { height: 6px; background: var(--blue); }
 .receipt { align-self: flex-end; font-size: 0.7rem; color: var(--text-2); margin: 1px 4px 2px; }
 .voice-tag { display: block; font-size: 0.7rem; opacity: 0.8; margin-bottom: 2px; }
-.typing { align-self: flex-start; display: flex; gap: 5px; padding: 12px 15px; border-radius: 19px; background: var(--them); margin-top: 4px; }
-.typing i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-2); opacity: 0.5; animation: dots 1s infinite; }
-.typing i:nth-child(2) { animation-delay: 0.15s; }
-.typing i:nth-child(3) { animation-delay: 0.3s; }
+/* While Ervo works: picture, name, spinner and what it's doing */
+.typing { align-self: flex-start; display: flex; align-items: center; gap: 10px; padding: 8px 16px 8px 8px; border-radius: 999px; background: var(--them); color: var(--them-text); margin-top: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); animation: rise 0.22s ease both; }
+.typing img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: color-mix(in srgb, var(--blue) 12%, var(--bg)); flex: none; }
+.typing-body { display: flex; flex-direction: column; line-height: 1.2; }
+.typing-body b { font-size: 0.9rem; }
+.typing-body small { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-2); }
+.typing-body em { font-style: normal; }
+.typing .spin { width: 11px; height: 11px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--blue) 25%, transparent); border-top-color: var(--blue); animation: spin 0.8s linear infinite; }
+.typing .dots { display: none; gap: 3px; }
+.typing.is-typing .spin { display: none; }
+.typing.is-typing .dots { display: inline-flex; }
+.typing .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--text-2); animation: dots 1s infinite; }
+.typing .dots i:nth-child(2) { animation-delay: 0.15s; }
+.typing .dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes dots { 0%, 100% { opacity: 0.35; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
 
 /* Buttons under one of Ervo's messages: open an app, add to calendar */
@@ -338,3 +349,26 @@ button { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Calendar day card: tap events to pick them, then Remove */
+.daycard { align-self: flex-start; width: min(92%, 360px); margin: 6px 0 2px; padding: 12px; border-radius: 20px; background: var(--them); color: var(--them-text); display: flex; flex-direction: column; gap: 6px; animation: rise 0.22s ease both; }
+.daycard h3 { margin: 6px 4px 2px; font-size: 1rem; }
+.daycard h3:first-child { margin-top: 0; }
+.dayrow { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 12px; border-radius: 12px; border: 0; background: var(--bg); color: var(--text); text-align: left; font-size: 0.95rem; transition: background 0.15s, color 0.15s; }
+.dayrow .dt { flex: none; width: 4.6em; font-weight: 700; font-size: 0.85rem; color: var(--text-2); }
+.dayrow .dn { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.dayrow .dn small { display: block; font-weight: 400; font-size: 0.75rem; color: var(--text-2); }
+.dayrow .tick { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; color: transparent; }
+.dayrow .tick svg { width: 14px; height: 14px; }
+.dayrow[aria-pressed="true"] { background: var(--blue); color: #fff; }
+.dayrow[aria-pressed="true"] .dt, .dayrow[aria-pressed="true"] .dn small { color: rgba(255, 255, 255, 0.8); }
+.dayrow[aria-pressed="true"] .tick { background: #fff; border-color: #fff; color: var(--blue); }
+.dayrow.gone { opacity: 0.45; }
+.dayrow.gone .dn { text-decoration: line-through; }
+.dayrow.gone .tick { visibility: hidden; }
+.daycard.busy { opacity: 0.7; pointer-events: none; }
+.daycard-note { margin: 2px 4px; font-size: 0.8rem; color: var(--text-2); }
+.daycard .pill { flex: none; margin-top: 4px; width: 100%; }
+.pill.danger { background: #ff3b30; }
+.pill:disabled { background: var(--surface); color: var(--text-2); }
+.act:disabled { opacity: 0.5; }
