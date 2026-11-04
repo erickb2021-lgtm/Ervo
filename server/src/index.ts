@@ -166,6 +166,15 @@ const APP_TOOLS: Anthropic.Beta.BetaTool[] = [
   },
 ];
 
+// What each app tool did, so Claude's reply matches what the person sees
+const TOOL_RESULTS: Record<string, string> = {
+  remember: "Saved.",
+  update_settings: "Changed on their phone already. Confirm it in a few words.",
+  show_products: "The picks are on their screen as cards with prices, ratings, reasons, View and Add to cart buttons. Don't repeat or describe the cards; reply in 1 or 2 sentences, and maybe ask one helpful follow-up question.",
+  amazon_search: "Their screen shows Yes and No buttons to open the search. Ask in one short sentence if they want you to open it.",
+  add_calendar_event: "Their screen shows Yes and No buttons; if they tap Yes, the app asks which calendar. Ask in one short sentence if they want it added.",
+};
+
 type Action = { type: string } & Record<string, unknown>;
 type ClaudeResult = { reply: string; actions: Action[]; memories: string[] };
 
@@ -238,7 +247,7 @@ async function askClaude(env: Env, req: ChatRequest): Promise<ClaudeResult> {
         content: uses.map((use) => ({
           type: "tool_result" as const,
           tool_use_id: use.id,
-          content: use.name === "remember" ? "Saved." : "Shown in the app. The person confirms on their phone. Now write your short reply to them.",
+          content: TOOL_RESULTS[use.name] ?? "Done. Now write your short reply to them.",
         })),
       });
       continue;
