@@ -59,7 +59,10 @@ import java.util.Locale
  * The phone's own speech recognizer, text-to-speech, photo picker, location and
  * Health Connect steps are shared with the screens through the ErvoNative bridge below.
  */
-class MainActivity : AppCompatActivity() {
+open class MainActivity : AppCompatActivity() {
+
+    /** True for VoiceActivity: Ervo pops up over whatever is on screen. */
+    protected open val overlay = false
 
     private lateinit var webView: WebView
     private var tts: TextToSpeech? = null
@@ -104,7 +107,11 @@ class MainActivity : AppCompatActivity() {
 
     // Calendar: asked for the first time someone asks Ervo to remove an event
     private var pendingFind: Triple<String, Long, Long>? = null
+    private var afterCalendarAsk: ((Boolean) -> Unit)? = null
     private val calendarLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        val then = afterCalendarAsk
+        afterCalendarAsk = null
+        if (then != null) { then(result.values.isNotEmpty() && result.values.all { it }); return@registerForActivityResult }
         val find = pendingFind
         pendingFind = null
         if (find != null && result.values.isNotEmpty() && result.values.all { it }) findEventsNow(find.first, find.second, find.third)
@@ -152,6 +159,7 @@ class MainActivity : AppCompatActivity() {
             .build()
 
         webView = WebView(this)
+        if (overlay) webView.setBackgroundColor(Color.TRANSPARENT)
         setContentView(webView)
 
         webView.settings.apply {
@@ -227,7 +235,7 @@ class MainActivity : AppCompatActivity() {
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
         } else {
-            webView.loadUrl("https://$APP_HOST/assets/www/index.html")
+            webView.loadUrl("https://$APP_HOST/assets/www/index.html" + if (overlay) "?overlay=1" else "")
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -271,9 +279,7 @@ class MainActivity : AppCompatActivity() {
                 webView.postDelayed({ callJs("ervoWakeState", wakeStatusJson()) }, 400)
                 return@runOnUiThread
             }
-            val ask = mutableListOf(Manifest.permission.RECORD_AUDIO)
-            if (android.os.Build.VERSION.SDK_INT >= 33) ask.add(Manifest.permission.POST_NOTIFICATIONS)
-            wakeLauncher.launch(ask.toTypedArray())
+            wakeLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
         }
 
         /** "Display over other apps", so "Hey Ervo" can open Ervo while you're in another app. */
@@ -355,7 +361,8 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun speak(text: String) = runOnUiThread {
-            if (ttsReady) tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ervo-reply")
+            // Spoken replies are off for now (the page doesn't call this anymore)
+            if (ttsReady && SPEAK_REPLIES) tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ervo-reply")
         }
 
         @JavascriptInterface
@@ -387,6 +394,75 @@ class MainActivity : AppCompatActivity() {
                 callJs("ervoCalendarError", "no-app")
             }
         }
+
+        /**
+         * Adds an event straight to the phone's main calendar (a synced Google calendar if there
+         * is one), sent to window.ervoEventAdded with the calendar's name and an undo token.
+         */
+        @JavascriptInterface
+        fun insertEvent(title: String, startMs: Double, endMs: Double, allDay: Boolean, notes: String, location: String) = runOnUiThread {
+            withCalendar({ ok ->
+                if (!ok) { callJs("ervoEventAdded", """{"ok":false,"reason":"denied"}"""); return@withCalendar }
+                lifecycleScope.launch {
+                    val json = withContext(Dispatchers.IO) {
+                        try { insertEventNow(title, startMs.toLong(), endMs.toLong(), allDay, notes, location) } catch (e: Exception) { """{"ok":false,"reason":"error"}""" }
+                    }
+                    callJs("ervoEventAdded", json)
+                }
+            })
+        }
+
+        /** Renames an event and/or moves it to a new start (keeping its length). Sent to window.ervoEventUpdated. */
+        @JavascriptInterface
+        fun updateEvent(id: String, title: String, startMs: Double) = runOnUiThread {
+            withCalendar({ ok ->
+                if (!ok) { callJs("ervoEventUpdated", """{"ok":false,"reason":"denied"}"""); return@withCalendar }
+                lifecycleScope.launch {
+                    val json = withContext(Dispatchers.IO) {
+                        try { updateEventNow(id.toLong(), title, startMs.toLong()) } catch (e: Exception) { """{"ok":false,"reason":"error"}""" }
+                    }
+                    callJs("ervoEventUpdated", json)
+                }
+            })
+        }
+
+        /** Turns off alarms in the Clock app: "all" (Clock lets you pick) or the one at hour:minute. */
+        @JavascriptInterface
+        fun dismissAlarm(mode: String, hour: Int, minute: Int) = runOnUiThread {
+            val intent = Intent(AlarmClock.ACTION_DISMISS_ALARM).apply {
+                if (mode == "time") {
+                    putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.ALARM_SEARCH_MODE_TIME)
+                    putExtra(AlarmClock.EXTRA_HOUR, hour.coerceIn(0, 23))
+                    putExtra(AlarmClock.EXTRA_MINUTES, minute.coerceIn(0, 59))
+                    putExtra(AlarmClock.EXTRA_IS_PM, hour >= 12)
+                } else {
+                    putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.ALARM_SEARCH_MODE_ALL)
+                }
+            }
+            val ok = try { startActivity(intent); true } catch (e: Exception) {
+                try { startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)); false } catch (e2: Exception) { false }
+            }
+            callJs("ervoClock", JSONObject().put("ok", ok).put("what", "dismiss").toString())
+        }
+
+        /** Ervo's page in Android Settings, where permissions can be turned off. */
+        @JavascriptInterface
+        fun openAppSettings() = runOnUiThread {
+            openOutside(Uri.parse("package:$packageName"), Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        }
+
+        /** Pop-up mode: close it, or open the full Ervo app. */
+        @JavascriptInterface
+        fun closeOverlay() = runOnUiThread { if (overlay) finish() }
+
+        @JavascriptInterface
+        fun openFullApp() = runOnUiThread {
+            startActivity(Intent(this@MainActivity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+            if (overlay) finish()
+        }
+
+        @JavascriptInterface
+        fun isOverlay(): Boolean = overlay
 
         /** Finds events in the phone's calendars by words in the title, sent to window.ervoEvents. */
         @JavascriptInterface
@@ -462,6 +538,7 @@ class MainActivity : AppCompatActivity() {
         /** Colors the phone's status bar (top) and navigation bar (bottom) to match the screen. */
         @JavascriptInterface
         fun setBars(top: String, bottom: String, dark: Boolean) = runOnUiThread {
+            if (overlay) return@runOnUiThread
             try {
                 window.statusBarColor = Color.parseColor(top)
                 window.navigationBarColor = Color.parseColor(bottom)
@@ -603,6 +680,99 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Runs `then(true)` once Ervo may read and write the calendar (asking Android first if needed). */
+    private fun withCalendar(then: (Boolean) -> Unit) {
+        if (hasPermission(Manifest.permission.READ_CALENDAR) && hasPermission(Manifest.permission.WRITE_CALENDAR)) { then(true); return }
+        afterCalendarAsk = then
+        calendarLauncher.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR))
+    }
+
+    /** The calendar new events go on: the primary synced Google calendar, else any the user can edit. */
+    private fun mainCalendar(): Pair<Long, String>? {
+        val cols = arrayOf(
+            CalendarContract.Calendars._ID, CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+            CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.Calendars.IS_PRIMARY, CalendarContract.Calendars.ACCOUNT_NAME
+        )
+        var best: Pair<Long, String>? = null
+        var bestScore = -1
+        contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI, cols,
+            "${CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL} >= ${CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR} AND ${CalendarContract.Calendars.VISIBLE} = 1",
+            null, null
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val google = c.getString(2) == "com.google"
+                val primary = c.getInt(3) == 1
+                val score = (if (google) 2 else 0) + (if (primary) 1 else 0)
+                if (score > bestScore) {
+                    bestScore = score
+                    best = c.getLong(0) to (c.getString(4)?.takeIf { it.contains("@") } ?: c.getString(1) ?: "your calendar")
+                }
+            }
+        }
+        return best
+    }
+
+    private fun insertEventNow(title: String, startMs: Long, endMs: Long, allDay: Boolean, notes: String, location: String): String {
+        val (calId, calName) = mainCalendar() ?: return """{"ok":false,"reason":"no-calendar"}"""
+        val values = android.content.ContentValues().apply {
+            put(CalendarContract.Events.CALENDAR_ID, calId)
+            put(CalendarContract.Events.TITLE, title)
+            if (notes.isNotBlank()) put(CalendarContract.Events.DESCRIPTION, notes)
+            if (location.isNotBlank()) put(CalendarContract.Events.EVENT_LOCATION, location)
+            if (allDay) {
+                // All-day events are stored at midnight UTC of that day
+                val day = java.time.Instant.ofEpochMilli(startMs).atZone(ZoneId.systemDefault()).toLocalDate()
+                val utc = day.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+                put(CalendarContract.Events.DTSTART, utc)
+                put(CalendarContract.Events.DTEND, utc + 24L * 60 * 60 * 1000)
+                put(CalendarContract.Events.ALL_DAY, 1)
+                put(CalendarContract.Events.EVENT_TIMEZONE, "UTC")
+            } else {
+                put(CalendarContract.Events.DTSTART, startMs)
+                put(CalendarContract.Events.DTEND, endMs)
+                put(CalendarContract.Events.EVENT_TIMEZONE, java.util.TimeZone.getDefault().id)
+            }
+        }
+        val made = contentResolver.insert(CalendarContract.Events.CONTENT_URI, values) ?: return """{"ok":false,"reason":"error"}"""
+        val id = ContentUris.parseId(made)
+        // A reminder 30 minutes before, like most calendar apps
+        if (!allDay) contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, android.content.ContentValues().apply {
+            put(CalendarContract.Reminders.EVENT_ID, id)
+            put(CalendarContract.Reminders.MINUTES, 30)
+            put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+        })
+        val token = java.util.UUID.randomUUID().toString()
+        undoStore[token] = Undo.DeleteNew(id)
+        return JSONObject().put("ok", true).put("id", id.toString()).put("calendar", calName).put("undo", token).toString()
+    }
+
+    private fun updateEventNow(id: Long, title: String, newStart: Long): String {
+        val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, id)
+        val old = android.content.ContentValues()
+        var repeats = false
+        contentResolver.query(uri, arrayOf(CalendarContract.Events.TITLE, CalendarContract.Events.DTSTART, CalendarContract.Events.DTEND, CalendarContract.Events.RRULE), null, null, null)?.use { c ->
+            if (!c.moveToFirst()) return """{"ok":false,"reason":"gone"}"""
+            old.put(CalendarContract.Events.TITLE, c.getString(0))
+            old.put(CalendarContract.Events.DTSTART, c.getLong(1))
+            if (!c.isNull(2)) old.put(CalendarContract.Events.DTEND, c.getLong(2))
+            repeats = !c.getString(3).isNullOrBlank()
+        } ?: return """{"ok":false,"reason":"error"}"""
+        if (repeats && newStart > 0) return """{"ok":false,"reason":"repeats"}"""
+        val values = android.content.ContentValues()
+        if (title.isNotBlank()) values.put(CalendarContract.Events.TITLE, title)
+        if (newStart > 0) {
+            val start = old.getAsLong(CalendarContract.Events.DTSTART)
+            val end = old.getAsLong(CalendarContract.Events.DTEND) ?: (start + 60 * 60 * 1000)
+            values.put(CalendarContract.Events.DTSTART, newStart)
+            values.put(CalendarContract.Events.DTEND, newStart + (end - start))
+        }
+        if (values.size() == 0 || contentResolver.update(uri, values, null, null) <= 0) return """{"ok":false,"reason":"error"}"""
+        val token = java.util.UUID.randomUUID().toString()
+        undoStore[token] = Undo.Revert(id, old)
+        return JSONObject().put("ok", true).put("undo", token).toString()
+    }
+
     /**
      * Every event the user can edit between two times, in all calendars on the phone (Google
      * calendars synced to the phone included). Uses Instances, so each day of a repeating event
@@ -652,7 +822,19 @@ class MainActivity : AppCompatActivity() {
                             )
                         }
                     }
-                    JSONObject().put("status", "ready").put("events", events).toString()
+                    val calendars = JSONArray()
+                    contentResolver.query(
+                        CalendarContract.Calendars.CONTENT_URI,
+                        arrayOf(CalendarContract.Calendars.ACCOUNT_NAME, CalendarContract.Calendars.ACCOUNT_TYPE),
+                        "${CalendarContract.Calendars.VISIBLE} = 1", null, null
+                    )?.use { c ->
+                        val seen = HashSet<String>()
+                        while (c.moveToNext()) {
+                            val name = c.getString(0) ?: continue
+                            if (seen.add(name)) calendars.put(JSONObject().put("account", name).put("google", c.getString(1) == "com.google"))
+                        }
+                    }
+                    JSONObject().put("status", "ready").put("events", events).put("calendars", calendars).toString()
                 } catch (e: Exception) {
                     """{"status":"error"}"""
                 }
@@ -671,6 +853,8 @@ class MainActivity : AppCompatActivity() {
     private sealed class Undo {
         class Restore(val values: android.content.ContentValues, val reminders: List<Pair<Int, Int>>) : Undo()
         class DropException(val exceptionId: Long) : Undo()
+        class DeleteNew(val eventId: Long) : Undo()
+        class Revert(val eventId: Long, val values: android.content.ContentValues) : Undo()
     }
     private val undoStore = HashMap<String, Undo>()
 
@@ -722,6 +906,8 @@ class MainActivity : AppCompatActivity() {
     private fun restoreEventNow(token: String): Boolean {
         return when (val undo = undoStore.remove(token)) {
             is Undo.DropException -> contentResolver.delete(ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, undo.exceptionId), null, null) > 0
+            is Undo.DeleteNew -> contentResolver.delete(ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, undo.eventId), null, null) > 0
+            is Undo.Revert -> contentResolver.update(ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, undo.eventId), undo.values, null, null) > 0
             is Undo.Restore -> {
                 val made = contentResolver.insert(CalendarContract.Events.CONTENT_URI, undo.values) ?: return false
                 val newId = ContentUris.parseId(made)
@@ -776,6 +962,10 @@ class MainActivity : AppCompatActivity() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            // Wait for a real pause, so "set an alarm... actually never mind" is heard in full
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2200L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1800L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1500L)
         }
         // Give the "Hey Ervo" listener a moment to let go of the microphone
         webView.postDelayed({
@@ -842,6 +1032,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         visible = false
+        if (overlay) WakeService.resume(this) // pop-up closed: listen for "Hey Ervo" again
         super.onStop()
     }
 
@@ -949,6 +1140,7 @@ class MainActivity : AppCompatActivity() {
         // Updates only ever come from Ervo's own GitHub releases
         private const val UPDATE_PREFIX = "https://github.com/erickb2021-lgtm/Ervo/releases/download/"
         const val ACTION_WAKE = "app.ervo.WAKE"
+        private const val SPEAK_REPLIES = false
         const val EXTRA_COMMAND = "command"
         @Volatile var visible = false
     }

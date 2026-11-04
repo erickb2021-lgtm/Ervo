@@ -192,19 +192,42 @@ button { cursor: pointer; }
 .round.mic { background: none; color: var(--text-2); }
 .round.send { background: var(--blue); color: #fff; }
 
-/* Voice */
-.voice { position: absolute; inset: 0; z-index: 10; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; animation: fade 0.25s ease both; }
-.voice-owl { width: 130px; height: 130px; object-fit: contain; position: relative; z-index: 1; animation: owl-pop 0.45s cubic-bezier(.2, 1.4, .4, 1) both; }
+/* Voice: glowing edges, a small owl and an "Ask Ervo" bar */
+@property --spin { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.voice { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; justify-content: flex-end; background: rgba(0, 0, 0, 0.42); animation: fade 0.2s ease both; }
+.chat:has(.voice:not([hidden])) .dock, .chat:has(.voice:not([hidden])) .to-latest { visibility: hidden; }
+.voice[hidden] { display: none; }
+.voice-glow { position: absolute; inset: 0; pointer-events: none; padding: 7px; box-shadow: inset 0 0 60px rgba(123, 75, 214, 0.45); border-radius: 34px;
+  background: conic-gradient(from var(--spin), #7b4bd6, #3b82f6, #22d3ee, #ff9f0a, #ec4899, #7b4bd6);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  filter: blur(5px); opacity: 0.95; animation: glow-spin 3.2s linear infinite, glow-in 0.4s ease both; }
+.voice.listening .voice-glow { animation: glow-spin 1.6s linear infinite, glow-breathe 1.2s ease-in-out infinite; }
+.voice.thinking .voice-glow { animation: glow-spin 0.9s linear infinite; opacity: 1; }
+@keyframes glow-spin { to { --spin: 360deg; } }
+@keyframes glow-breathe { 0%, 100% { opacity: 0.75; padding: 6px; } 50% { opacity: 1; padding: 12px; } }
+@keyframes glow-in { from { opacity: 0; } }
+.voice-dock { position: relative; padding: 0 12px calc(14px + env(safe-area-inset-bottom)); width: min(100%, var(--col)); margin: 0 auto; }
+.voice-status { margin: 0 0 8px; text-align: center; font-size: 0.85rem; font-weight: 600; color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+.voice-bar { display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 999px; background: color-mix(in srgb, var(--bg) 96%, transparent); -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%); border: 1px solid var(--glass-line); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); animation: rise 0.25s ease both; }
+.voice-ava { flex: none; width: 40px; height: 40px; border-radius: 50%; background: color-mix(in srgb, var(--blue) 14%, var(--bg)); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.voice-ava img { width: 36px; height: 36px; object-fit: contain; animation: owl-pop 0.45s cubic-bezier(.2, 1.4, .4, 1) both; }
+.voice.listening .voice-ava { box-shadow: 0 0 0 0 rgba(123, 75, 214, 0.6); animation: callring 1.2s infinite; }
 @keyframes owl-pop { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
-.rings { position: relative; width: 0; height: 0; top: -82px; }
-.rings i { position: absolute; left: -90px; top: -90px; width: 180px; height: 180px; border-radius: 50%; border: 3px solid var(--blue); opacity: 0; animation: ring 2s ease-out infinite; }
-.rings i:nth-child(2) { animation-delay: 0.6s; }
-.rings i:nth-child(3) { animation-delay: 1.2s; }
-@keyframes ring { 0% { transform: scale(0.6); opacity: 0.6; } 100% { transform: scale(1.35); opacity: 0; } }
-.voice.thinking .rings i { animation: none; opacity: 0; }
-.voice-status { margin: 30px 0 0; font-size: 1.4rem; font-weight: 700; }
-.voice-text { margin: 0; max-width: 320px; font-size: 1.05rem; line-height: 1.45; color: var(--text-2); min-height: 50px; }
-.voice-actions { display: flex; gap: 10px; width: min(320px, 100%); margin-top: 8px; }
+.voice-bar input { flex: 1; min-width: 0; border: 0; outline: none; background: none; color: var(--text); font-size: 16px; padding: 8px 4px; }
+.voice-bar input::placeholder { color: var(--text-2); }
+.voice-mic { width: 40px; height: 40px; background: var(--blue); color: #fff; }
+.voice.listening .voice-mic { background: #ff3b30; }
+.voice-x { width: 40px; height: 40px; background: var(--surface); color: var(--text-2); }
+
+/* Pop-up mode ("Hey Ervo" over other apps): see-through, with answers above the bar */
+html.overlay, html.overlay body, html.overlay .screen { background: transparent !important; }
+html.overlay .chat-header, html.overlay .dock, html.overlay .to-latest, html.overlay #splash { display: none !important; }
+html.overlay .voice { background: transparent; }
+html.overlay .thread { position: fixed; left: 0; right: 0; bottom: calc(96px + env(safe-area-inset-bottom)); top: 18%; z-index: 11; padding: 8px max(12px, calc((100% - var(--col)) / 2 + 12px)); justify-content: flex-end; pointer-events: auto; }
+html.overlay .thread > * { pointer-events: auto; }
+html.overlay .msg.them { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); }
+html.overlay .typing { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); }
 
 /* ---------- Ervo Stats (grouped cards, like a health summary) ---------- */
 .stats { background: var(--group); }

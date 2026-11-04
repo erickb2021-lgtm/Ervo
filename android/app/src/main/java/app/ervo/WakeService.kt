@@ -66,8 +66,12 @@ class WakeService : Service() {
     private fun startInForeground(): Boolean {
         val nm = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) {
-            nm.createNotificationChannel(NotificationChannel(CHANNEL, "Hey Ervo", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Shows while Ervo listens for \"Hey Ervo\""
+            nm.deleteNotificationChannel("hey_ervo") // the louder one from 0.2.5
+            // As quiet as Android allows: no sound, no status bar icon, tucked at the bottom of the shade.
+            // (Android requires this notice for any app that listens in the background.)
+            nm.createNotificationChannel(NotificationChannel(CHANNEL, "Hey Ervo", NotificationManager.IMPORTANCE_MIN).apply {
+                description = "Android requires this while Ervo waits for \"Hey Ervo\". You can hide it here."
+                setShowBadge(false)
             })
         }
         val open = PendingIntent.getActivity(
@@ -80,8 +84,8 @@ class WakeService : Service() {
         )
         val note = Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentTitle("Listening for \"Hey Ervo\"")
-            .setContentText("Say \"Hey Ervo\" and what you need.")
+            .setContentTitle("Hey Ervo is ready")
+            .setContentText("Say \"Hey Ervo\" anytime.")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(Notification.Action.Builder(null, "Turn off", off).build())
@@ -161,7 +165,8 @@ class WakeService : Service() {
     }
 
     private fun open(command: String) {
-        val intent = Intent(this, MainActivity::class.java)
+        // The pop-up version of Ervo, over whatever app is open
+        val intent = Intent(this, VoiceActivity::class.java)
             .setAction(MainActivity.ACTION_WAKE)
             .putExtra(MainActivity.EXTRA_COMMAND, command)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
@@ -191,7 +196,7 @@ class WakeService : Service() {
         const val ACTION_STOP = "app.ervo.wake.STOP"
         const val ACTION_PAUSE = "app.ervo.wake.PAUSE"
         const val ACTION_RESUME = "app.ervo.wake.RESUME"
-        private const val CHANNEL = "hey_ervo"
+        private const val CHANNEL = "hey_ervo_quiet"
         private const val CHANNEL_HEARD = "ervo_heard"
         private const val NOTE_ID = 7
         private const val HEARD_ID = 8

@@ -67,6 +67,18 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+
+        <!-- Ervo as a pop-up over other apps: "Hey Ervo" and the phone's assistant button open this -->
+        <activity
+            android:name=".VoiceActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Ervo.Overlay"
+            android:launchMode="singleInstance"
+            android:taskAffinity="app.ervo.voice"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:windowSoftInputMode="adjustResize">
             <!-- Lets you pick Ervo as the phone's digital assistant app -->
             <intent-filter>
                 <action android:name="android.intent.action.ASSIST" />

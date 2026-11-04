@@ -1,11 +1,11 @@
 {
-  "version": "0.2.5",
+  "version": "0.2.6",
   "notes": [
-    "\"Hey Ervo\": turn it on in the menu and talk hands-free 🦉",
-    "Timers and alarms in your Clock app ⏰",
-    "Call people in your contacts 📞 (never emergency services)",
-    "Ervo can be your phone's assistant app",
-    "The chat stays on your newest message when you type, and keeps your spot when you scroll",
-    "Updates now pop up on their own"
+    "New voice look: glowing edges, a small owl and an \"Ask Ervo\" bar you can talk or type in",
+    "\"Hey Ervo\" pops up over any app, with no listening notice",
+    "Events go straight onto your phone's calendar (your synced Google calendar), with Undo",
+    "Move, rename and remove events; set, change and turn off alarms",
+    "Google Meet, Zoom and Teams meetings",
+    "Fixed: \"alarm in 1 minute\" and \"never mind\" are understood"
   ]
 }

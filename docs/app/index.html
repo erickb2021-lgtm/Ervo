@@ -97,7 +97,7 @@
       <button type="button" id="check-update">Check for updates</button>
       <button type="button" id="clear-chat">Clear chat</button>
       <button type="button" id="sign-out">Sign out</button>
-      <p class="menu-version" id="menu-version">Ervo version 0.2.5 (preview)</p>
+      <p class="menu-version" id="menu-version">Ervo version 0.2.6 (preview)</p>
     </div>
   </header>
 
@@ -145,14 +145,17 @@
   </div>
 
   <!-- Voice: Ervo listens until you finish, then answers out loud -->
-  <div class="voice" id="voice" hidden role="dialog" aria-modal="true" aria-labelledby="voice-status">
-    <img class="voice-owl" id="voice-owl" src="img/ervo-classic.png" alt="">
-    <div class="rings" aria-hidden="true"><i></i><i></i><i></i></div>
-    <p class="voice-status" id="voice-status">Listening…</p>
-    <p class="voice-text" id="voice-text">Say what you need. I'll wait until you're done.</p>
-    <div class="voice-actions">
-      <button class="pill ghost" type="button" id="voice-cancel">Cancel</button>
-      <button class="pill" type="button" id="voice-done">Done</button>
+  <!-- Talking to Ervo: glowing edges, a small owl and an "Ask Ervo" bar -->
+  <div class="voice" id="voice" hidden role="dialog" aria-modal="true" aria-label="Talk to Ervo">
+    <div class="voice-glow" aria-hidden="true"></div>
+    <div class="voice-dock">
+      <p class="voice-status" id="voice-status" aria-live="polite">Listening…</p>
+      <form class="voice-bar" id="voice-form" autocomplete="off">
+        <span class="voice-ava"><img id="voice-owl" src="img/ervo-classic.png" alt=""></span>
+        <input id="voice-text" type="text" placeholder="Ask Ervo" enterkeyhint="send" aria-label="Ask Ervo">
+        <button class="round voice-mic" type="button" id="voice-done" aria-label="Done talking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
+        <button class="round voice-x" type="button" id="voice-cancel" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </form>
     </div>
   </div>
 </section>
