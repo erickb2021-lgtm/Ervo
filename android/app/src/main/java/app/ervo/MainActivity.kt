@@ -3,6 +3,7 @@ package app.ervo
 import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.ContentUris
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -93,6 +94,15 @@ class MainActivity : AppCompatActivity() {
         PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         if (granted.containsAll(stepsPermission)) readSteps() else callJs("ervoSteps", """{"status":"denied"}""")
+    }
+
+    // Calendar: asked for the first time someone asks Ervo to remove an event
+    private var pendingFind: Triple<String, Long, Long>? = null
+    private val calendarLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        val find = pendingFind
+        pendingFind = null
+        if (find != null && result.values.isNotEmpty() && result.values.all { it }) findEventsNow(find.first, find.second, find.third)
+        else callJs("ervoEvents", """{"status":"denied"}""")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -237,6 +247,34 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intent)
             } catch (e: ActivityNotFoundException) {
                 callJs("ervoCalendarError", "no-app")
+            }
+        }
+
+        /** Finds events in the phone's calendars by words in the title, sent to window.ervoEvents. */
+        @JavascriptInterface
+        fun findEvents(query: String, fromMs: Double, toMs: Double) = runOnUiThread {
+            if (hasPermission(Manifest.permission.READ_CALENDAR) && hasPermission(Manifest.permission.WRITE_CALENDAR)) {
+                findEventsNow(query, fromMs.toLong(), toMs.toLong())
+            } else {
+                pendingFind = Triple(query, fromMs.toLong(), toMs.toLong())
+                calendarLauncher.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR))
+            }
+        }
+
+        /** Deletes one event the user tapped Remove on, sent to window.ervoEventDeleted. */
+        @JavascriptInterface
+        fun deleteEvent(id: String) = runOnUiThread {
+            lifecycleScope.launch {
+                val ok = withContext(Dispatchers.IO) {
+                    try {
+                        val eventId = id.toLong()
+                        hasPermission(Manifest.permission.WRITE_CALENDAR) &&
+                            contentResolver.delete(ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId), null, null) > 0
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
+                callJs("ervoEventDeleted", JSONObject().put("id", id).put("ok", ok).toString())
             }
         }
 
@@ -408,6 +446,48 @@ class MainActivity : AppCompatActivity() {
             callJs("ervoUpdate", """{"status":"installing"}""")
         } catch (e: ActivityNotFoundException) {
             callJs("ervoUpdate", """{"status":"error"}""")
+        }
+    }
+
+    /** Up to 20 matching events between two times; every word in `query` must be in the title. */
+    private fun findEventsNow(query: String, fromMs: Long, toMs: Long) {
+        lifecycleScope.launch {
+            val json = withContext(Dispatchers.IO) {
+                try {
+                    val words = query.split(Regex("\\s+")).filter { it.length > 1 }.take(4)
+                    val where = StringBuilder("${CalendarContract.Events.DELETED} = 0 AND ${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} < ?")
+                    val args = mutableListOf(fromMs.toString(), toMs.toString())
+                    words.forEach {
+                        where.append(" AND ${CalendarContract.Events.TITLE} LIKE ?")
+                        args.add("%$it%")
+                    }
+                    val projection = arrayOf(
+                        CalendarContract.Events._ID, CalendarContract.Events.TITLE, CalendarContract.Events.DTSTART,
+                        CalendarContract.Events.ALL_DAY, CalendarContract.Events.RRULE, CalendarContract.Events.CALENDAR_DISPLAY_NAME
+                    )
+                    val events = JSONArray()
+                    contentResolver.query(
+                        CalendarContract.Events.CONTENT_URI, projection, where.toString(), args.toTypedArray(),
+                        "${CalendarContract.Events.DTSTART} ASC"
+                    )?.use { c ->
+                        while (c.moveToNext() && events.length() < 20) {
+                            events.put(
+                                JSONObject()
+                                    .put("id", c.getLong(0).toString())
+                                    .put("title", c.getString(1) ?: "")
+                                    .put("start", c.getLong(2))
+                                    .put("allDay", c.getInt(3) == 1)
+                                    .put("repeats", !c.getString(4).isNullOrBlank())
+                                    .put("calendar", c.getString(5) ?: "")
+                            )
+                        }
+                    }
+                    JSONObject().put("status", "ready").put("events", events).toString()
+                } catch (e: Exception) {
+                    """{"status":"error"}"""
+                }
+            }
+            callJs("ervoEvents", json)
         }
     }
 

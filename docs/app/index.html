@@ -96,7 +96,7 @@
       <button type="button" id="check-update">Check for updates</button>
       <button type="button" id="clear-chat">Clear chat</button>
       <button type="button" id="sign-out">Sign out</button>
-      <p class="menu-version" id="menu-version">Ervo version 0.2.2 (preview)</p>
+      <p class="menu-version" id="menu-version">Ervo version 0.2.3 (preview)</p>
     </div>
   </header>
 
@@ -196,6 +196,24 @@
     <h2 id="apps-heading">Connected apps</h2>
     <div class="card list" id="apps"></div>
     <p class="foot-note">Ervo only opens an app after you tap Allow. You can turn any of them off here.</p>
+  </div>
+</section>
+
+<!-- 5. All activity: everything Ervo did, filtered by year and month -->
+<section class="screen stats" id="activity" aria-labelledby="activity-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="activity-back" aria-label="Back to Ervo Stats">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Stats
+    </button>
+  </header>
+  <div class="stats-body" id="activity-body">
+    <h1 id="activity-title">All activity</h1>
+    <p class="stats-weather" id="activity-count"></p>
+    <div class="filters">
+      <label><span>Year</span><select id="f-year"></select></label>
+      <label><span>Month</span><select id="f-month"></select></label>
+    </div>
+    <div id="activity-list"></div>
   </div>
 </section>
 

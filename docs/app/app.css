@@ -281,6 +281,23 @@ button { cursor: pointer; }
 .product-btns .act { flex: 1; justify-content: center; padding: 0 10px; background: var(--bg); }
 .act.primary { background: var(--blue) !important; color: #fff; border-color: transparent; }
 
+/* Links inside Ervo's messages */
+.inline-link { color: var(--blue); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.msg.them .inline-link { color: var(--blue); }
+.act.danger { background: transparent !important; color: #ff3b30; border-color: rgba(255, 59, 48, 0.45); }
+.product.gone { opacity: 0.45; }
+.product.gone .act { display: none; }
+.product-btns > small { color: var(--text-2); font-size: 0.8rem; }
+
+/* All activity */
+.see-all { cursor: pointer; }
+.see-all .txt b { color: var(--blue); }
+.see-all .side { font-size: 1.4rem; line-height: 1; }
+.filters { display: flex; gap: 10px; margin: 10px 0 4px; }
+.filters label { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--text-2); }
+.filters select { width: 100%; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: 0.95rem; }
+.stats-body h2.day { margin: 18px 4px 8px; font-size: 0.85rem; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.3px; }
+
 .update-logo { display: block; width: 64px; height: 56px; margin: 0 auto 4px; }
 .progress { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 14px; }
 .progress i { display: block; height: 100%; width: 0; background: var(--blue); border-radius: inherit; transition: width 0.25s; }

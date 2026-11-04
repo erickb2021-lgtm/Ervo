@@ -1,10 +1,10 @@
 {
-  "version": "0.2.2",
+  "version": "0.2.3",
   "notes": [
-    "Choose your calendar: your phone's calendar app or Google Calendar",
-    "See what Ervo is doing, like \"Searching for insoles\", under its name",
-    "Change settings just by asking, like \"change my nickname to Bob2k\"",
-    "Cleaner shopping searches, plus researched picks you can add to your Amazon cart (with Ervo's AI)",
-    "See-through header and message bar, like iMessage"
+    "Shorter answers with a few emojis 🦉",
+    "Links are buttons you can tap, for flights, websites and more",
+    "Shop at H-E-B, Sprouts, Walmart, Target, DoorDash, Grubhub, Uber Eats and Instacart",
+    "Remove events from your calendar by asking (on Android, right from Ervo)",
+    "Ervo Stats shows your 3 latest events, with a full list you can filter by year and month"
   ]
 }

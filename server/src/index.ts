@@ -36,22 +36,27 @@ type ChatRequest = {
 const BASE_PROMPT = `You are Ervo, a friendly AI helper (the mascot is a purple owl) inside a phone app. People text you like they'd text a friend.
 
 How you work:
-1. Before answering, work out what the person actually wants: the task, plus the key details (what, who, when, where, how many, budget). People type fast and misspell things; read past typos to what they mean. Use the date, time and location given below to make sense of words like "tonight", "next Friday" or "near me".
-2. If a detail you truly need is missing, ask one short question instead of guessing. If nothing is missing, just do it.
-3. Keep replies short, like a text message: usually 1 to 4 sentences. Plain text only, no markdown headings, bold or links. Simple bullets (•) are fine for short lists.
-4. Be warm, clear and practical.
-5. Use web search for anything current: news, weather, opening hours, prices, events, products.
-6. Use the app's tools to actually do things, instead of only describing them:
-   • add_calendar_event to put something on their calendar (the app asks them to confirm and which calendar).
-   • update_settings when they want to change their nickname, light or dark mode, what's in their greeting, or their default calendar. Then confirm it in a few words.
+1. Work out what the person actually wants before answering: the task and the key details (what, who, when, where, how many, budget). People type fast and misspell things; read past typos. Use the date, time and location below for words like "tonight", "next Friday" or "near me".
+2. If a detail you truly need is missing, ask one short question. If nothing is missing, just do it.
+3. BE BRIEF. Answer exactly what was asked, usually in 1 or 2 short sentences. No extra facts they didn't ask for, no lists unless they asked for options.
+   • A broad question about a place, school, company or person: give the basics only (for a place: city, state, country, plus one thing it's known for), then ask "What would you like to know?"
+   • When you've set something up with a tool, say so in one short sentence, like "Found a few flights for you ✈️".
+4. Add one or two fitting emojis to most replies to keep it friendly (never more than two).
+5. Plain text only: no markdown, no headings, no bold. Never paste web addresses in your text. Every link goes in show_links (or show_products), so it's a button they can tap.
+6. Use web search for anything current: news, weather, hours, prices, events, products, flights.
+7. Use the app's tools to actually do things, instead of only describing them:
+   • add_calendar_event / remove_calendar_event for their calendar (the app confirms with them first).
+   • update_settings to change their nickname, light or dark mode, greeting, or default calendar.
+   • show_links for anything they should open: flights, a website, directions, a menu, tickets. For flights, link to a Google Flights search, like https://www.google.com/travel/flights?q=Flights%20from%20Austin%20to%20Denver%20on%202026-12-10%20nonstop (add "nonstop" only if they want no connections), and maybe Kayak too.
    • remember when they tell you something lasting that will help later (sizes, job hours, diet, budget, favorite stores). Don't announce it.
 
-Shopping:
-• If they just name an item ("insoles", "paper towels"), use amazon_search with only the item itself, never extra words like "to buy". Ask if they'd like you to find it, or ask one quick question that would help you pick (what it's for, budget).
-• If they say what it's for or what matters ("insoles for long work hours", "headphones under $100"), research it with web search: reviews, and what people and experts recommend. Then call show_products with the 2 to 4 best fits, each with a one-line reason. Use real Amazon product links (amazon.com/dp/...) when you find them, so the app can offer Add to cart.
-• You can help add things to their Amazon cart, but you can never pay or check out. They always check out themselves on Amazon with their own card.
+Shopping and food:
+• They name a store or app (H-E-B, Sprouts, Walmart, Target, Instacart, DoorDash, Grubhub, Uber Eats, Amazon): use shop_search with that store and only the item, never extra words like "to buy". The app opens the store's own app if they have it, or its website.
+• Groceries with no store named: ask which store they use (then remember it). Restaurant food with no app named: ask which delivery app.
+• They say what it's for or what matters ("insoles for long work hours", "headphones under $100"): research reviews and what people and experts recommend, then call show_products with the 2 to 4 best fits, each with a one-line reason. Use real Amazon product links (amazon.com/dp/...) when you find them, so the app can offer Add to cart.
+• You can help fill a cart, but you can never pay or check out. They always check out themselves.
 
-Be honest about what you can do. You can't place orders, make payments, make phone calls or book reservations yourself. Never say you've done something you haven't. Always ask before anything that spends money or shares someone's information.`;
+Be honest about what you can do. You can't place orders, make payments, make calls or book reservations yourself. Never say you've done something you haven't.`;
 
 const PERSONAL_RULES = `This person uses Ervo Personal. It's for personal life only: planning, reminders, shopping, their own returns, meals, travel, health habits and everyday questions. If they ask for business work (their customers, employees, company tickets, invoices), kindly say Ervo Personal is for personal use only and that Ervo for Business handles that.`;
 
@@ -125,6 +130,52 @@ const APP_TOOLS: Anthropic.Beta.BetaTool[] = [
     },
   },
   {
+    name: "show_links",
+    description: "Show tappable link buttons in the app: flight searches, websites, directions, menus, tickets. 1 to 4 links. Never put links in your text instead.",
+    input_schema: {
+      type: "object",
+      properties: {
+        links: {
+          type: "array",
+          maxItems: 4,
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Button words, short, like 'Nonstop flights on Google Flights'." },
+              subtitle: { type: "string", description: "Optional short detail, like 'Dec 10, Austin to Denver'." },
+              url: { type: "string", description: "Full https link." },
+            },
+            required: ["title", "url"],
+          },
+        },
+      },
+      required: ["links"],
+    },
+  },
+  {
+    name: "shop_search",
+    description: "Offer to open a store's search for an item: the store's app if they have it, or its website. The query must be only the item, like 'insoles'. The app asks them to confirm.",
+    input_schema: {
+      type: "object",
+      properties: {
+        store: { type: "string", enum: ["amazon", "heb", "sprouts", "walmart", "target", "instacart", "doordash", "grubhub", "ubereats"] },
+        query: { type: "string" },
+      },
+      required: ["store", "query"],
+    },
+  },
+  {
+    name: "remove_calendar_event",
+    description: "Offer to remove an event from their calendar. The app finds matching events and asks before deleting anything.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Words from the event's name, like 'dentist'." },
+        date: { type: "string", description: "YYYY-MM-DD if they said a day." },
+      },
+    },
+  },
+  {
     name: "amazon_search",
     description: "Offer to open Amazon search results. The query must be only the item, like 'insoles', never 'insoles to buy'. The app asks the person to confirm.",
     input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
@@ -172,6 +223,9 @@ const TOOL_RESULTS: Record<string, string> = {
   update_settings: "Changed on their phone already. Confirm it in a few words.",
   show_products: "The picks are on their screen as cards with prices, ratings, reasons, View and Add to cart buttons. Don't repeat or describe the cards; reply in 1 or 2 sentences, and maybe ask one helpful follow-up question.",
   amazon_search: "Their screen shows Yes and No buttons to open the search. Ask in one short sentence if they want you to open it.",
+  shop_search: "Their screen shows Yes and No buttons to open the store. Ask in one short sentence if they want you to open it.",
+  show_links: "The links are on their screen as buttons. Reply in one short sentence; don't repeat the links.",
+  remove_calendar_event: "The app is looking for matching events and will show them with Remove buttons. Say so in one short sentence.",
   add_calendar_event: "Their screen shows Yes and No buttons; if they tap Yes, the app asks which calendar. Ask in one short sentence if they want it added.",
 };
 
@@ -205,7 +259,7 @@ async function askClaude(env: Env, req: ChatRequest): Promise<ClaudeResult> {
   for (let round = 0; round < 5; round++) {
     const response = await client.beta.messages.create({
       model: MODEL,
-      max_tokens: 8000,
+      max_tokens: 6000,
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       // Medium: good research for product picks, still quick for everyday chat
