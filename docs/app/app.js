@@ -56,6 +56,7 @@
     const top = id === "chat" ? v("--surface") : sky || (grouped ? v("--group") : v("--bg"));
     const bottom = sky ? getComputedStyle(screen).getPropertyValue("--sky-3").trim() : grouped ? v("--group") : v("--bg");
     if (sky) { native.setBars(top, bottom, true); return; }
+    if (id === "chat") { const g = getComputedStyle(screen).getPropertyValue("--chat-bg").trim(); if (g) { native.setBars(g, g, root.dataset.theme === "dark"); return; } }
     native.setBars(top, bottom, root.dataset.theme === "dark");
   }
 

@@ -567,3 +567,40 @@ html.overlay .day-sep { display: none; }
 .app-ico.people { background: #5856d6; }
 .app-ico.food { background: #ff6a1f; }
 .app-ico.brain { background: var(--brand); }
+
+/* ---------- 0.2.8: one calm gray chat, Ervo floating at the top, purple bubbles ---------- */
+#chat {
+  --chat-bg: #f2f2f3; --me: #6b2fd0; --me-text: #ffffff; --them: #ffffff; --them-text: #111111;
+  --chat-field: #ffffff; --chat-ico: #6e6e73; --accent: #6b2fd0;
+}
+[data-theme="dark"] #chat {
+  --chat-bg: #212121; --me: #7a4be0; --me-text: #ffffff; --them: #2f2f2f; --them-text: #ececec;
+  --chat-field: #2f2f2f; --chat-ico: #b4b4b4; --accent: #b69cff;
+}
+html:not(.overlay) #chat { background: var(--chat-bg); }
+/* No bar: just Ervo's picture, name and what it's doing, over a soft fade */
+.chat-header { background: linear-gradient(var(--chat-bg) 80%, color-mix(in srgb, var(--chat-bg) 0%, transparent)); -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom: 0; padding-bottom: 14px; }
+.chat-header .avatar { width: clamp(38px, 11vw, 44px); height: clamp(38px, 11vw, 44px); box-shadow: none; }
+.chat-header .who b { font-size: 0.88rem; font-weight: 600; }
+.chat-header .status { background: color-mix(in srgb, var(--text) 8%, var(--chat-bg)); box-shadow: none; font-weight: 500; }
+.chat-header .icon-btn { color: var(--chat-ico); }
+.chat-name { color: var(--accent); }
+/* Messages: yours in purple, Ervo's a shade off the background */
+.msg.me { background: var(--me); color: var(--me-text); }
+.msg.me.link { background: color-mix(in srgb, var(--text) 10%, var(--chat-bg)); color: var(--text); }
+.msg.them { background: var(--them); color: var(--them-text); }
+[data-theme="light"] .msg.them, :root:not([data-theme]) .msg.them { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+.msg.them .inline-link { color: var(--accent); }
+.typing { background: var(--them); color: var(--them-text); box-shadow: none; }
+.typing .spin { border-color: color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); }
+.choice-opt { background: transparent; border-color: color-mix(in srgb, var(--text) 16%, transparent); }
+.side-banner { background: color-mix(in srgb, var(--text) 7%, var(--chat-bg)); }
+.side-banner button { background: var(--me); }
+.day-sep { color: var(--chat-ico); }
+/* Bottom: the same gray, no bar line */
+.dock { background: linear-gradient(color-mix(in srgb, var(--chat-bg) 0%, transparent), var(--chat-bg) 34%); -webkit-backdrop-filter: none; backdrop-filter: none; border-top: 0; }
+.chip { background: transparent; border-color: color-mix(in srgb, var(--text) 16%, transparent); color: var(--text); }
+.bar { background: var(--chat-field); border-color: color-mix(in srgb, var(--text) 10%, transparent); }
+.to-latest { background: var(--chat-field); color: var(--chat-ico); -webkit-backdrop-filter: none; backdrop-filter: none; }
+#chat #send-btn { background: var(--me); }
+.msg.me.photo { background: none; padding: 0; }
