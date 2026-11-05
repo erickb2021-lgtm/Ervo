@@ -226,6 +226,8 @@ open class MainActivity : AppCompatActivity() {
             if (ttsReady) tts?.language = Locale.getDefault()
         }
 
+        // 0.2.8: "Hey Ervo" is off for everyone once (the always-on mic dot worried people); it's opt-in now
+        WakeService.resetOnce(this)
         // "Hey Ervo" was on: start listening again (Android only allows this while Ervo is open)
         if (WakeService.isEnabled(this) && hasPermission(Manifest.permission.RECORD_AUDIO) && !WakeService.running) {
             try { WakeService.start(this) } catch (e: Exception) { /* try again next time */ }

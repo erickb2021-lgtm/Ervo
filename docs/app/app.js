@@ -51,7 +51,7 @@
     const v = (name) => css.getPropertyValue(name).trim();
     const screen = document.querySelector(".screen.active");
     const id = screen ? screen.id : "";
-    const grouped = id === "stats" || id === "activity" || id === "library";
+    const grouped = ["stats", "activity", "library", "psyche", "ideas"].includes(id);
     const sky = id === "stats" ? getComputedStyle(screen).getPropertyValue("--sky-1").trim() : "";
     const top = id === "chat" ? v("--surface") : sky || (grouped ? v("--group") : v("--bg"));
     const bottom = sky ? getComputedStyle(screen).getPropertyValue("--sky-3").trim() : grouped ? v("--group") : v("--bg");
@@ -245,6 +245,21 @@
     mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
     stats: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>',
     chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/></svg>',
+    map: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6z"/><path d="M9 4v14M15 6v14"/></svg>',
+    plane: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5 3 11l1.5-1.5 7.5 1L17 5.5a2 2 0 0 1 3 3l-5 5 1 7.5L14.5 22 12 14.5"/><path d="M7 17l-3 1 1-3"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/></svg>',
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v8.5a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 19.5z"/><path d="M10 21v-6h4v6"/></svg>',
+    ball: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m12 7.5 4 3-1.5 4.5h-5L8 10.5zM12 3.5v4M20 10l-4 .5M17 19l-2.5-4M7 19l2.5-4M4 10l4 .5"/></svg>',
+    book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>',
+    tooth: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 3.5c-2.5 0-4 2-4 4.5 0 3 1.5 4.5 2 7 .5 3 1 5.5 2.5 5.5s1.5-4 4-4 2.5 4 4 4 2-2.5 2.5-5.5c.5-2.5 2-4 2-7 0-2.5-1.5-4.5-4-4.5-2 0-3 1-4.5 1s-2.5-1-4.5-1z"/></svg>',
+    doctor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 13v2a5 5 0 0 0 10 0v-2"/><circle cx="20" cy="11" r="2"/></svg>',
+    money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.8"/><path d="M6 9.5v5M18 9.5v5"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg>',
+    camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    music: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>',
+    car: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16V11l2-5h10l2 5v5"/><path d="M3.5 16h17v3h-17zM5 11h14"/><circle cx="7.5" cy="13.5" r=".6"/><circle cx="16.5" cy="13.5" r=".6"/></svg>',
+    sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg>',
+    people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5.5 5.5"/></svg>',
     brain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M8.5 4.5A3.5 3.5 0 0 0 5 8a3.5 3.5 0 0 0-1 6.5A3.5 3.5 0 0 0 8.5 20M15.5 4.5A3.5 3.5 0 0 1 19 8a3.5 3.5 0 0 1 1 6.5 3.5 3.5 0 0 1-4.5 5.5"/></svg>',
   };
 
@@ -587,7 +602,8 @@
     else if (is(/\balarms?\b/) && is(/\b(cancel|delete|remove|turn off|switch off|clear|get rid of|dismiss|disable|stop)\b/)) { d.intent = "alarmOff"; d.alarm = parseAlarm(t.replace(/\b(all|every)\b/g, "")); if (is(/\b(all|every|my alarms)\b/)) d.alarm.h = null; }
     else if (is(/\balarm\b/) && is(/\b(change|move|reset|re-set|push|switch|update|make)\b.*\bto\b/)) d.intent = "alarmChange";
     else if (is(/\b(google meet|meet link|zoom|ms teams|microsoft teams|teams (meeting|call)|skype|video (call|meeting|chat))\b/) && !is(/\b(remove|delete|cancel)\b/)) { d.intent = "meeting"; d.meeting = parseMeeting(d); }
-    else if (is(/\b(rename|re-name|retitle|reschedule|change the (name|title) of)\b/) || (is(/\b(change|move|push|shift|update|bump)\b/) && is(/\bto\b/) && !is(/\b(nickname|name to|theme|mode|calendar to|greeting|alarm|timer)\b/) && (is(/\b(event|meeting|appointment|reservation|dinner|lunch|breakfast|gym|call|dentist|doctor|class|practice)\b/) || parseWhen(t.split(/\bto\b/).pop(), new Date(), false).time))) d.intent = "edit";
+    // Calendar edits only; "rename my screenshots" or "rename this file" goes to the AI
+    else if (!is(/\b(files?|screenshots?|photos?|pictures?|pics?|images?|documents?|docs?|folders?|songs?|playlists?|pdfs?|wi-?fi|contacts?)\b/) && (is(/\b(rename|re-name|retitle|reschedule|change the (name|title) of)\b/) || (is(/\b(change|move|push|shift|update|bump)\b/) && is(/\bto\b/) && !is(/\b(nickname|name to|theme|mode|calendar to|greeting|alarm|timer)\b/) && (is(/\b(event|meeting|appointment|reservation|dinner|lunch|breakfast|gym|call|dentist|doctor|class|practice)\b/) || parseWhen(t.split(/\bto\b/).pop(), new Date(), false).time)))) d.intent = "edit";
     else if (is(/\balarms?\b|\bwake me\b/)) { d.intent = is(/\b(show|see|what|list|check)\b.*\balarms\b/) ? "alarms" : "alarm"; d.alarm = parseAlarm(t); }
     else if (is(/^(?:\s*(?:please|can you|could you|would you|hey|ok|okay|ervo|hey ervo)[,!]?\s+)*(?:call|phone|ring|dial|facetime|give)\b/) && !is(/\b(call|phone) with\b|\bschedule\b|\bset up\b|\bbook\b|\bcalled\b/) && !(is(/^give\b/) && !is(/\ba call\b/))) { d.intent = "call"; d.callee = callName(raw); }
     else if (EMERGENCY_RE.test(t) && is(/\b(call|phone|dial|text|contact|get|send)\b/)) d.intent = "emergency";
@@ -1231,23 +1247,59 @@
   const URL_RE = /(https?:\/\/[^\s<>"')\]]+[^\s<>"')\].,;:!?])/g;
 
   // ---------- the saved chat: it keeps going like a text thread; New chat files it away ----------
-  const CHAT_KEY = "ervo-chat";
-  const ARCHIVE_KEY = "ervo-chats";
+  const CHAT_KEY = "ervo-chat"; // the main chat: it never resets
+  const ARCHIVE_KEY = "ervo-chats"; // 0.2.7's filed-away chats; they become side chats
+  const SIDES_KEY = "ervo-sides"; // side chats: branches off the main chat you want to keep apart
+  const ACTIVE_KEY = "ervo-active"; // "main" or a side chat's id
   const GREETED_KEY = "ervo-greeted";
   const newChatRecord = () => ({ id: Date.now().toString(36), started: new Date().toISOString(), items: [] });
   let restoring = false; // true while old messages are drawn again (nothing is saved twice)
   let lastDay = "";
+  function sides() {
+    let list = load(SIDES_KEY);
+    if (!Array.isArray(list)) {
+      // 0.2.7 kept old chats in an archive; they live on as side chats
+      list = (load(ARCHIVE_KEY) || []).map((c) => ({ id: c.id || Date.now().toString(36), title: c.title || "Earlier chat", started: c.started, items: c.items || [] }));
+      save(SIDES_KEY, list);
+      drop(ARCHIVE_KEY);
+    }
+    return list;
+  }
+  function activeId() {
+    if (OVERLAY) return "main"; // "Hey Ervo" always talks in the main chat
+    const id = load(ACTIVE_KEY);
+    return id && id !== "main" && sides().some((c) => c.id === id) ? id : "main";
+  }
+  function loadChat(id) {
+    if (id === "main") return load(CHAT_KEY);
+    return sides().find((c) => c.id === id) || null;
+  }
+  function storeChat(id, c) {
+    const write = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch (e) { return false; } };
+    const slim = (x) => { x.items = x.items.filter((it, i) => it.t !== "photo" || i > x.items.length - 6); };
+    if (id === "main") {
+      if (!write(CHAT_KEY, c)) { slim(c); write(CHAT_KEY, c); }
+      return;
+    }
+    const list = sides();
+    const i = list.findIndex((x) => x.id === id);
+    if (i >= 0) list[i] = c; else list.unshift(c);
+    if (!write(SIDES_KEY, list)) { slim(c); write(SIDES_KEY, list); }
+  }
   function record(item) {
     if (restoring || !account) return;
     // Read it fresh: the "Hey Ervo" pop-up may have added to it
-    const c = load(CHAT_KEY) || newChatRecord();
+    const id = activeId();
+    const c = loadChat(id) || Object.assign(newChatRecord(), id === "main" ? {} : { id });
     c.items.push(Object.assign({ at: new Date().toISOString() }, item));
     if (c.items.length > 400) c.items.splice(0, c.items.length - 400);
-    try { localStorage.setItem(CHAT_KEY, JSON.stringify(c)); } catch (e) {
-      // Phone storage is full: drop the oldest photos, then try once more
-      c.items = c.items.filter((x, i) => x.t !== "photo" || i > c.items.length - 6);
-      try { localStorage.setItem(CHAT_KEY, JSON.stringify(c)); } catch (e2) { /* keep going without saving */ }
+    // A side chat is named after the first thing you say in it
+    if (id !== "main" && c.auto !== false && item.t === "msg" && item.who === "me" && !c.items.slice(0, -1).some((x) => x.t === "msg" && x.who === "me")) {
+      c.title = String(item.text).slice(0, 48);
+      $("chat-name").textContent = c.title;
     }
+    c.updated = new Date().toISOString();
+    storeChat(id, c);
   }
   // "Today", "Yesterday" or the date, between messages from different days
   function dayMark(when) {
@@ -1272,17 +1324,19 @@
       else if (x.t === "links") showActs(x.acts.map((a) => ({ label: a.label, icon: a.icon, href: a.href })));
       else if (x.t === "photo") photoBubble(x.src);
       else if (x.t === "link") linkBubble(x.url);
+      else if (x.t === "choices") showChoices(x.options || [], x.picked || "");
     });
-    thread.querySelectorAll(".msg, .products, .acts").forEach((el) => el.classList.add("old"));
+    thread.querySelectorAll(".msg, .products, .acts, .choices").forEach((el) => el.classList.add("old"));
     restoring = false;
   }
   // The conversation the AI sees: the last messages of the saved chat, product picks included
   function historyFrom(c) {
-    const out = [];
+    const out = Array.isArray(c.seed) ? c.seed.map((h) => ({ role: h.role, text: h.text })) : [];
     c.items.forEach((x) => {
       if (x.t === "msg") out.push({ role: x.who === "me" ? "user" : "assistant", text: x.text });
       else if (x.t === "products" && out.length) out[out.length - 1].text += `\n[Showed product cards: ${x.products.map((p) => [p.name, p.price].filter(Boolean).join(" ")).join("; ")}]`;
       else if (x.t === "link") out.push({ role: "user", text: `(shared a link: ${x.url})` });
+      else if (x.t === "photo") out.push({ role: "user", text: "(sent a photo)" });
     });
     return out.slice(-24);
   }
@@ -1394,6 +1448,37 @@
     });
   }
 
+  // Tap-to-answer options under Ervo's question (the one you pick gets a check)
+  function showChoices(options, picked) {
+    if (!restoring) record({ t: "choices", options, picked: null });
+    const box = document.createElement("div");
+    box.className = "choices";
+    box.setAttribute("role", "group");
+    options.forEach((o) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "choice-opt";
+      b.textContent = o;
+      if (picked !== undefined) { b.disabled = true; if (o === picked) b.classList.add("picked"); }
+      b.addEventListener("click", () => {
+        box.querySelectorAll("button").forEach((x) => { x.disabled = true; });
+        b.classList.add("picked");
+        markPicked(o);
+        send(o);
+      });
+      box.append(b);
+    });
+    thread.append(box);
+    toBottom();
+  }
+  function markPicked(o) {
+    const id = activeId();
+    const c = loadChat(id);
+    if (!c) return;
+    const it = [...c.items].reverse().find((x) => x.t === "choices" && !x.picked);
+    if (it) { it.picked = o; storeChat(id, c); }
+  }
+
   function showActs(acts) {
     const links = acts.filter((a) => a.href);
     if (links.length) record({ t: "links", acts: links.map((a) => ({ label: a.label, icon: a.icon, href: a.href })) });
@@ -1480,9 +1565,10 @@
     let said;
     try { said = await Promise.resolve(text); } catch (e) { said = "Sorry, something went wrong. Try again in a moment."; }
     if (said && typeof said === "object") {
-      opts = Object.assign({}, opts, { products: said.products, chips: said.chips || opts.chips, acts: said.acts || opts.acts });
+      opts = Object.assign({}, opts, { products: said.products, chips: said.chips || opts.chips, acts: said.acts || opts.acts, choices: said.choices || opts.choices });
       said = said.text;
     }
+    said = plain(said);
     await delay(500 + Math.min(String(said).length * 8, 900));
     hideTyping();
     idleStatus();
@@ -1492,7 +1578,9 @@
     history.push({ role: "assistant", text: said + shown });
     if (opts.products && opts.products.length) showProducts(opts.products);
     if (opts.acts && opts.acts.length) showActs(opts.acts);
-    setChips(opts.chips || PLAN[account.plan].chips);
+    const choosing = opts.choices && opts.choices.length;
+    if (choosing) showChoices(opts.choices);
+    setChips(choosing ? [] : opts.chips || PLAN[account.plan].chips);
     toBottom();
     if (speakIt) speak(said);
     if (OVERLAY && !voice.hidden && !listening) { voice.classList.remove("thinking"); $("voice-status").textContent = "Tap the mic or type to ask more"; }
@@ -1542,13 +1630,17 @@
     confirming = false;
     pending = null;
     // The chat picks up where it left off, like a text thread
-    const saved = load(CHAT_KEY);
+    const id = activeId();
+    const saved = loadChat(id);
     history = saved ? historyFrom(saved) : [];
     show("chat");
+    syncChatName(id, saved);
     if (OVERLAY) { setChips(p.chips); return; } // the pop-up starts clean, but still knows the conversation
+    if (id !== "main") sideBanner(saved);
     if (saved && saved.items.length) drawChat(saved);
     requestAnimationFrame(() => { thread.scrollTop = thread.scrollHeight; });
-    // One greeting a day: the first time Ervo opens that day
+    if (id !== "main") { setChips(p.chips); return; }
+    // One greeting a day in the main chat: the first time Ervo opens that day
     const today = new Date().toDateString();
     if (fresh || load(GREETED_KEY) !== today) {
       save(GREETED_KEY, today);
@@ -1565,7 +1657,7 @@
     const now = new Date();
     const h = now.getHours();
     const hello = firstTime ? "Hi" : h < 5 ? "Hi" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-    const lines = [firstTime ? `${hello}, ${name}! I'm Ervo 👋` : `${hello}, ${name}!`];
+    const lines = [firstTime ? `${hello} ${name}, I'm Ervo.` : `${hello}, ${name}.`];
     const date = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
     const time = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
     if (p.date && p.time) lines.push(`It's ${date}, ${time}.`);
@@ -1587,31 +1679,118 @@
           else lines.push(`It's ${weather}`);
         }
       }
-      lines.push("How can I help?");
+      lines.push(g.firstTime ? "What do you need?" : "How can I help?");
       return lines.join(" ");
     })();
     await ervoSays(build);
     if (g.p.news && allowed("location")) newsBubble();
   }
 
-  // New chat: the old one goes to Chats & media, where you can read or continue it
-  function archiveChat() {
-    const c = load(CHAT_KEY);
-    if (!c || !c.items.some((x) => x.t === "msg" && x.who === "me")) return;
-    const first = c.items.find((x) => x.t === "msg" && x.who === "me");
-    c.title = first ? first.text.slice(0, 60) : "Chat";
-    c.ended = new Date().toISOString();
-    const all = load(ARCHIVE_KEY) || [];
-    all.unshift(c);
-    try { localStorage.setItem(ARCHIVE_KEY, JSON.stringify(all.slice(0, 30))); } catch (e) { save(ARCHIVE_KEY, all.slice(0, 10)); }
+  // ---------- side chats: branches off the main chat ----------
+  // The main chat never resets. A side chat starts from where the main chat is (it knows
+  // the last few messages) and keeps its own thread, for things you want to keep apart.
+  function newSideChat(title) {
+    const main = load(CHAT_KEY);
+    const c = Object.assign(newChatRecord(), { title: title || "New side chat", from: "main", seed: main ? historyFrom(main).slice(-10) : [] });
+    storeChat(c.id, c);
+    switchChat(c.id);
+    ervoSays("Side chat started. Your main chat is right where you left it. What's this one for?");
   }
-  function newChat() {
-    archiveChat();
-    drop(CHAT_KEY);
-    save(GREETED_KEY, new Date().toDateString());
+  function switchChat(id) {
+    closeChats();
+    toggleMenu(false);
+    save(ACTIVE_KEY, id);
     openChat(account, false);
-    const name = prefs().nickname || account.name;
-    ervoSays(`New chat started ✨ What's next, ${name}?`);
+  }
+  function deleteSide(id) {
+    save(SIDES_KEY, sides().filter((c) => c.id !== id));
+    if (load(ACTIVE_KEY) === id) switchChat("main");
+    else renderChats();
+  }
+  function syncChatName(id, c) {
+    const side = id !== "main";
+    $("chat-name").textContent = side ? (c && c.title) || "Side chat" : "";
+    $("chat-name").hidden = !side;
+  }
+  function sideBanner(c) {
+    const el = document.createElement("div");
+    el.className = "side-banner";
+    const t = document.createElement("span");
+    t.textContent = "Side chat · branched from your main chat";
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "Main chat";
+    b.addEventListener("click", () => switchChat("main"));
+    el.append(t, b);
+    thread.append(el);
+  }
+  // The chats panel: Main chat on top, side chats under it (like folders of one conversation)
+  function openChats() {
+    toggleMenu(false);
+    renderChats();
+    $("chats-panel").hidden = false;
+    requestAnimationFrame(() => $("chats-panel").classList.add("open"));
+  }
+  function closeChats() {
+    const w = $("chats-panel");
+    if (w.hidden) return;
+    w.classList.remove("open");
+    setTimeout(() => { w.hidden = true; }, 200);
+  }
+  function renderChats() {
+    const id = activeId();
+    const box = $("chats-list");
+    box.innerHTML = "";
+    const item = (title, sub, cid) => {
+      const r = document.createElement("div");
+      r.className = "chat-item" + (cid === id ? " current" : "");
+      const go = document.createElement("button");
+      go.type = "button";
+      go.className = "chat-go";
+      const b = document.createElement("b");
+      b.textContent = title;
+      go.append(b);
+      if (sub) { const s2 = document.createElement("small"); s2.textContent = sub; go.append(s2); }
+      go.addEventListener("click", () => switchChat(cid));
+      r.append(go);
+      if (cid !== "main") {
+        const x = document.createElement("button");
+        x.type = "button";
+        x.className = "chat-x";
+        x.setAttribute("aria-label", `Delete ${title}`);
+        x.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+        x.addEventListener("click", () => {
+          if (x.classList.contains("sure")) { deleteSide(cid); return; }
+          x.classList.add("sure");
+          x.textContent = "Delete";
+          setTimeout(() => { if (x.isConnected) { x.classList.remove("sure"); x.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>'; } }, 3000);
+        });
+        r.append(x);
+      }
+      return r;
+    };
+    const main = load(CHAT_KEY);
+    const lastMsg = main && [...main.items].reverse().find((x) => x.t === "msg");
+    box.append(item("Main chat", lastMsg ? String(lastMsg.text).slice(0, 40) : "", "main"));
+    const head = document.createElement("div");
+    head.className = "chats-head";
+    head.innerHTML = "<span>Side chats</span>";
+    const plus = document.createElement("button");
+    plus.type = "button";
+    plus.className = "chats-plus";
+    plus.setAttribute("aria-label", "New side chat");
+    plus.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+    plus.addEventListener("click", () => newSideChat());
+    head.append(plus);
+    box.append(head);
+    const list = sides().slice().sort((a, b) => new Date(b.updated || b.started) - new Date(a.updated || a.started));
+    if (!list.length) {
+      const p = document.createElement("p");
+      p.className = "chats-empty";
+      p.textContent = "Start a side chat for something you want to keep apart, like a trip or a project. Your main chat keeps going.";
+      box.append(p);
+    }
+    list.forEach((c) => box.append(item(c.title || "Side chat", "", c.id)));
   }
 
   // ---------- location, weather and news ----------
@@ -1621,15 +1800,16 @@
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
         (err) => reject(err),
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 30 * 60 * 1000 }
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 3 * 60 * 60 * 1000 }
       );
     });
   }
 
-  // City-level location, kept for an hour. Rounded so it's never an exact address.
+  // City-level location, kept for 3 hours so the phone's location dot rarely shows.
+  // Rounded so it's never an exact address.
   async function getPlace() {
     const cached = load(PLACE_KEY);
-    if (cached && Date.now() - cached.at < 60 * 60 * 1000) return cached;
+    if (cached && Date.now() - cached.at < 3 * 60 * 60 * 1000) return cached;
     const pos = await getPosition();
     const place = { lat: Math.round(pos.lat * 100) / 100, lon: Math.round(pos.lon * 100) / 100, city: "", region: "", country: "", at: Date.now() };
     try {
@@ -1704,6 +1884,7 @@
           plan: account.plan,
           name: prefs().nickname || account.name,
           messages: history.slice(-16),
+          psyche: psycheForServer(),
           memory: memory(),
           context: {
             now: new Date().toString(),
@@ -1719,13 +1900,70 @@
     }
   }
 
-  // ---------- learning: small facts Ervo remembers about you ("I work 12-hour shifts") ----------
-  const MEMORY_KEY = "ervo-memory";
-  const memory = () => load(MEMORY_KEY) || [];
-  function remember(facts) {
-    const m = memory();
-    facts.forEach((f) => { const x = String(f || "").trim().slice(0, 200); if (x && !m.includes(x)) m.push(x); });
-    save(MEMORY_KEY, m.slice(-60));
+  // ---------- Psyche: who you are to Ervo, and how you like it to talk ----------
+  // Ervo learns it from the chat. You change it only by telling Ervo ("I'm not allergic to that anymore").
+  const MEMORY_KEY = "ervo-memory"; // before 0.2.8: plain facts
+  const PSYCHE_KEY = "ervo-psyche";
+  const STYLE_NAMES = { tone: "Tone", length: "Length", emojis: "Emojis", humor: "Humor", language: "Language", other: "Also" };
+  const KIND_NAMES = { health: "Health", food: "Food", goal: "Goals", likes: "Likes", dislikes: "Dislikes", people: "People", places: "Places", work: "Work", routine: "Routine", money: "Money", other: "Other" };
+  const KIND_ICON = { health: "health", food: "food", goal: "star", likes: "heart", dislikes: "brain", people: "people", places: "location", work: "clock", routine: "clock", money: "money", other: "brain" };
+  function psyche() {
+    let p = load(PSYCHE_KEY);
+    if (!p || !Array.isArray(p.facts)) {
+      p = { style: {}, facts: [], lessons: [], next: 1, learned: 0, since: new Date().toISOString() };
+      (load(MEMORY_KEY) || []).forEach((f) => { if (typeof f === "string" && f.trim()) p.facts.push({ id: `f${p.next++}`, text: f.trim().slice(0, 200), kind: "other", at: new Date().toISOString() }); });
+      p.learned = p.facts.length;
+      save(PSYCHE_KEY, p);
+      drop(MEMORY_KEY);
+    }
+    p.style = p.style || {};
+    p.lessons = p.lessons || [];
+    return p;
+  }
+  // One update from Ervo's AI: style changes, new facts, facts that are wrong now, a lesson
+  function learn(u) {
+    if (!u || typeof u !== "object") return 0;
+    const p = psyche();
+    let n = 0;
+    if (u.style && typeof u.style === "object") Object.keys(STYLE_NAMES).forEach((k) => {
+      const v = String(u.style[k] || "").trim().slice(0, 120);
+      if (v && p.style[k] !== v) { p.style[k] = v; n++; }
+    });
+    if (Array.isArray(u.remove)) {
+      const before = p.facts.length;
+      p.facts = p.facts.filter((f) => !u.remove.includes(f.id));
+      n += before - p.facts.length;
+    }
+    if (Array.isArray(u.add)) u.add.forEach((a) => {
+      const text = String((a && (a.fact || a.text)) || "").trim().slice(0, 200);
+      if (!text || p.facts.some((f) => f.text.toLowerCase() === text.toLowerCase())) return;
+      p.facts.push({ id: `f${p.next++}`, text, kind: KIND_NAMES[a.kind] ? a.kind : "other", at: new Date().toISOString() });
+      n++;
+    });
+    if (typeof u.lesson === "string" && u.lesson.trim()) {
+      const l = u.lesson.trim().slice(0, 200);
+      if (!p.lessons.includes(l)) { p.lessons.push(l); n++; }
+    }
+    p.facts = p.facts.slice(-150);
+    p.lessons = p.lessons.slice(-40);
+    if (n) {
+      p.learned = (p.learned || 0) + n;
+      p.updated = new Date().toISOString();
+      save(PSYCHE_KEY, p);
+      if ($("psyche").classList.contains("active")) renderPsyche();
+    }
+    return n;
+  }
+  const remember = (facts) => learn({ add: facts.map((f) => ({ fact: f, kind: "other" })) });
+  const memory = () => psyche().facts.map((f) => f.text);
+  const psycheForServer = () => { const p = psyche(); return { style: p.style, facts: p.facts.map((f) => ({ id: f.id, text: f.text, kind: f.kind })), lessons: p.lessons }; };
+
+  // Plain by default: no emojis until you tell Ervo you like them
+  const emojiOK = () => ["some", "lots"].includes(psyche().style.emojis);
+  const EMOJI_RE = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|\p{Emoji_Modifier}|‍\p{Extended_Pictographic})*/gu;
+  function plain(t) {
+    if (emojiOK()) return t;
+    return String(t).replace(EMOJI_RE, "").replace(/️/g, "").replace(/[ \t]+([.,!?:;)])/g, "$1").replace(/[ \t]{2,}/g, " ").replace(/[ \t]+\n/g, "\n").trim();
   }
 
   // A short topic for the status pill, like "lights for a soccer field", never the whole message
@@ -1747,6 +1985,7 @@
 
   // What the status pill says while the AI works on it
   function guessStatus(d) {
+    if (d.intent === "photo") return ["📷", "Looking at your photo"];
     if (d.intent === "shop") {
       const item = topicOf(shopItem(d.raw)) || "that";
       return wantsAdvice(item, d.t) ? ["🔍", `Researching ${item}`] : ["🔍", `Looking for ${item}`];
@@ -1761,16 +2000,20 @@
   // opens another app still waits for your yes and your Allow.
   // These show their own message in the app (Added ✅, the alarm card...), so the AI's words would only repeat it
   const SELF_REPORTING = new Set(["add_calendar_event", "set_timer", "set_alarm", "dismiss_alarm", "edit_calendar_event", "remove_calendar_event", "call_contact", "plan_meeting"]);
-  async function askAI(d) {
+  async function askAI(d, extra) {
     const status = guessStatus(d);
     showTyping(status[1]);
     setStatus(status[0], status[1]);
-    const result = askServer().then((j) => {
-      if (j.memories && j.memories.length) remember(j.memories);
+    const result = askServer(extra).then((j) => {
+      // Learn first, so "use emojis" already shows in this reply
+      if (Array.isArray(j.psyche) && j.psyche.length) j.psyche.forEach(learn);
+      else if (j.memories && j.memories.length) remember(j.memories);
       const out = { text: j.reply || "Done.", products: [], chips: null };
       out.quiet = (j.actions || []).some((a) => SELF_REPORTING.has(a.type));
       (j.actions || []).forEach((a) => {
-        if (a.type === "show_products" && Array.isArray(a.products)) {
+        if (a.type === "offer_choices" && Array.isArray(a.options)) {
+          out.choices = a.options.map((o) => String(o).trim().slice(0, 80)).filter(Boolean).slice(0, 4);
+        } else if (a.type === "show_products" && Array.isArray(a.products)) {
           out.products = a.products;
           logActivity({ kind: "research", ico: "shop", title: `Found picks for ${a.query || "you"}`, detail: `${a.products.length} options` });
         } else if (a.type === "add_calendar_event" && a.title && a.start) {
@@ -2044,29 +2287,29 @@
   const wakeState = () => { try { return JSON.parse(native.wakeStatus()); } catch (e) { return { on: false }; } };
   function wakeActs(s) {
     return [
+      !s.assistant ? { label: "Make Ervo my phone's assistant", icon: "open", onClick: () => native.openAssistantSettings() } : null,
       s.on ? { label: "Turn off Hey Ervo", icon: "mic", onClick: () => { wakeWanted = false; native.setWake(false); } }
         : { label: "Turn on Hey Ervo", icon: "mic", onClick: () => { wakeWanted = true; native.setWake(true); } },
       s.on && !s.overlay ? { label: "Let Ervo pop up over apps", icon: "open", onClick: () => native.openOverlaySettings() } : null,
-      !s.assistant ? { label: "Make Ervo my phone's assistant", icon: "open", onClick: () => native.openAssistantSettings() } : null,
     ].filter(Boolean);
   }
   function heyErvo(turn) {
-    if (!(native && native.setWake)) return ervoSays("\"Hey Ervo\" works in the Ervo Android app 🦉 On iPhone, tap the mic to talk to me.");
+    if (!(native && native.setWake)) return ervoSays("\"Hey Ervo\" works in the Ervo Android app. On iPhone, tap the mic to talk to me.");
     if (turn === true) { wakeWanted = true; native.setWake(true); return; }
     if (turn === false) { wakeWanted = false; native.setWake(false); return; }
     const s = wakeState();
     return ervoSays(s.on
-      ? `Hey Ervo is on 🦉 Say "Hey Ervo" and what you need, like "Hey Ervo, set a timer for 5 minutes". ${s.overlay ? "" : "To let me pop up while you're in other apps, turn on \"Display over other apps\" for Ervo."}`
-      : "Talk to me hands-free 🦉 Turn on Hey Ervo, then say \"Hey Ervo, call Mom\" or \"Hey Ervo, wake me up at 7\" while your phone is unlocked. A small notification shows while I listen, and you can turn me off from there.",
+      ? "Hey Ervo is on. Android shows a mic dot and a small notification while it's on. You can turn it off anytime."
+      : "For hands-free without an always-on mic, make Ervo your phone's assistant: hold the power or home button and I open, ready to listen. Hey Ervo also works, but Android shows a mic dot the whole time it's on.",
     { acts: wakeActs(s) });
   }
   window.ervoWakeState = (json) => {
     let s;
     try { s = JSON.parse(json); } catch (e) { return; }
-    if (s.on) return ervoSays(`Hey Ervo is on ✅ Just say "Hey Ervo" and what you need.${s.overlay ? "" : " One more step: turn on \"Display over other apps\" so I can pop up over other apps."}`, { acts: wakeActs(s) });
-    if (wakeWanted && !s.mic) return ervoSays("I need the microphone to hear my name 🎙️ You can allow it in Settings → Apps → Ervo → Permissions → Microphone.");
-    if (wakeWanted) return ervoSays("Android didn't let me start listening. Open Ervo and try again 🙏");
-    return ervoSays("Hey Ervo is off. I'm not listening for my name anymore 👍");
+    if (s.on) return ervoSays(`Hey Ervo is on. Say "Hey Ervo" and what you need.${s.overlay ? "" : " To let me pop up over other apps, turn on \"Display over other apps\"."}`, { acts: wakeActs(s) });
+    if (wakeWanted && !s.mic) return ervoSays("I need the microphone to hear my name. You can allow it in Settings, Apps, Ervo, Permissions, Microphone.");
+    if (wakeWanted) return ervoSays("Android didn't let me start listening. Open Ervo and try again.");
+    return ervoSays("Hey Ervo is off. I'm not listening anymore.");
   };
 
   // Opened by "Hey Ervo" (or as the phone's assistant): the owl pops up and listens, or does what you said
@@ -2364,7 +2607,7 @@
       case "thanks": return ervoSays("Anytime! 😊");
       case "help": return ervoSays(biz
         ? "Here's what I can do:\n• Answer customers and summarize tickets\n• Refunds by your policy\n• Book meetings on your calendar\n• Draft replies for your email\n\nJust tell me in your own words, like \"Call with Northwind Thursday at 2pm\"."
-        : "Here's what I can do:\n• Plan reservations and events and put them on your calendar\n• Find things on Amazon, start returns and track orders\n• Set, change and turn off alarms and timers, and call people in your contacts\n• Add, move, rename and remove calendar events, with Undo\n• Set up Google Meet, Zoom or Teams meetings\n• Talk hands-free: turn on Hey Ervo in the menu\n• Show your steps, plans and recent activity in Ervo Stats\n• Weather and news in your greeting\n\nJust say it your way, like \"dinner for 4 in two weeks at 7\".");
+        : "Here's what I can do:\n• Plan reservations and events and put them on your calendar\n• Find things on Amazon, start returns and track orders\n• Set, change and turn off alarms and timers, and call people in your contacts\n• Add, move, rename and remove calendar events, with Undo\n• Set up Google Meet, Zoom or Teams meetings\n• Look at photos: meals (calories), receipts, labels, flyers\n• Learn you over time: see your Psyche in the menu\n• Ideas picked for you, and side chats for things you want to keep apart\n• Show your steps, plans and recent activity in Ervo Stats\n• Weather and news in your greeting\n\nJust say it your way, like \"dinner for 4 in two weeks at 7\".");
       case "time": return ervoSays(`It's ${new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`);
       case "date": return ervoSays(`Today is ${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}.`);
       case "weather": return weatherReply();
@@ -2453,6 +2696,7 @@
   function send(text, byVoice) {
     const v = text.trim();
     if (!v || !account) return;
+    thread.querySelectorAll(".choices button:not(:disabled)").forEach((b) => { b.disabled = true; });
     bubble(v, "me");
     toBottom(true);
     history.push({ role: "user", text: v });
@@ -2596,23 +2840,152 @@
     });
   }
 
-  // What Ervo remembers about you, so you can see it and remove anything
+  // Ervo Stats shows a short Psyche summary; the full Psyche has its own screen
   function renderMemories() {
     const box = $("memories");
     box.innerHTML = "";
-    const m = memory();
-    if (!m.length) { box.append(empty("As you chat, Ervo remembers things that help, like your favorite store or your schedule. They'll show here.")); return; }
-    m.slice().reverse().forEach((fact) => {
-      const r = row("brain", fact, "");
-      r.classList.add("compact", "memory");
-      const x = document.createElement("button");
-      x.type = "button";
-      x.className = "link-btn";
-      x.textContent = "Forget";
-      x.addEventListener("click", () => { save(MEMORY_KEY, memory().filter((f) => f !== fact)); renderMemories(); });
-      r.append(x);
-      box.append(r);
+    const p = psyche();
+    const styled = Object.keys(STYLE_NAMES).filter((k) => p.style[k]).length;
+    const sub = p.facts.length || styled ? `${p.facts.length} thing${p.facts.length === 1 ? "" : "s"} Ervo knows · ${styled ? "knows how you like to talk" : "still learning how you talk"}` : "Ervo is just getting to know you";
+    const r = row("brain", "Your Psyche", sub, "›");
+    r.classList.add("compact", "tap");
+    r.addEventListener("click", () => openPsyche());
+    box.append(r);
+  }
+
+  // ---------- the Psyche screen: what Ervo knows and how it talks to you ----------
+  function openPsyche() {
+    toggleMenu(false);
+    renderPsyche();
+    show("psyche");
+    $("psyche").querySelector(".stats-body").scrollTop = 0;
+  }
+  function renderPsyche() {
+    const p = psyche();
+    const box = $("psyche-list");
+    box.innerHTML = "";
+    $("psyche-sub").textContent = p.facts.length
+      ? `Ervo knows ${p.facts.length} thing${p.facts.length === 1 ? "" : "s"} about you and keeps learning as you chat.`
+      : "Ervo is just getting to know you. It learns as you chat.";
+    const section = (title, card) => { const h = document.createElement("h2"); h.textContent = title; box.append(h, card); };
+    const card = () => { const c = document.createElement("div"); c.className = "card list"; return c; };
+
+    const style = card();
+    const keys = Object.keys(STYLE_NAMES).filter((k) => p.style[k]);
+    if (!keys.length) style.append(empty("Plain and simple for now. Ervo picks up how you write and matches it."));
+    keys.forEach((k) => {
+      const r = row(k === "language" ? "chat" : k === "emojis" ? "star" : "chat", STYLE_NAMES[k], "", p.style[k]);
+      r.classList.add("compact", "style-row");
+      style.append(r);
     });
+    section("How Ervo talks to you", style);
+
+    const byKind = {};
+    p.facts.forEach((f) => { (byKind[f.kind] = byKind[f.kind] || []).push(f); });
+    if (!p.facts.length) section("What Ervo knows", (() => { const c = card(); c.append(empty("Things you mention, like an allergy, your team or your favorite store, show up here.")); return c; })());
+    Object.keys(KIND_NAMES).forEach((k) => {
+      if (!byKind[k]) return;
+      const c = card();
+      byKind[k].slice().reverse().forEach((f) => {
+        const r = row(KIND_ICON[k] || "brain", f.text, "");
+        r.classList.add("compact", "memory");
+        c.append(r);
+      });
+      section(KIND_NAMES[k], c);
+    });
+
+    if (p.lessons.length) {
+      const c = card();
+      p.lessons.slice().reverse().forEach((l) => { const r = row("done", l, ""); r.classList.add("compact", "memory"); c.append(r); });
+      section("What Ervo has learned about helping you", c);
+    }
+  }
+
+  // ---------- Ideas: things Ervo can do for you, tied to who you are ----------
+  const IDEAS_KEY = "ervo-ideas";
+  const IDEA_ICONS = ["calendar", "map", "plane", "heart", "food", "shop", "home", "ball", "book", "tooth", "doctor", "money", "star", "camera", "music", "car", "sun", "people"];
+  const DEFAULT_IDEAS = { groups: [
+    { title: "For you", ideas: [
+      { icon: "star", title: "Tell me a goal. I'll make a plan and keep you on it.", detail: "Run a 5K, save for a trip, read more. I break it into steps and check in.", prompt: "Help me set a goal" },
+      { icon: "camera", title: "Snap your meal. I'll count the calories.", detail: "Send a photo of your plate and I'll estimate calories and protein for each part.", prompt: "I want to track calories with photos of my meals" },
+      { icon: "map", title: "Free this weekend? I'll find what's on near you.", detail: "Events, games, markets and shows in your area, with links to go.", prompt: "What's happening near me this weekend?" },
+    ] },
+    { title: "Health & fitness", ideas: [
+      { icon: "tooth", title: "Book the checkup you keep putting off.", detail: "I find a dentist or doctor near you, the number to call, and add it to your calendar.", prompt: "Help me book a dentist checkup" },
+      { icon: "ball", title: "A workout built around the time you have.", detail: "Tell me your time and gear. I'll build the session and plan your week.", prompt: "Make me a 30 minute workout I can do at home" },
+      { icon: "heart", title: "Name a habit to break. I'll nudge you before it hits.", detail: "We find what sets it off, then I set reminders at the right moments.", prompt: "Help me break a habit" },
+    ] },
+    { title: "Food", ideas: [
+      { icon: "food", title: "Tell me what's in your fridge. I'll plan dinner.", detail: "Quick recipes from what you already have, with your diet in mind.", prompt: "What can I make for dinner with what's in my fridge?" },
+      { icon: "shop", title: "A week of meals and the grocery list to match.", detail: "I plan it around your taste and budget, then list what to buy.", prompt: "Plan my meals for the week and make a grocery list" },
+    ] },
+    { title: "Shopping", ideas: [
+      { icon: "shop", title: "Name the item. I'll find the best-reviewed one for the price.", detail: "I read real reviews and show the top picks with pictures and prices.", prompt: "Find the best-reviewed headphones under $100" },
+      { icon: "star", title: "Can't decide? I'll compare them side by side.", detail: "The specs and prices that matter, so the choice is easy.", prompt: "Compare the top 3 robot vacuums" },
+    ] },
+    { title: "Home & errands", ideas: [
+      { icon: "car", title: "Never miss an oil change or renewal again.", detail: "I set reminders for the things that sneak up on you.", prompt: "Remind me to change my car's oil every 3 months" },
+      { icon: "home", title: "A cleaning routine that fits your week.", detail: "Small tasks on the right days, so the weekend stays free.", prompt: "Make me a weekly cleaning plan" },
+    ] },
+    { title: "Plans & places", ideas: [
+      { icon: "plane", title: "A day trip within two hours of home.", detail: "Where to go, what to see, where to eat, and the drive.", prompt: "Plan a day trip near me" },
+      { icon: "people", title: "Find a new hobby or game to join nearby.", detail: "Pickup games, classes and clubs that fit your schedule.", prompt: "Find a pickup soccer game near me" },
+    ] },
+  ] };
+  function openIdeas() {
+    toggleMenu(false);
+    renderIdeas(false);
+    show("ideas");
+  }
+  function ideaRow(it) {
+    const ico = IDEA_ICONS.includes(it.icon) ? it.icon : "star";
+    const r = row(ico, it.title, it.detail || "");
+    r.classList.add("idea", "tap");
+    r.setAttribute("role", "button");
+    r.tabIndex = 0;
+    const go = () => { show("chat"); send(it.prompt || it.title); };
+    r.addEventListener("click", go);
+    r.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    return r;
+  }
+  function drawIdeas(data) {
+    const box = $("ideas-list");
+    box.innerHTML = "";
+    const groups = data && Array.isArray(data.groups) ? data.groups : DEFAULT_IDEAS.groups;
+    groups.forEach((g) => {
+      if (!g || !Array.isArray(g.ideas) || !g.ideas.length) return;
+      const h = document.createElement("h2");
+      h.textContent = g.title;
+      const c = document.createElement("div");
+      c.className = "card list";
+      g.ideas.slice(0, 5).forEach((it) => { if (it && it.title) c.append(ideaRow(it)); });
+      box.append(h, c);
+    });
+  }
+  async function renderIdeas(force) {
+    // Your goals first (from your Psyche)
+    const goals = psyche().facts.filter((f) => f.kind === "goal");
+    const gbox = $("goals");
+    gbox.innerHTML = "";
+    if (!goals.length) gbox.append(empty("Tell Ervo a goal, like \"I want to run a 5K by spring\" or \"save $500 this month\", and it shows up here."));
+    goals.slice().reverse().forEach((f) => gbox.append(ideaRow({ icon: "star", title: f.text, detail: "Tap to plan your next step", prompt: `Help me with my goal: ${f.text}` })));
+
+    const cached = load(IDEAS_KEY);
+    const learned = psyche().learned || 0;
+    const fresh = cached && cached.day === new Date().toDateString() && learned - (cached.learned || 0) < 5;
+    if (cached && cached.data) drawIdeas(cached.data); else drawIdeas(null);
+    if (!AI_URL || (fresh && !force)) return;
+    $("ideas-sub").textContent = "Finding ideas for you…";
+    $("ideas-refresh").disabled = true;
+    try {
+      const j = await askServer({ task: "ideas", messages: [] });
+      if (j && j.ideas && Array.isArray(j.ideas.groups) && j.ideas.groups.length) {
+        save(IDEAS_KEY, { day: new Date().toDateString(), learned, data: j.ideas });
+        if ($("ideas").classList.contains("active")) drawIdeas(j.ideas);
+      }
+    } catch (e) { /* the starter ideas stay */ }
+    $("ideas-sub").textContent = "Picked for you. Tap one and Ervo starts on it.";
+    $("ideas-refresh").disabled = false;
   }
 
   // The sky behind Ervo Stats follows the time of day where you are (and the clouds or rain)
@@ -2836,7 +3209,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.2.7"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.2.8"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -3011,10 +3384,17 @@
     const reader = new FileReader();
     reader.onload = async () => {
       const src = await shrinkPhoto(reader.result);
+      const caption = message.value.trim();
+      if (caption) { message.value = ""; syncComposer(); }
       dayMark();
       photoBubble(src);
       record({ t: "photo", src });
+      if (caption) bubble(caption, "me");
       $("chips").innerHTML = "";
+      thread.querySelectorAll(".choices button:not(:disabled)").forEach((b) => { b.disabled = true; });
+      history.push({ role: "user", text: caption ? `(sent a photo) ${caption}` : "(sent a photo)" });
+      // Ervo looks at it: a meal (calories), a receipt, a label, a flyer, a product...
+      if (AI_URL) return askAI({ intent: "photo", raw: caption, t: caption.toLowerCase() }, { image: src });
       ervoSays(account.plan === "business"
         ? "Got the photo! Soon I'll read it, like a receipt or a damaged product, and match it to the right order or ticket."
         : "Got your photo! Soon I'll look at it for you, like reading a receipt, a flyer or a product label, and take care of the next step.");
@@ -3103,8 +3483,8 @@
   // ---------- Chats & media: photos, links and earlier chats ----------
   let libTab = "photos";
   function allChats() {
-    const cur = load(CHAT_KEY);
-    return (cur ? [Object.assign({ current: true }, cur)] : []).concat(load(ARCHIVE_KEY) || []);
+    const main = load(CHAT_KEY);
+    return (main ? [Object.assign({ main: true }, main)] : []).concat(sides());
   }
   function openLibrary(tab) {
     toggleMenu(false);
@@ -3168,25 +3548,24 @@
       box.append(card);
       return;
     }
-    // Chats
+    // Chats: the main chat and your side chats
     const card = document.createElement("div");
     card.className = "card list";
     chats.forEach((c) => {
       const msgs = c.items.filter((x) => x.t === "msg");
-      if (!msgs.length) return;
-      const first = c.title || (msgs.find((x) => x.who === "me") || msgs[0]).text.slice(0, 60);
-      const r = row("chat", c.current ? "Current chat" : first, c.current ? first : `${msgs.length} messages`, when(c.current ? (c.items[c.items.length - 1] || {}).at || c.started : c.ended || c.started));
+      const last = msgs[msgs.length - 1];
+      const r = row("chat", c.main ? "Main chat" : c.title || "Side chat", last ? String(last.text).slice(0, 60) : "No messages yet", when(c.updated || (c.items[c.items.length - 1] || {}).at || c.started));
       r.classList.add("tap");
-      r.addEventListener("click", () => viewChat(c));
+      r.addEventListener("click", () => switchChat(c.main ? "main" : c.id));
       card.append(r);
     });
-    if (!card.children.length) { box.append(libEmpty("Chats you file away with New chat show up here.")); return; }
+    if (!card.children.length) { box.append(libEmpty("Your main chat and side chats show up here.")); return; }
     box.append(card);
     const nb = document.createElement("button");
     nb.type = "button";
     nb.className = "pill lib-new";
-    nb.textContent = "Start a new chat";
-    nb.addEventListener("click", () => { newChat(); });
+    nb.textContent = "New side chat";
+    nb.addEventListener("click", () => newSideChat());
     box.append(nb);
   }
   function libEmpty(text) { const c = document.createElement("div"); c.className = "card list"; c.append(empty(text)); return c; }
@@ -3199,48 +3578,6 @@
     w.append(img);
     w.addEventListener("click", () => w.remove());
     document.body.append(w);
-  }
-  // Read an earlier chat; Continue makes it the chat again
-  function viewChat(c) {
-    if (c.current) { show("chat"); return; }
-    const box = $("lib-list");
-    box.innerHTML = "";
-    const back = document.createElement("button");
-    back.type = "button";
-    back.className = "pill ghost lib-back";
-    back.textContent = "‹ All chats";
-    back.addEventListener("click", renderLibrary);
-    const view = document.createElement("div");
-    view.className = "lib-chat";
-    c.items.filter((x) => x.t === "msg").forEach((x) => {
-      const m = document.createElement("div");
-      m.className = `msg ${x.who} old`;
-      m.textContent = x.text;
-      view.append(m);
-    });
-    const go = document.createElement("button");
-    go.type = "button";
-    go.className = "pill";
-    go.textContent = "Continue this chat";
-    go.addEventListener("click", () => {
-      archiveChat();
-      const rest = (load(ARCHIVE_KEY) || []).filter((x) => x.id !== c.id);
-      save(ARCHIVE_KEY, rest);
-      const back2 = Object.assign({}, c);
-      delete back2.title; delete back2.ended;
-      save(CHAT_KEY, back2);
-      save(GREETED_KEY, new Date().toDateString());
-      openChat(account, false);
-    });
-    const del = document.createElement("button");
-    del.type = "button";
-    del.className = "pill ghost";
-    del.textContent = "Delete";
-    del.addEventListener("click", () => { save(ARCHIVE_KEY, (load(ARCHIVE_KEY) || []).filter((x) => x.id !== c.id)); renderLibrary(); });
-    const btns = document.createElement("div");
-    btns.className = "sheet-actions";
-    btns.append(del, go);
-    box.append(back, view, btns);
   }
   document.querySelectorAll("#lib-tabs button").forEach((b) => b.addEventListener("click", () => { libTab = b.dataset.tab; renderLibrary(); }));
   $("library-back").addEventListener("click", () => show("chat"));
@@ -3361,12 +3698,20 @@
   $("open-apps").addEventListener("click", () => openStats(true));
   $("open-greeting").addEventListener("click", openGreeting);
   $("open-wake").addEventListener("click", () => { toggleMenu(false); heyErvo(); });
-  $("new-chat").addEventListener("click", () => { toggleMenu(false); newChat(); });
+  $("open-chats").addEventListener("click", openChats);
+  $("open-ideas").addEventListener("click", openIdeas);
+  $("open-psyche").addEventListener("click", openPsyche);
+  $("chats-panel").addEventListener("click", (e) => { if (e.target === $("chats-panel")) closeChats(); });
+  $("chats-btn").addEventListener("click", openChats);
+  $("psyche-back").addEventListener("click", () => show("chat"));
+  $("ideas-back").addEventListener("click", () => show("chat"));
+  $("ideas-refresh").addEventListener("click", () => renderIdeas(true));
+  $("psyche-tell").addEventListener("click", () => { show("chat"); setTimeout(() => $("message").focus(), 100); });
   $("open-library").addEventListener("click", () => openLibrary());
   $("sign-out").addEventListener("click", () => {
     toggleMenu(false);
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
-    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, GREETED_KEY].forEach(drop);
+    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY].forEach(drop);
     account = null;
     ["contact", "code", "name"].forEach((id) => { $(id).value = ""; });
     setPlan("personal");
@@ -3384,9 +3729,11 @@
     if (!menu.hidden) { toggleMenu(false); return true; }
     if ($("activity").classList.contains("active")) { renderStats(); show("stats"); return true; }
     if ($("stats").classList.contains("active")) { show("chat"); return true; }
+    if (!$("chats-panel").hidden) { closeChats(); return true; }
+    if ($("psyche").classList.contains("active") || $("ideas").classList.contains("active")) { show("chat"); return true; }
     if (document.querySelector(".photo-view")) { document.querySelector(".photo-view").remove(); return true; }
     if (!$("calpick").hidden) { answerCalendar(null); return true; }
-    if ($("library").classList.contains("active")) { if ($("lib-list").querySelector(".lib-chat")) renderLibrary(); else show("chat"); return true; }
+    if ($("library").classList.contains("active")) { show("chat"); return true; }
     if (!$("attach-sheet").hidden) { closeAttach(); return true; }
     if (!$("link-row").hidden) { $("link-row").hidden = true; return true; }
     const active = document.querySelector(".step.active");

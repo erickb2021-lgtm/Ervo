@@ -497,3 +497,73 @@ html.overlay .day-sep { display: none; }
 .sky-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .sky-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, 0.2); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); font-size: 0.8rem; font-weight: 600; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sky-chip .dot { color: var(--steps); }
+
+/* ---------- 0.2.8: side chats, tap-to-answer choices, Psyche and Ideas ---------- */
+.chat-header { grid-template-columns: 44px 44px 1fr 44px 44px; gap: 2px; }
+.chat-header .who { grid-column: 3; }
+#chats-btn { grid-column: 1; grid-row: 1; }
+#theme-toggle { grid-column: 4; grid-row: 1; }
+#menu-btn { grid-column: 5; grid-row: 1; }
+.chat-name { max-width: min(60vw, 280px); margin-top: 3px; font-size: 0.72rem; font-weight: 600; color: var(--blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mi.ideas { background: #ffcc00; color: #3a2a00; }
+.mi.psyche { background: var(--brand); }
+
+/* Chats drawer: Main chat on top, side chats under it */
+.chats-wrap { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, 0); transition: background 0.2s; }
+.chats-wrap.open { background: rgba(0, 0, 0, 0.35); }
+.chats-drawer { position: absolute; top: 0; bottom: 0; left: 0; width: min(300px, 82vw); padding: calc(14px + env(safe-area-inset-top)) 10px 20px; background: var(--bg); box-shadow: 8px 0 30px rgba(0, 0, 0, 0.25); transform: translateX(-102%); transition: transform 0.2s ease; overflow-y: auto; }
+.chats-wrap.open .chats-drawer { transform: none; }
+.chats-title { margin: 4px 10px 12px; font-size: 1.35rem; font-weight: 700; }
+.chat-item { display: flex; align-items: center; border-radius: 12px; }
+.chat-item.current { background: var(--surface); }
+.chat-go { flex: 1; min-width: 0; min-height: 44px; padding: 9px 12px; border: 0; background: none; color: var(--text); text-align: left; }
+.chat-go b { display: block; font-size: 0.97rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-go small { display: block; margin-top: 1px; font-size: 0.78rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-x { flex: none; min-width: 36px; height: 36px; margin-right: 4px; padding: 0 8px; border: 0; border-radius: 10px; background: none; color: var(--text-2); font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.chat-x svg { width: 16px; height: 16px; }
+.chat-x.sure { background: #ff3b30; color: #fff; }
+.chats-head { display: flex; align-items: center; justify-content: space-between; margin: 18px 4px 4px 12px; font-size: 0.8rem; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.3px; }
+.chats-plus { width: 34px; height: 34px; border: 0; border-radius: 10px; background: none; color: var(--blue); display: flex; align-items: center; justify-content: center; }
+.chats-plus svg { width: 20px; height: 20px; }
+.chats-empty { margin: 6px 12px; font-size: 0.85rem; color: var(--text-2); line-height: 1.4; }
+.side-banner { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px auto 10px; padding: 6px 8px 6px 14px; width: fit-content; max-width: 92%; border-radius: 999px; background: var(--surface); font-size: 0.78rem; color: var(--text-2); }
+.side-banner button { border: 0; border-radius: 999px; padding: 5px 11px; background: var(--blue); color: #fff; font-size: 0.78rem; font-weight: 600; }
+
+/* Tap-to-answer options (the chosen one gets a check) */
+.choices { display: flex; flex-direction: column; gap: 6px; max-width: min(78%, 420px); margin: 2px 0 10px; animation: rise 0.25s ease; }
+.choice-opt { position: relative; min-height: 44px; padding: 10px 40px 10px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.95rem; text-align: left; }
+.choice-opt:not(:disabled):active { background: var(--surface); }
+.choice-opt:disabled { color: var(--text-2); opacity: 0.75; }
+.choice-opt.picked { opacity: 1; color: var(--text); border-color: var(--text); box-shadow: 0 0 0 1px var(--text) inset; }
+.choice-opt.picked::after { content: ""; position: absolute; right: 12px; top: 50%; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; background: var(--text) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4L18 8'/%3E%3C/svg%3E") center / 12px no-repeat; }
+[data-theme="dark"] .choice-opt.picked::after { background-color: #fff; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4L18 8'/%3E%3C/svg%3E"); }
+.choices.old { animation: none; }
+
+/* Psyche and Ideas */
+.row.style-row .txt b { font-weight: 500; color: var(--text-2); }
+.row.style-row .side { white-space: normal; text-align: right; color: var(--text); max-width: 62%; font-size: 0.88rem; }
+.psyche-tell { margin-top: 24px; padding: 16px; }
+.psyche-tell b { display: block; font-size: 1rem; }
+.psyche-tell small { display: block; margin-top: 4px; color: var(--text-2); font-size: 0.86rem; line-height: 1.4; }
+.row.idea { align-items: flex-start; padding-top: 12px; padding-bottom: 12px; cursor: pointer; }
+.row.idea .txt b { white-space: normal; line-height: 1.3; }
+.row.idea .txt small { margin-top: 3px; line-height: 1.35; }
+.row.idea:active { background: var(--surface); }
+.ideas-refresh { display: block; width: 100%; margin-top: 18px; }
+.app-ico.map { background: #30b0c7; }
+.app-ico.plane { background: #0a84ff; }
+.app-ico.heart { background: #ff375f; }
+.app-ico.home { background: #a2845e; }
+.app-ico.ball { background: #34c759; }
+.app-ico.book { background: #ff9500; }
+.app-ico.tooth { background: #64d2ff; }
+.app-ico.doctor { background: #ff453a; }
+.app-ico.money { background: #30d158; }
+.app-ico.star { background: #ffcc00; color: #3a2a00; }
+.app-ico.camera { background: #5e5ce6; }
+.app-ico.music { background: #ff2d55; }
+.app-ico.car { background: #636366; }
+.app-ico.sun { background: #ff9f0a; }
+.app-ico.people { background: #5856d6; }
+.app-ico.food { background: #ff6a1f; }
+.app-ico.brain { background: var(--brand); }

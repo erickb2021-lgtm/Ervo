@@ -84,8 +84,8 @@ class WakeService : Service() {
         )
         val note = Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentTitle("Hey Ervo is ready")
-            .setContentText("Say \"Hey Ervo\" anytime.")
+            .setContentTitle("Hey Ervo is on")
+            .setContentText("Waiting for its name. Tap Turn off to stop.")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(Notification.Action.Builder(null, "Turn off", off).build())
@@ -209,6 +209,14 @@ class WakeService : Service() {
 
         fun isEnabled(context: Context) = context.getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("on", false)
         fun setEnabled(context: Context, on: Boolean) = context.getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("on", on).apply()
+
+        /** Turns "Hey Ervo" off one time after the 0.2.8 update; people turn it back on themselves. */
+        fun resetOnce(context: Context) {
+            val p = context.getSharedPreferences(PREFS, MODE_PRIVATE)
+            if (p.getBoolean("reset_028", false)) return
+            p.edit().putBoolean("on", false).putBoolean("reset_028", true).apply()
+            stop(context)
+        }
 
         fun start(context: Context) = ContextCompat.startForegroundService(context, Intent(context, WakeService::class.java))
         fun stop(context: Context) { if (running) context.startService(Intent(context, WakeService::class.java).setAction(ACTION_STOP)) }

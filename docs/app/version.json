@@ -1,11 +1,11 @@
 {
-  "version": "0.2.7",
+  "version": "0.2.8",
   "notes": [
-    "Your chat stays when you close Ervo, like texting. New chat files the old one away",
-    "Chats & media: your photos, links and earlier chats in one place",
-    "Product picks now show a picture of each item",
-    "Pick exactly which calendar new events go to, and change it anytime",
-    "Shorter answers, a short status at the top, and one simple greeting a day",
-    "Ervo Stats has a sky that matches your time of day, plus what Ervo remembers about you"
+    "Psyche: Ervo learns who you are and how you like it to talk. Change it by telling Ervo",
+    "One main chat that never resets, plus side chats for things you want to keep apart",
+    "Send a photo and Ervo helps with it, like counting the calories in a meal",
+    "Ideas: plans, health, food, shopping and more, picked for you",
+    "Tap an answer instead of typing when Ervo gives you choices",
+    "Hey Ervo is off unless you turn it on, so the mic isn't always in use"
   ]
 }
