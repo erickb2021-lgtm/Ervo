@@ -1,11 +1,11 @@
 {
-  "version": "0.2.6",
+  "version": "0.2.7",
   "notes": [
-    "New voice look: glowing edges, a small owl and an \"Ask Ervo\" bar you can talk or type in",
-    "\"Hey Ervo\" pops up over any app, with no listening notice",
-    "Events go straight onto your phone's calendar (your synced Google calendar), with Undo",
-    "Move, rename and remove events; set, change and turn off alarms",
-    "Google Meet, Zoom and Teams meetings",
-    "Fixed: \"alarm in 1 minute\" and \"never mind\" are understood"
+    "Your chat stays when you close Ervo, like texting. New chat files the old one away",
+    "Chats & media: your photos, links and earlier chats in one place",
+    "Product picks now show a picture of each item",
+    "Pick exactly which calendar new events go to, and change it anytime",
+    "Shorter answers, a short status at the top, and one simple greeting a day",
+    "Ervo Stats has a sky that matches your time of day, plus what Ervo remembers about you"
   ]
 }

@@ -51,9 +51,11 @@
     const v = (name) => css.getPropertyValue(name).trim();
     const screen = document.querySelector(".screen.active");
     const id = screen ? screen.id : "";
-    const grouped = id === "stats" || id === "activity";
-    const top = id === "chat" ? v("--surface") : grouped ? v("--group") : v("--bg");
-    const bottom = grouped ? v("--group") : v("--bg");
+    const grouped = id === "stats" || id === "activity" || id === "library";
+    const sky = id === "stats" ? getComputedStyle(screen).getPropertyValue("--sky-1").trim() : "";
+    const top = id === "chat" ? v("--surface") : sky || (grouped ? v("--group") : v("--bg"));
+    const bottom = sky ? getComputedStyle(screen).getPropertyValue("--sky-3").trim() : grouped ? v("--group") : v("--bg");
+    if (sky) { native.setBars(top, bottom, true); return; }
     native.setBars(top, bottom, root.dataset.theme === "dark");
   }
 
@@ -205,8 +207,14 @@
   });
 
   // ---------- settings, connected apps and Ervo's activity ----------
-  const DEFAULT_PREFS = { nickname: "", time: true, date: true, weather: false, news: false, stepsGoal: 8000 };
+  const DEFAULT_PREFS = { nickname: "", time: false, date: true, weather: true, news: false, stepsGoal: 8000 };
   const prefs = () => Object.assign({}, DEFAULT_PREFS, load(PREFS_KEY) || {});
+  // 0.2.7: the calendar choice starts over once, so Ervo asks and can use one of the phone's own calendars
+  if (!load("ervo-cal-reset-027")) {
+    const p0 = load(PREFS_KEY);
+    if (p0 && p0.calendar) { delete p0.calendar; delete p0.calId; delete p0.calName; save(PREFS_KEY, p0); }
+    save("ervo-cal-reset-027", 1);
+  }
   const connections = () => load(CONN_KEY) || {};
   const allowed = (key) => (connections()[key] || {}).status === "allowed";
   function setConnection(key, status) {
@@ -236,6 +244,8 @@
     clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M5 3.5 2.5 6M19 3.5 21.5 6"/></svg>',
     mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
     stats: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/></svg>',
+    brain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M8.5 4.5A3.5 3.5 0 0 0 5 8a3.5 3.5 0 0 0-1 6.5A3.5 3.5 0 0 0 8.5 20M15.5 4.5A3.5 3.5 0 0 1 19 8a3.5 3.5 0 0 1 1 6.5 3.5 3.5 0 0 1-4.5 5.5"/></svg>',
   };
 
   // Apps Ervo can work with. Allow opens the app (or its sign-in page if you're signed out).
@@ -751,20 +761,50 @@
     a.remove();
   }
 
-  // Asks once which calendar to use; you can change it in Connected apps or by asking Ervo
+  // Asks where new events go: one of the phone's calendars (each Google account synced to the
+  // phone shows up here), or the Google Calendar website. Ervo keeps using it until you change it.
   let calResolve = null;
-  function pickCalendar() {
+  let calsWaiter = null;
+  window.ervoCalendars = (json) => { const r = calsWaiter; calsWaiter = null; if (r) { try { r(JSON.parse(json)); } catch (e) { r({ status: "error" }); } } };
+  async function pickCalendar() {
+    const list = $("cal-list");
+    list.innerHTML = "";
+    $("cal-phone").hidden = false;
+    if (native && native.listCalendars) {
+      const r = await nativeCall((f) => { calsWaiter = f; }, () => native.listCalendars(), 30000);
+      if (r.status === "ready" && r.calendars && r.calendars.length) {
+        $("cal-phone").hidden = true;
+        r.calendars.forEach((c) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "choice";
+          b.innerHTML = '<span class="cal-dot"></span><span class="txt"><b></b><small></small></span>';
+          b.querySelector(".cal-dot").style.background = c.color || "#1a73e8";
+          b.querySelector("b").textContent = c.name;
+          b.querySelector("small").textContent = c.account && c.account !== c.name ? `${c.account}${c.google ? " · Google" : ""}` : c.google ? "Google, synced to this phone" : "On this phone";
+          if (prefs().calId === c.id) b.classList.add("current");
+          const label = c.account && c.account.includes("@") ? (c.name === c.account ? c.account : `${c.name} (${c.account})`) : c.name;
+          b.addEventListener("click", () => answerCalendar({ which: "phone", id: c.id, name: label }));
+          list.append(b);
+        });
+      } else if (r.status === "denied") {
+        const p = document.createElement("p");
+        p.className = "muted cal-note";
+        p.textContent = "Allow calendar access to pick one of your phone's calendars.";
+        list.append(p);
+      }
+    }
     $("calpick").hidden = false;
     return new Promise((resolve) => { calResolve = resolve; });
   }
-  function answerCalendar(which) {
+  function answerCalendar(choice) {
     $("calpick").hidden = true;
     const r = calResolve;
     calResolve = null;
-    if (r) r(which);
+    if (r) r(choice);
   }
-  $("cal-phone").addEventListener("click", () => answerCalendar("phone"));
-  $("cal-google").addEventListener("click", () => answerCalendar("google"));
+  $("cal-phone").addEventListener("click", () => answerCalendar({ which: "phone" }));
+  $("cal-google").addEventListener("click", () => answerCalendar({ which: "google", name: "Google Calendar" }));
   $("cal-cancel").addEventListener("click", () => answerCalendar(null));
   $("calpick").addEventListener("click", (e) => { if (e.target === $("calpick")) answerCalendar(null); });
   // ---------- removing events ----------
@@ -1029,16 +1069,34 @@
     const ev = lastEvent;
     ervoSays("I couldn't find a calendar app on your phone. Want to use Google Calendar instead?", { acts: [{ label: "Use Google Calendar", icon: "calendar", onClick: () => switchCalendar("google").then(() => ev) }] });
   };
-  function setCalendarChoice(which) { const p = prefs(); p.calendar = which; save(PREFS_KEY, p); }
+  // choice: "phone" | "google" | { which, id, name } from the picker
+  function setCalendarChoice(choice) {
+    const c = typeof choice === "string" ? { which: choice } : choice;
+    const p = prefs();
+    p.calendar = c.which;
+    if (c.which === "phone" && c.id) { p.calId = c.id; p.calName = c.name || ""; } else { delete p.calId; delete p.calName; }
+    if (c.which === "google") p.calName = "Google Calendar";
+    save(PREFS_KEY, p);
+    // Using one calendar means it's allowed; the other one isn't used for new events anymore
+    setConnection(c.which === "phone" ? "phonecal" : "calendar", "allowed");
+  }
+  const calChoiceName = () => { const p = prefs(); return p.calendar === "google" ? "Google Calendar" : p.calendar === "phone" ? p.calName || "your phone's calendar" : ""; };
+  async function changeCalendar() {
+    const c = await pickCalendar();
+    if (!c) return null;
+    setCalendarChoice(c);
+    if ($("stats").classList.contains("active")) renderApps();
+    return c;
+  }
 
   let lastAdded = null; // { ev, calendar, undo } when Ervo added it straight to the phone's calendar
-  // Returns which calendar it opened, false if they said no, or null if they backed out
+  // Returns which calendar it used, false if they said no, or null if they backed out
   async function addToCalendar(ev, which) {
     which = which || prefs().calendar;
     if (!which) {
-      which = await pickCalendar();
-      if (!which) return null;
-      setCalendarChoice(which);
+      const c = await changeCalendar();
+      if (!c) return null;
+      which = c.which;
     }
     const key = which === "phone" ? "phonecal" : "calendar";
     if (!(await ensure(key, `Add "${ev.title}" to your calendar`))) return false;
@@ -1047,7 +1105,16 @@
     lastAdded = null;
     if (which === "google") openOutside(googleLink(ev));
     else if (native && native.insertEvent) {
-      const r = await nativeCall((f) => { addedWaiter = f; }, () => native.insertEvent(ev.title, ev.start.getTime(), ev.end.getTime(), !!ev.allDay, ev.notes || "Planned with Ervo", ev.location || ""));
+      const calId = prefs().calId;
+      const args = [ev.title, ev.start.getTime(), ev.end.getTime(), !!ev.allDay, ev.notes || "Planned with Ervo", ev.location || ""];
+      let r = await nativeCall((f) => { addedWaiter = f; }, () => (calId && native.insertEventIn ? native.insertEventIn(String(calId), ...args) : native.insertEvent(...args)), 30000);
+      // That calendar is gone (account removed): ask again
+      if (!r.ok && r.reason === "no-calendar" && calId) {
+        const c = await changeCalendar();
+        if (!c) return null;
+        if (c.which === "google") { openOutside(googleLink(ev)); return "google"; }
+        r = await nativeCall((f) => { addedWaiter = f; }, () => (c.id && native.insertEventIn ? native.insertEventIn(String(c.id), ...args) : native.insertEvent(...args)), 30000);
+      }
       if (r.ok) { lastAdded = { ev, calendar: r.calendar, undo: r.undo }; return which; }
       if (r.reason === "denied") return "denied";
       native.addCalendarEvent(ev.title, ev.start.getTime(), ev.end.getTime(), !!ev.allDay, ev.notes || "Planned with Ervo"); // no calendar to write to: open the app
@@ -1079,9 +1146,10 @@
       const ok = await ensure(key, `Look up "${tk.item}"`);
       if (!ok) return ervoSays(`Okay, I won't open ${store.name}.`);
       logActivity({ kind: "shop", ico: "shop", title: `Looked up ${tk.item}`, detail: store.name, link: url });
-      setStatus("🔍", `Searching for ${tk.item}`);
+      const topic = topicOf(tk.item) || tk.item;
+      setStatus("🔍", `Searching for ${topic}`);
       openOutside(url);
-      return ervoSays(`Opened ${store.name} with "${tk.item}" 🛒 Pick the one you like.`, { status: ["🔍", `Searching for ${tk.item}`], acts: [{ label: `Open ${store.name} again`, icon: "shop", href: url }] });
+      return ervoSays(`Opened ${store.name} with "${tk.item}" 🛒`, { status: ["🔍", `Searching for ${topic}`], acts: [{ label: `Open ${store.name} again`, icon: "shop", href: url }] });
     }
   }
 
@@ -1097,23 +1165,28 @@
         if (u.ok) forgetPlanned(ev.title, ev.start);
         ervoSays(u.ok ? `Undone ↩️ "${ev.title}" is off your calendar.` : "Sorry, I couldn't undo that 😕");
       } });
-      return ervoSays(`Added ✅ "${ev.title}", ${when}${added.calendar ? `, on ${added.calendar}` : ""} 📅${extra || ""}`, { acts });
+      acts.push({ label: "Change calendar", icon: "calendar", onClick: () => switchCalendar("phone") });
+      return ervoSays(`Added ✅ "${ev.title}", ${when}${added.calendar ? ` · ${added.calendar}` : ""}${extra || ""}`, { acts });
     }
     if (which === "phone" || which === "google") {
-      const other = which === "phone" ? "google" : "phone";
-      acts.push({ label: which === "google" ? "Open in Google Calendar" : "Open calendar again", icon: "calendar", onClick: () => addToCalendar(ev, which) });
-      acts.push({ label: `Use ${other === "google" ? "Google Calendar" : "phone calendar"} instead`, icon: "calendar", onClick: () => switchCalendar(other) });
-      return ervoSays(`Done ✅ "${ev.title}", ${when}. I opened ${CAL_NAMES[which]} with it filled in, so pick the calendar you want and tap Save. It's in your Ervo Stats too.${extra || ""}`, { acts });
+      acts.push({ label: which === "google" ? "Open Google Calendar again" : "Open calendar again", icon: "calendar", onClick: () => addToCalendar(ev, which) });
+      acts.push({ label: "Change calendar", icon: "calendar", onClick: () => switchCalendar("phone") });
+      return ervoSays(`"${ev.title}", ${when}. Tap Save in ${CAL_NAMES[which]} to finish 📅${extra || ""}`, { acts });
     }
     if (which === null) return ervoSays(`Okay. "${ev.title}" is saved in your Ervo Stats, and I didn't add it to a calendar.`, { acts });
     return ervoSays(`No problem, I won't open your calendar. "${ev.title}" is saved in your Ervo Stats under Upcoming.`, { acts });
   }
 
+  // Pick a different calendar. If Ervo just added an event, it moves there too.
   async function switchCalendar(which) {
-    setCalendarChoice(which);
-    if (!lastEvent) return ervoSays(`Got it. I'll use ${CAL_NAMES[which]} from now on.`);
-    const ev = lastEvent;
-    return finishCalendar(ev, await addToCalendar(ev, which), [], `\n\nI'll use ${CAL_NAMES[which]} from now on.`);
+    const before = lastAdded;
+    if (which === "phone" && native && native.listCalendars) { if (!(await changeCalendar())) return; }
+    else setCalendarChoice(which);
+    const name = calChoiceName();
+    if (!before) return ervoSays(`Got it. New events go to ${name} from now on 📅`);
+    const ev = before.ev;
+    if (before.undo && native && native.restoreEvent) await nativeCall((f) => { restoreWaiter = f; }, () => native.restoreEvent(String(before.undo)));
+    return finishCalendar(ev, await addToCalendar(ev), [], `\nNew events go here from now on.`);
   }
 
   // ---------- chat ----------
@@ -1156,7 +1229,67 @@
 
   // Web addresses in Ervo's messages become links you can tap
   const URL_RE = /(https?:\/\/[^\s<>"')\]]+[^\s<>"')\].,;:!?])/g;
+
+  // ---------- the saved chat: it keeps going like a text thread; New chat files it away ----------
+  const CHAT_KEY = "ervo-chat";
+  const ARCHIVE_KEY = "ervo-chats";
+  const GREETED_KEY = "ervo-greeted";
+  const newChatRecord = () => ({ id: Date.now().toString(36), started: new Date().toISOString(), items: [] });
+  let restoring = false; // true while old messages are drawn again (nothing is saved twice)
+  let lastDay = "";
+  function record(item) {
+    if (restoring || !account) return;
+    // Read it fresh: the "Hey Ervo" pop-up may have added to it
+    const c = load(CHAT_KEY) || newChatRecord();
+    c.items.push(Object.assign({ at: new Date().toISOString() }, item));
+    if (c.items.length > 400) c.items.splice(0, c.items.length - 400);
+    try { localStorage.setItem(CHAT_KEY, JSON.stringify(c)); } catch (e) {
+      // Phone storage is full: drop the oldest photos, then try once more
+      c.items = c.items.filter((x, i) => x.t !== "photo" || i > c.items.length - 6);
+      try { localStorage.setItem(CHAT_KEY, JSON.stringify(c)); } catch (e2) { /* keep going without saving */ }
+    }
+  }
+  // "Today", "Yesterday" or the date, between messages from different days
+  function dayMark(when) {
+    const d = new Date(when || Date.now());
+    const key = d.toDateString();
+    if (key === lastDay) return;
+    lastDay = key;
+    const p = document.createElement("p");
+    p.className = "day-sep";
+    const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / 864e5);
+    p.textContent = days === 0 ? "Today" : days === 1 ? "Yesterday" : d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+    thread.append(p);
+  }
+  // Draws a saved chat again
+  function drawChat(c) {
+    restoring = true;
+    lastDay = "";
+    c.items.forEach((x) => {
+      dayMark(x.at);
+      if (x.t === "msg") bubble(x.text, x.who);
+      else if (x.t === "products") showProducts(x.products);
+      else if (x.t === "links") showActs(x.acts.map((a) => ({ label: a.label, icon: a.icon, href: a.href })));
+      else if (x.t === "photo") photoBubble(x.src);
+      else if (x.t === "link") linkBubble(x.url);
+    });
+    thread.querySelectorAll(".msg, .products, .acts").forEach((el) => el.classList.add("old"));
+    restoring = false;
+  }
+  // The conversation the AI sees: the last messages of the saved chat, product picks included
+  function historyFrom(c) {
+    const out = [];
+    c.items.forEach((x) => {
+      if (x.t === "msg") out.push({ role: x.who === "me" ? "user" : "assistant", text: x.text });
+      else if (x.t === "products" && out.length) out[out.length - 1].text += `\n[Showed product cards: ${x.products.map((p) => [p.name, p.price].filter(Boolean).join(" ")).join("; ")}]`;
+      else if (x.t === "link") out.push({ role: "user", text: `(shared a link: ${x.url})` });
+    });
+    return out.slice(-24);
+  }
+
   function bubble(text, who) {
+    if (!restoring) dayMark();
+    record({ t: "msg", who, text: String(text) });
     const el = document.createElement("div");
     el.className = `msg ${who}`;
     if (who === "them" && URL_RE.test(text)) {
@@ -1182,7 +1315,30 @@
 
   // Product picks from Ervo's research: name, price, rating, why it fits, and buttons
   const asinOf = (url) => { const m = String(url || "").match(/amazon\.[a-z.]+\/(?:[^/]+\/)?(?:dp|gp\/product)\/([A-Z0-9]{10})/i); return m ? m[1].toUpperCase() : null; };
+  // A picture for each pick: the one Ervo found, else Amazon's picture for that product number
+  const amazonPic = (asin) => `https://images-na.ssl-images-amazon.com/images/P/${asin}.01._SCLZZZZZZZ_SX400_.jpg`;
+  function productPic(p, asin, open) {
+    const tries = [p.image, asin && amazonPic(asin)].filter((u) => u && /^https:\/\//.test(u));
+    const box = document.createElement("button");
+    box.type = "button";
+    box.className = "product-pic";
+    box.setAttribute("aria-label", `See ${p.name}`);
+    box.addEventListener("click", open);
+    if (!tries.length) { box.classList.add("none"); box.innerHTML = ICON.shop; return box; }
+    const img = document.createElement("img");
+    img.alt = "";
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    let i = 0;
+    img.src = tries[0];
+    // Amazon sends back a 1-pixel image when it has no picture; treat that as missing too
+    img.onload = () => { if (img.naturalWidth < 20) img.onerror(); };
+    img.onerror = () => { i += 1; if (i < tries.length) img.src = tries[i]; else { img.remove(); box.classList.add("none"); box.innerHTML = ICON.shop; } };
+    box.append(img);
+    return box;
+  }
   function showProducts(products) {
+    record({ t: "products", products: products.slice(0, 5).map((p) => ({ name: p.name, price: p.price, rating: p.rating, why: p.why, url: p.url, image: p.image })) });
     const row = document.createElement("div");
     row.className = "products";
     products.slice(0, 5).forEach((p) => {
@@ -1210,7 +1366,7 @@
       cart.append(asin ? "Add to cart" : "Find on Amazon");
       cart.addEventListener("click", () => addToCart(p, asin, search));
       btns.append(view, cart);
-      card.append(name);
+      card.append(productPic(p, asin, () => view.click()), name);
       if (meta.textContent) card.append(meta);
       if (why.textContent) card.append(why);
       card.append(btns);
@@ -1239,6 +1395,8 @@
   }
 
   function showActs(acts) {
+    const links = acts.filter((a) => a.href);
+    if (links.length) record({ t: "links", acts: links.map((a) => ({ label: a.label, icon: a.icon, href: a.href })) });
     const row = document.createElement("div");
     row.className = "acts";
     acts.forEach((a) => {
@@ -1329,7 +1487,9 @@
     hideTyping();
     idleStatus();
     bubble(said, "them");
-    history.push({ role: "assistant", text: said });
+    // The AI remembers what it showed, so "the second one" or "those lights" still make sense later
+    const shown = opts.products && opts.products.length ? `\n[Showed product cards: ${opts.products.map((p) => [p.name, p.price].filter(Boolean).join(" ")).join("; ")}]` : "";
+    history.push({ role: "assistant", text: said + shown });
     if (opts.products && opts.products.length) showProducts(opts.products);
     if (opts.acts && opts.acts.length) showActs(opts.acts);
     setChips(opts.chips || PLAN[account.plan].chips);
@@ -1374,30 +1534,38 @@
     $("chat-avatar").src = p.avatar;
     $("menu-who").textContent = `${acc.name} · Ervo ${acc.plan === "business" ? "for Business" : "Personal"}`;
     thread.innerHTML = "";
+    lastDay = "";
     stuck = true;
     newBtn.hidden = true;
-    const note = document.createElement("p");
-    note.className = "preview-note";
-    note.textContent = "Preview: Ervo always asks before it opens or uses another app, and never buys anything for you.";
-    thread.append(note);
     idleStatus();
-    history = [];
     task = null;
     confirming = false;
     pending = null;
+    // The chat picks up where it left off, like a text thread
+    const saved = load(CHAT_KEY);
+    history = saved ? historyFrom(saved) : [];
     show("chat");
-    if (OVERLAY) { thread.innerHTML = ""; return; } // the pop-up starts clean
-    setTimeout(() => greet(fresh), fresh ? 250 : 0);
+    if (OVERLAY) { setChips(p.chips); return; } // the pop-up starts clean, but still knows the conversation
+    if (saved && saved.items.length) drawChat(saved);
+    requestAnimationFrame(() => { thread.scrollTop = thread.scrollHeight; });
+    // One greeting a day: the first time Ervo opens that day
+    const today = new Date().toDateString();
+    if (fresh || load(GREETED_KEY) !== today) {
+      save(GREETED_KEY, today);
+      setTimeout(() => greet(fresh), fresh ? 250 : 0);
+    } else {
+      setChips(p.chips);
+    }
   }
 
-  // ---------- greeting: nickname, time, date, weather, news ----------
+  // ---------- greeting: short and simple: hi, name, date, weather, how can I help ----------
   function greetingText(firstTime) {
     const p = prefs();
     const name = p.nickname || account.name;
     const now = new Date();
     const h = now.getHours();
-    const hello = h < 5 ? "Hi" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-    const lines = [`${hello}, ${name}!`];
+    const hello = firstTime ? "Hi" : h < 5 ? "Hi" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+    const lines = [firstTime ? `${hello}, ${name}! I'm Ervo 👋` : `${hello}, ${name}!`];
     const date = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
     const time = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
     if (p.date && p.time) lines.push(`It's ${date}, ${time}.`);
@@ -1408,21 +1576,42 @@
 
   async function greet(firstTime) {
     const g = greetingText(firstTime);
-    const intro = account.plan === "business"
-      ? "I'm Ervo for Business. I can answer your customers, handle refunds by your policy and keep your team's schedule on track."
-      : "I'm Ervo, your AI helper. I can plan your week, book things, shop and keep track of it all in Ervo Stats.";
     const build = (async () => {
-      let lines = g.lines.slice();
+      const lines = g.lines.slice();
       if (g.p.weather && allowed("location")) {
         const w = await Promise.race([weatherNow(), delay(5000).then(() => null)]).catch(() => null);
-        if (w) lines.push(w.sentence);
+        if (w) {
+          const weather = `${w.temp}°${w.unit} and ${w.kind}${w.city ? ` in ${w.city}` : ""} ${w.emoji}`;
+          // "It's Thursday, November 5, 60°F and clear in Austin 🌙"
+          if (lines.length > 1) lines[lines.length - 1] = lines[lines.length - 1].replace(/\.$/, `, ${weather}`);
+          else lines.push(`It's ${weather}`);
+        }
       }
-      lines.push(g.firstTime ? intro : "What can I do for you?");
-      if (g.firstTime) lines.push("What can I do for you?");
+      lines.push("How can I help?");
       return lines.join(" ");
     })();
     await ervoSays(build);
     if (g.p.news && allowed("location")) newsBubble();
+  }
+
+  // New chat: the old one goes to Chats & media, where you can read or continue it
+  function archiveChat() {
+    const c = load(CHAT_KEY);
+    if (!c || !c.items.some((x) => x.t === "msg" && x.who === "me")) return;
+    const first = c.items.find((x) => x.t === "msg" && x.who === "me");
+    c.title = first ? first.text.slice(0, 60) : "Chat";
+    c.ended = new Date().toISOString();
+    const all = load(ARCHIVE_KEY) || [];
+    all.unshift(c);
+    try { localStorage.setItem(ARCHIVE_KEY, JSON.stringify(all.slice(0, 30))); } catch (e) { save(ARCHIVE_KEY, all.slice(0, 10)); }
+  }
+  function newChat() {
+    archiveChat();
+    drop(CHAT_KEY);
+    save(GREETED_KEY, new Date().toDateString());
+    openChat(account, false);
+    const name = prefs().nickname || account.name;
+    ervoSays(`New chat started ✨ What's next, ${name}?`);
   }
 
   // ---------- location, weather and news ----------
@@ -1464,7 +1653,7 @@
     const fahrenheit = place.country ? ["US", "LR", "MM", "BS", "BZ", "KY", "PW"].includes(place.country) : /-US$/.test(navigator.language || "");
     const q = new URLSearchParams({
       latitude: place.lat, longitude: place.lon, current: "temperature_2m,weather_code,is_day",
-      daily: "temperature_2m_max,temperature_2m_min", timezone: "auto", forecast_days: "1",
+      daily: "temperature_2m_max,temperature_2m_min,sunrise,sunset", timezone: "auto", forecast_days: "1",
       temperature_unit: fahrenheit ? "fahrenheit" : "celsius",
     });
     const r = await fetch(`https://api.open-meteo.com/v1/forecast?${q}`);
@@ -1478,7 +1667,8 @@
     const hi = Math.round(j.daily.temperature_2m_max[0]);
     const lo = Math.round(j.daily.temperature_2m_min[0]);
     const where = place.city ? ` in ${place.city}` : "";
-    const w = { temp, hi, lo, kind: kind[1], emoji, city: place.city, unit: fahrenheit ? "F" : "C" };
+    const sun = (k) => (j.daily[k] && j.daily[k][0] ? new Date(j.daily[k][0]) : null);
+    const w = { temp, hi, lo, kind: kind[1], emoji, city: place.city, unit: fahrenheit ? "F" : "C", sunrise: sun("sunrise"), sunset: sun("sunset") };
     w.sentence = `It's ${temp}°${w.unit} and ${kind[1]}${where} ${emoji}`.trim() + ".";
     w.short = `${emoji} ${temp}°${w.unit}, ${kind[1]}${where} · H ${hi}° L ${lo}°`;
     return w;
@@ -1535,13 +1725,30 @@
   function remember(facts) {
     const m = memory();
     facts.forEach((f) => { const x = String(f || "").trim().slice(0, 200); if (x && !m.includes(x)) m.push(x); });
-    save(MEMORY_KEY, m.slice(-40));
+    save(MEMORY_KEY, m.slice(-60));
+  }
+
+  // A short topic for the status pill, like "lights for a soccer field", never the whole message
+  function topicOf(s) {
+    const words = String(s || "").replace(/[^\p{L}\p{N}'$&\s-]/gu, " ").split(/\s+/).filter(Boolean);
+    const STOP = /^(and|but|so|because|since|when|while|that|which|who|where|if|i|we|it|is|are|was|were|need|want|can|could|will|would)$/i;
+    const SOFT = /^(the|my|our|your|this|these|those)$/i;
+    const PREP = /^(for|to|on|at|in|of|with|from|under|near|by)$/i;
+    const out = [];
+    for (const w of words) {
+      if (STOP.test(w)) break;
+      if (SOFT.test(w) && out.length && !PREP.test(out[out.length - 1])) break;
+      out.push(w);
+      if (out.length >= 5) break;
+    }
+    while (out.length > 1 && (PREP.test(out[out.length - 1]) || /^(a|an|the|some|my|your)$/i.test(out[out.length - 1]))) out.pop();
+    return out.join(" ");
   }
 
   // What the status pill says while the AI works on it
   function guessStatus(d) {
     if (d.intent === "shop") {
-      const item = shopItem(d.raw) || "that";
+      const item = topicOf(shopItem(d.raw)) || "that";
       return wantsAdvice(item, d.t) ? ["🔍", `Researching ${item}`] : ["🔍", `Looking for ${item}`];
     }
     if (d.intent === "event" || d.intent === "reserve") return ["📅", "Planning it"];
@@ -1552,11 +1759,16 @@
   // Sends the message to Ervo's AI, then does what it asked for: show products,
   // offer to add an event, search Amazon, or change a setting. Anything that
   // opens another app still waits for your yes and your Allow.
-  function askAI(d) {
+  // These show their own message in the app (Added ✅, the alarm card...), so the AI's words would only repeat it
+  const SELF_REPORTING = new Set(["add_calendar_event", "set_timer", "set_alarm", "dismiss_alarm", "edit_calendar_event", "remove_calendar_event", "call_contact", "plan_meeting"]);
+  async function askAI(d) {
     const status = guessStatus(d);
+    showTyping(status[1]);
+    setStatus(status[0], status[1]);
     const result = askServer().then((j) => {
       if (j.memories && j.memories.length) remember(j.memories);
       const out = { text: j.reply || "Done.", products: [], chips: null };
+      out.quiet = (j.actions || []).some((a) => SELF_REPORTING.has(a.type));
       (j.actions || []).forEach((a) => {
         if (a.type === "show_products" && Array.isArray(a.products)) {
           out.products = a.products;
@@ -1569,9 +1781,9 @@
           let minutes = 60;
           const e = String(a.end || "").match(/(\d{2}):(\d{2})(?::\d{2})?$/);
           if (time && e) minutes = Math.max(15, (+e[1] * 60 + +e[2]) - (time.h * 60 + time.m)) || 60;
-          task = { intent: "event", title: String(a.title).slice(0, 80), date, time, allDay: !time, minutes };
-          confirming = true;
-          out.chips = ["Yes", "No"];
+          // Added right away (with Undo), no extra Yes/No
+          const tk = { intent: "event", title: String(a.title).slice(0, 80), date, time, allDay: !time, minutes };
+          out.after = () => runTask(tk);
         } else if ((a.type === "amazon_search" || a.type === "shop_search") && a.query) {
           task = { intent: "shop", item: String(a.query).slice(0, 80), store: STORES[a.store] ? a.store : "amazon" };
           confirming = true;
@@ -1611,7 +1823,14 @@
       });
       return out;
     }).catch(() => "I couldn't reach my AI service just now. Try again in a moment.");
-    return ervoSays(result, { status }).then(() => result).then((r) => { if (r && r.after) return r.after(); });
+    const r = await result;
+    if (r && r.quiet && r.after) {
+      hideTyping();
+      idleStatus();
+      return r.after();
+    }
+    await ervoSays(r, { status });
+    if (r && r.after) return r.after();
   }
 
   // ---------- phone: timers, alarms, calls and "Hey Ervo" (Android) ----------
@@ -2310,22 +2529,38 @@
     const now = new Date();
     $("stats-date").textContent = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
     $("stats-title").textContent = `${prefs().nickname || account.name}'s Ervo Stats`;
+    setSky(null);
+    $("sky-now").hidden = true;
     if (allowed("location")) {
-      weatherNow().then((w) => { $("stats-weather").textContent = w.short; $("stats-weather").hidden = false; }).catch(() => { $("stats-weather").hidden = true; });
-    } else {
-      $("stats-weather").hidden = true;
+      weatherNow().then((w) => {
+        $("sky-emoji").textContent = w.emoji;
+        $("sky-temp").textContent = `${w.temp}°`;
+        $("sky-cond").textContent = `${cap(w.kind)}${w.city ? ` in ${w.city}` : ""}`;
+        $("sky-hilo").textContent = `H ${w.hi}°  L ${w.lo}°`;
+        $("sky-now").hidden = false;
+        setSky(w);
+      }).catch(() => { /* the sky still follows the clock */ });
     }
 
-    // Upcoming: things Ervo planned that haven't happened yet
+    // Upcoming: your phone's calendar for the next two weeks, plus what Ervo planned
     const items = activity();
-    const up = items.filter((a) => a.when && new Date(a.when) > now).sort((a, b) => new Date(a.when) - new Date(b.when));
-    $("upcoming").innerHTML = "";
-    if (!up.length) $("upcoming").append(empty("Nothing planned yet. Ask Ervo to book or schedule something."));
-    up.slice(0, 8).forEach((a) => {
-      const r = row(icoClass(a.ico), a.title, `${whenText(a)}${a.detail ? " · " + a.detail : ""}`, untilText(a.when), a.link);
-      r.querySelector(".app-ico").innerHTML = ICON[a.ico] || ICON.done;
-      $("upcoming").append(r);
-    });
+    // Same title on the same day counts as one event
+    const dayKey = (title, start) => `${String(title || "").trim().toLowerCase()}|${startOfDay(new Date(start)).getTime()}`;
+    const planKeys = new Set();
+    const planned = items.filter((a) => a.when && new Date(a.when) > now)
+      .map((a) => ({ title: a.title, start: new Date(a.when), allDay: a.allDay, ico: a.ico, detail: a.detail, link: a.link }))
+      .sort((a, b) => (a.allDay ? 1 : 0) - (b.allDay ? 1 : 0))
+      .filter((p) => { const k = dayKey(p.title, p.start); if (planKeys.has(k)) return false; planKeys.add(k); return true; });
+    drawUpcoming(planned);
+    if (native && native.findEvents && native.calendarAllowed && native.calendarAllowed()) {
+      readCalendar("", { from: now, to: addDays(startOfDay(now), 15) }).then((r) => {
+        if (r.status !== "ready" || !$("stats").classList.contains("active")) return;
+        const seen = new Set(r.events.map((e) => dayKey(e.title, e.start)));
+        const mine = planned.filter((p) => !seen.has(dayKey(p.title, p.start)));
+        drawUpcoming(mine.concat(r.events.map((e) => ({ title: e.title || "(No title)", start: new Date(e.start), allDay: e.allDay, ico: "calendar", detail: e.calendar }))));
+      });
+    }
+    renderMemories();
 
     // Most recent events: everything Ervo did, newest first
     $("recent").innerHTML = "";
@@ -2343,6 +2578,60 @@
     renderApps();
     if (native && native.stepsStatus) { $("steps-note").textContent = "Checking Health Connect…"; native.stepsStatus(); }
     else renderSteps({ status: "web" });
+  }
+
+  function drawUpcoming(list) {
+    const box = $("upcoming");
+    box.innerHTML = "";
+    list.sort((a, b) => a.start - b.start);
+    const next = list[0];
+    $("sky-next").hidden = !next;
+    if (next) $("sky-next").textContent = `📅 ${next.title} · ${untilText(next.start)}`;
+    if (!list.length) { box.append(empty("Nothing coming up in the next two weeks.")); return; }
+    list.slice(0, 8).forEach((a) => {
+      const when = `${fmtDate(a.start)}${a.allDay ? "" : ` at ${a.start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}`;
+      const r = row(icoClass(a.ico), a.title, `${when}${a.detail ? " · " + a.detail : ""}`, untilText(a.start), a.link);
+      r.querySelector(".app-ico").innerHTML = ICON[a.ico] || ICON.calendar;
+      box.append(r);
+    });
+  }
+
+  // What Ervo remembers about you, so you can see it and remove anything
+  function renderMemories() {
+    const box = $("memories");
+    box.innerHTML = "";
+    const m = memory();
+    if (!m.length) { box.append(empty("As you chat, Ervo remembers things that help, like your favorite store or your schedule. They'll show here.")); return; }
+    m.slice().reverse().forEach((fact) => {
+      const r = row("brain", fact, "");
+      r.classList.add("compact", "memory");
+      const x = document.createElement("button");
+      x.type = "button";
+      x.className = "link-btn";
+      x.textContent = "Forget";
+      x.addEventListener("click", () => { save(MEMORY_KEY, memory().filter((f) => f !== fact)); renderMemories(); });
+      r.append(x);
+      box.append(r);
+    });
+  }
+
+  // The sky behind Ervo Stats follows the time of day where you are (and the clouds or rain)
+  function setSky(w) {
+    const now = new Date();
+    let part;
+    if (w && w.sunrise && w.sunset) {
+      const t = now.getTime(), rise = w.sunrise.getTime(), set = w.sunset.getTime(), hr = 3600000;
+      part = t < rise - 0.6 * hr || t > set + 0.75 * hr ? "night" : t < rise + hr ? "dawn" : t > set - hr ? "dusk" : "day";
+    } else {
+      const h = now.getHours();
+      part = h < 5 || h >= 20 ? "night" : h < 8 ? "dawn" : h >= 17 ? "dusk" : "day";
+    }
+    const kind = w ? w.kind : "";
+    const weather = /rain|drizz|storm|snow/.test(kind) ? "wet" : /cloudy|fog/.test(kind) && kind !== "partly cloudy" ? "cloudy" : "";
+    const s = $("stats");
+    s.dataset.sky = part;
+    s.dataset.weather = weather;
+    syncBars();
   }
 
   function activityRow(a) {
@@ -2393,37 +2682,59 @@
   $("f-month").addEventListener("change", renderActivity);
   $("activity-back").addEventListener("click", () => { renderStats(); show("stats"); });
 
+  // Connected apps: one short row each, with a switch. Calendar has one row that says where new events go.
   function renderApps() {
-    $("apps").innerHTML = "";
+    const box = $("apps");
+    box.innerHTML = "";
     const used = Object.keys(STORES).filter((k) => k !== "amazon" && connections()[k]);
-    if (native && native.openAppSettings) {
-      // Android's own switches (calendar, contacts, microphone...) live in Settings
-      const r = row("open", "Android permissions", "Turn Ervo's phone permissions on or off");
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "switch";
-      btn.textContent = "Open";
-      btn.addEventListener("click", () => native.openAppSettings());
-      r.append(btn);
-      setTimeout(() => $("apps").append(r), 0);
-    }
-    PLAN[account.plan].apps.concat(account.plan === "personal" ? used : []).forEach((key) => {
+    const keys = PLAN[account.plan].apps.concat(account.plan === "personal" ? used : []).filter((k) => k !== "calendar" && k !== "phonecal");
+
+    // Calendar: where new events go, with Change
+    const calOn = allowed("phonecal") || allowed("calendar");
+    const cal = row("calendar", "Calendar", calOn && prefs().calendar ? `New events go to ${calChoiceName()}` : "Ervo asks where new events go");
+    cal.classList.add("compact");
+    const ch = document.createElement("button");
+    ch.type = "button";
+    ch.className = "link-btn";
+    ch.textContent = prefs().calendar ? "Change" : "Pick";
+    ch.addEventListener("click", changeCalendar);
+    cal.append(ch, appSwitch(calOn, () => toggleApp(prefs().calendar === "google" ? "calendar" : "phonecal", calOn)));
+    box.append(cal);
+
+    keys.forEach((key) => {
       const c = CONNECTORS[key];
       if (key === "health" && !(native && native.stepsStatus)) return; // phones without the Android app can't share steps yet
       const state = connections()[key];
-      const on = state && state.status === "allowed";
-      let sub = on ? `Allowed ${ago(state.at).toLowerCase()}` : state && state.status === "denied" ? "Not allowed" : "Not connected";
-      const calKind = key === "phonecal" ? "phone" : key === "calendar" ? "google" : null;
-      if (calKind && prefs().calendar === calKind) sub = `Used for new events · ${sub.toLowerCase()}`;
+      const on = !!(state && state.status === "allowed");
+      const sub = on ? "On" : state && state.status === "denied" ? "Not allowed" : "Off";
       const r = row(c.ico, c.name, sub);
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = `switch${on ? " on" : ""}`;
-      btn.textContent = on ? "Turn off" : "Connect";
-      btn.addEventListener("click", () => toggleApp(key, on));
-      r.append(btn);
-      $("apps").append(r);
+      r.classList.add("compact");
+      r.append(appSwitch(on, () => toggleApp(key, on)));
+      box.append(r);
     });
+
+    if (native && native.openAppSettings) {
+      // Android's own switches (calendar, contacts, microphone...) live in Settings
+      const r = row("open", "Phone permissions", "Android's settings for Ervo");
+      r.classList.add("compact", "tap");
+      const go = document.createElement("span");
+      go.className = "side";
+      go.textContent = "›";
+      r.append(go);
+      r.addEventListener("click", () => native.openAppSettings());
+      box.append(r);
+    }
+  }
+  function appSwitch(on, onChange) {
+    const l = document.createElement("label");
+    l.className = "toggle mini";
+    const i = document.createElement("input");
+    i.type = "checkbox";
+    i.checked = on;
+    i.setAttribute("aria-label", on ? "Turn off" : "Turn on");
+    i.addEventListener("change", () => { i.checked = on; onChange(); });
+    l.append(i, document.createElement("i"));
+    return l;
   }
 
   async function toggleApp(key, on) {
@@ -2431,18 +2742,22 @@
     if (on) {
       setConnection(key, "off");
       logActivity({ kind: "disconnect", ico: c.ico, title: `Turned off ${c.name}` });
-      // Stop using that calendar for new events; Ervo asks which one next time
-      const calKind = key === "phonecal" ? "phone" : key === "calendar" ? "google" : null;
-      if (calKind && prefs().calendar === calKind) { const pr = prefs(); delete pr.calendar; save(PREFS_KEY, pr); }
+      // Turning off the calendar: stop using it, and ask where events go next time
+      if (key === "phonecal" || key === "calendar") {
+        setConnection(key === "phonecal" ? "calendar" : "phonecal", "off");
+        const pr = prefs();
+        delete pr.calendar; delete pr.calId; delete pr.calName;
+        save(PREFS_KEY, pr);
+      }
       if (key === "location") drop(PLACE_KEY);
       renderStats();
       return;
     }
+    if (key === "phonecal" || key === "calendar") { await changeCalendar(); renderStats(); return; }
     const ok = await askPermission(key);
     if (!ok) { setConnection(key, "denied"); renderApps(); return; }
     setConnection(key, "allowed");
     logActivity({ kind: "connect", ico: c.ico, title: `Connected ${c.name}` });
-    if (key === "phonecal" || key === "calendar") setCalendarChoice(key === "phonecal" ? "phone" : "google");
     if (key === "health" && native && native.requestSteps) native.requestSteps();
     else if (key === "phonecal") { /* nothing to sign in to */ }
     else if (key === "location") getPlace().catch(() => { /* the phone said no */ }).then(renderStats);
@@ -2458,6 +2773,7 @@
     $("steps-week").innerHTML = "";
     $("steps-extra").innerHTML = "";
     $("steps-goal").textContent = `Goal ${goal.toLocaleString()}`;
+    $("sky-steps").querySelector("span").textContent = s.status === "ready" ? `${s.today.toLocaleString()} steps` : "Steps --";
     if (s.status === "ready") {
       $("steps-today").textContent = s.today.toLocaleString();
       ring.style.strokeDashoffset = String(314.16 * (1 - Math.min(s.today / goal, 1)));
@@ -2520,7 +2836,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.2.6"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.2.7"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -2693,15 +3009,11 @@
     $("photo-input").value = "";
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const el = document.createElement("div");
-      el.className = "msg me photo";
-      const img = document.createElement("img");
-      img.src = reader.result;
-      img.alt = "Photo you sent";
-      img.onload = () => { toBottom(); };
-      el.append(img);
-      thread.append(el);
+    reader.onload = async () => {
+      const src = await shrinkPhoto(reader.result);
+      dayMark();
+      photoBubble(src);
+      record({ t: "photo", src });
       $("chips").innerHTML = "";
       ervoSays(account.plan === "business"
         ? "Got the photo! Soon I'll read it, like a receipt or a damaged product, and match it to the right order or ticket."
@@ -2727,29 +3039,211 @@
     try { url = new URL(v); } catch (err) { url = null; }
     if (!url || !/\.[a-z]{2,}$/i.test(url.hostname)) { $("link-error").textContent = "That doesn't look like a link. Try something like example.com."; return; }
     $("link-row").hidden = true;
+    dayMark();
+    const host = linkBubble(url.href);
+    record({ t: "link", url: url.href });
+    $("chips").innerHTML = "";
+    history.push({ role: "user", text: `(shared a link: ${url.href})` });
+    if (/amazon\./i.test(url.hostname) && account.plan === "personal") {
+      return ervoSays(`That's an Amazon link. Want me to keep it in your plans so you remember it?`, { acts: [{ label: "Save it", icon: "shop", onClick: () => { logActivity({ kind: "link", ico: "shop", title: "Saved an Amazon link", detail: host, link: url.href }); ervoSays("Saved ✅ It's in Ervo Stats under Most recent events."); } }] });
+    }
+    ervoSays(`Got it 🔗 It's saved in Chats & media under Links.`);
+  });
+
+  // A photo or link you sent, as a message
+  function photoBubble(src) {
+    const el = document.createElement("div");
+    el.className = "msg me photo";
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "Photo you sent";
+    img.onload = () => { toBottom(); };
+    el.append(img);
+    thread.append(el);
+    toBottom();
+  }
+  function linkBubble(href) {
+    let host = href;
+    try { host = new URL(href).hostname.replace(/^www\./, ""); } catch (e) { /* keep it whole */ }
     const el = document.createElement("div");
     el.className = "msg me link";
     const a = document.createElement("a");
-    a.href = url.href;
+    a.href = href;
     a.target = "_blank";
     a.rel = "noopener";
-    a.addEventListener("click", (ev) => { ev.preventDefault(); openOutside(url.href); });
+    a.addEventListener("click", (ev) => { ev.preventDefault(); openOutside(href); });
     const b = document.createElement("b");
-    b.textContent = url.hostname.replace(/^www\./, "");
+    b.textContent = host;
     const s = document.createElement("small");
-    s.textContent = url.href.length > 48 ? url.href.slice(0, 45) + "…" : url.href;
+    s.textContent = href.length > 48 ? href.slice(0, 45) + "…" : href;
     a.append(b, s);
     el.innerHTML = '<div class="link-top"></div>';
     el.append(a);
     thread.append(el);
     toBottom();
-    $("chips").innerHTML = "";
-    history.push({ role: "user", text: `(shared a link: ${url.href})` });
-    if (/amazon\./i.test(url.hostname) && account.plan === "personal") {
-      return ervoSays(`That's an Amazon link. Want me to keep it in your plans so you remember it?`, { acts: [{ label: "Save it", icon: "shop", onClick: () => { logActivity({ kind: "link", ico: "shop", title: "Saved an Amazon link", detail: b.textContent, link: url.href }); ervoSays("Saved ✅ It's in Ervo Stats under Most recent events."); } }] });
+    return host;
+  }
+  // Photos are made smaller before they're saved, so the chat fits on the phone
+  function shrinkPhoto(dataUrl) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, 720 / Math.max(img.width, img.height));
+        const cv = document.createElement("canvas");
+        cv.width = Math.round(img.width * scale);
+        cv.height = Math.round(img.height * scale);
+        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        try { resolve(cv.toDataURL("image/jpeg", 0.72)); } catch (e) { resolve(dataUrl); }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  // ---------- Chats & media: photos, links and earlier chats ----------
+  let libTab = "photos";
+  function allChats() {
+    const cur = load(CHAT_KEY);
+    return (cur ? [Object.assign({ current: true }, cur)] : []).concat(load(ARCHIVE_KEY) || []);
+  }
+  function openLibrary(tab) {
+    toggleMenu(false);
+    libTab = tab || libTab;
+    renderLibrary();
+    show("library");
+  }
+  function renderLibrary() {
+    document.querySelectorAll("#lib-tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === libTab)));
+    const box = $("lib-list");
+    box.innerHTML = "";
+    const chats = allChats();
+    const when = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    if (libTab === "photos") {
+      const pics = [];
+      chats.forEach((c) => c.items.forEach((x) => {
+        if (x.t === "photo") pics.push({ src: x.src, at: x.at });
+        if (x.t === "products") x.products.forEach((p) => { const asin = asinOf(p.url); if (p.image || asin) pics.push({ src: p.image || amazonPic(asin), alt: amazonPic(asin), at: x.at, href: p.url, name: p.name }); });
+      }));
+      if (!pics.length) { box.append(libEmpty("Photos you send and products Ervo finds show up here.")); return; }
+      const grid = document.createElement("div");
+      grid.className = "lib-grid";
+      const shown = new Set();
+      pics.sort((a, b) => new Date(b.at) - new Date(a.at)).filter((p) => { const k = p.href || p.src; if (shown.has(k)) return false; shown.add(k); return true; }).forEach((p) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "lib-pic";
+        b.setAttribute("aria-label", p.name || "Photo");
+        const img = document.createElement("img");
+        img.src = p.src;
+        img.alt = "";
+        img.loading = "lazy";
+        img.referrerPolicy = "no-referrer";
+        img.onerror = () => { if (p.alt && img.src !== p.alt) img.src = p.alt; else b.remove(); };
+        img.onload = () => { if (img.naturalWidth < 20) img.onerror(); };
+        b.append(img);
+        b.addEventListener("click", () => { if (p.href) openOutside(p.href); else viewPhoto(p.src); });
+        grid.append(b);
+      });
+      box.append(grid);
+      return;
     }
-    ervoSays(`Thanks! Soon I'll open ${b.textContent}, read it and tell you what matters, or use it to finish your task.`);
-  });
+    if (libTab === "links") {
+      const links = [];
+      const seen = new Set();
+      const add = (title, href, at) => { if (!href || seen.has(href)) return; seen.add(href); links.push({ title, href, at }); };
+      chats.forEach((c) => c.items.forEach((x) => {
+        if (x.t === "link") add("", x.url, x.at);
+        if (x.t === "links") x.acts.forEach((a) => add(a.label, a.href, x.at));
+        if (x.t === "products") x.products.forEach((p) => p.url && add(p.name, p.url, x.at));
+        if (x.t === "msg") (String(x.text).match(URL_RE) || []).forEach((u) => add("", u, x.at));
+      }));
+      if (!links.length) { box.append(libEmpty("Links you share and links Ervo sends show up here.")); return; }
+      const card = document.createElement("div");
+      card.className = "card list";
+      links.sort((a, b) => new Date(b.at) - new Date(a.at)).forEach((l) => {
+        let host = l.href;
+        try { host = new URL(l.href).hostname.replace(/^www\./, ""); } catch (e) { /* keep it whole */ }
+        card.append(row("open", l.title || host, l.title ? host : l.href, when(l.at), l.href));
+      });
+      box.append(card);
+      return;
+    }
+    // Chats
+    const card = document.createElement("div");
+    card.className = "card list";
+    chats.forEach((c) => {
+      const msgs = c.items.filter((x) => x.t === "msg");
+      if (!msgs.length) return;
+      const first = c.title || (msgs.find((x) => x.who === "me") || msgs[0]).text.slice(0, 60);
+      const r = row("chat", c.current ? "Current chat" : first, c.current ? first : `${msgs.length} messages`, when(c.current ? (c.items[c.items.length - 1] || {}).at || c.started : c.ended || c.started));
+      r.classList.add("tap");
+      r.addEventListener("click", () => viewChat(c));
+      card.append(r);
+    });
+    if (!card.children.length) { box.append(libEmpty("Chats you file away with New chat show up here.")); return; }
+    box.append(card);
+    const nb = document.createElement("button");
+    nb.type = "button";
+    nb.className = "pill lib-new";
+    nb.textContent = "Start a new chat";
+    nb.addEventListener("click", () => { newChat(); });
+    box.append(nb);
+  }
+  function libEmpty(text) { const c = document.createElement("div"); c.className = "card list"; c.append(empty(text)); return c; }
+  function viewPhoto(src) {
+    const w = document.createElement("div");
+    w.className = "photo-view";
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "Photo";
+    w.append(img);
+    w.addEventListener("click", () => w.remove());
+    document.body.append(w);
+  }
+  // Read an earlier chat; Continue makes it the chat again
+  function viewChat(c) {
+    if (c.current) { show("chat"); return; }
+    const box = $("lib-list");
+    box.innerHTML = "";
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "pill ghost lib-back";
+    back.textContent = "‹ All chats";
+    back.addEventListener("click", renderLibrary);
+    const view = document.createElement("div");
+    view.className = "lib-chat";
+    c.items.filter((x) => x.t === "msg").forEach((x) => {
+      const m = document.createElement("div");
+      m.className = `msg ${x.who} old`;
+      m.textContent = x.text;
+      view.append(m);
+    });
+    const go = document.createElement("button");
+    go.type = "button";
+    go.className = "pill";
+    go.textContent = "Continue this chat";
+    go.addEventListener("click", () => {
+      archiveChat();
+      const rest = (load(ARCHIVE_KEY) || []).filter((x) => x.id !== c.id);
+      save(ARCHIVE_KEY, rest);
+      const back2 = Object.assign({}, c);
+      delete back2.title; delete back2.ended;
+      save(CHAT_KEY, back2);
+      save(GREETED_KEY, new Date().toDateString());
+      openChat(account, false);
+    });
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "pill ghost";
+    del.textContent = "Delete";
+    del.addEventListener("click", () => { save(ARCHIVE_KEY, (load(ARCHIVE_KEY) || []).filter((x) => x.id !== c.id)); renderLibrary(); });
+    const btns = document.createElement("div");
+    btns.className = "sheet-actions";
+    btns.append(del, go);
+    box.append(back, view, btns);
+  }
+  document.querySelectorAll("#lib-tabs button").forEach((b) => b.addEventListener("click", () => { libTab = b.dataset.tab; renderLibrary(); }));
+  $("library-back").addEventListener("click", () => show("chat"));
 
   // ---------- voice: glowing edges, a small owl and an "Ask Ervo" bar ----------
   // In the app it sits over the chat. As a pop-up ("Hey Ervo" or the assistant button) it sits
@@ -2867,11 +3361,12 @@
   $("open-apps").addEventListener("click", () => openStats(true));
   $("open-greeting").addEventListener("click", openGreeting);
   $("open-wake").addEventListener("click", () => { toggleMenu(false); heyErvo(); });
-  $("clear-chat").addEventListener("click", () => { toggleMenu(false); openChat(account, false); });
+  $("new-chat").addEventListener("click", () => { toggleMenu(false); newChat(); });
+  $("open-library").addEventListener("click", () => openLibrary());
   $("sign-out").addEventListener("click", () => {
     toggleMenu(false);
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
-    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory"].forEach(drop);
+    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, GREETED_KEY].forEach(drop);
     account = null;
     ["contact", "code", "name"].forEach((id) => { $(id).value = ""; });
     setPlan("personal");
@@ -2889,6 +3384,9 @@
     if (!menu.hidden) { toggleMenu(false); return true; }
     if ($("activity").classList.contains("active")) { renderStats(); show("stats"); return true; }
     if ($("stats").classList.contains("active")) { show("chat"); return true; }
+    if (document.querySelector(".photo-view")) { document.querySelector(".photo-view").remove(); return true; }
+    if (!$("calpick").hidden) { answerCalendar(null); return true; }
+    if ($("library").classList.contains("active")) { if ($("lib-list").querySelector(".lib-chat")) renderLibrary(); else show("chat"); return true; }
     if (!$("attach-sheet").hidden) { closeAttach(); return true; }
     if (!$("link-row").hidden) { $("link-row").hidden = true; return true; }
     const active = document.querySelector(".step.active");

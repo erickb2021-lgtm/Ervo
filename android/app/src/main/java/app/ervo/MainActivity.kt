@@ -412,6 +412,38 @@ open class MainActivity : AppCompatActivity() {
             })
         }
 
+        /** Same as insertEvent, but on the calendar the user picked in Ervo (its id from listCalendars). */
+        @JavascriptInterface
+        fun insertEventIn(calendarId: String, title: String, startMs: Double, endMs: Double, allDay: Boolean, notes: String, location: String) = runOnUiThread {
+            withCalendar({ ok ->
+                if (!ok) { callJs("ervoEventAdded", """{"ok":false,"reason":"denied"}"""); return@withCalendar }
+                lifecycleScope.launch {
+                    val json = withContext(Dispatchers.IO) {
+                        try { insertEventNow(title, startMs.toLong(), endMs.toLong(), allDay, notes, location, calendarId.toLongOrNull()) } catch (e: Exception) { """{"ok":false,"reason":"error"}""" }
+                    }
+                    callJs("ervoEventAdded", json)
+                }
+            })
+        }
+
+        /** Every calendar on the phone Ervo can add events to (each synced Google account too), sent to window.ervoCalendars. */
+        @JavascriptInterface
+        fun listCalendars() = runOnUiThread {
+            withCalendar({ ok ->
+                if (!ok) { callJs("ervoCalendars", """{"status":"denied"}"""); return@withCalendar }
+                lifecycleScope.launch {
+                    val json = withContext(Dispatchers.IO) {
+                        try { calendarsJson() } catch (e: Exception) { """{"status":"error"}""" }
+                    }
+                    callJs("ervoCalendars", json)
+                }
+            })
+        }
+
+        /** True when Android already lets Ervo read the calendar (it never asks from here). */
+        @JavascriptInterface
+        fun calendarAllowed(): Boolean = hasPermission(Manifest.permission.READ_CALENDAR)
+
         /** Renames an event and/or moves it to a new start (keeping its length). Sent to window.ervoEventUpdated. */
         @JavascriptInterface
         fun updateEvent(id: String, title: String, startMs: Double) = runOnUiThread {
@@ -713,8 +745,52 @@ open class MainActivity : AppCompatActivity() {
         return best
     }
 
-    private fun insertEventNow(title: String, startMs: Long, endMs: Long, allDay: Boolean, notes: String, location: String): String {
-        val (calId, calName) = mainCalendar() ?: return """{"ok":false,"reason":"no-calendar"}"""
+    /** The calendars new events can go on, Google ones and the primary one first. */
+    private fun calendarsJson(): String {
+        val cols = arrayOf(
+            CalendarContract.Calendars._ID, CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, CalendarContract.Calendars.ACCOUNT_NAME,
+            CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.Calendars.CALENDAR_COLOR, CalendarContract.Calendars.IS_PRIMARY
+        )
+        val rows = mutableListOf<Pair<Int, JSONObject>>()
+        contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI, cols,
+            "${CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL} >= ${CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR} AND ${CalendarContract.Calendars.VISIBLE} = 1",
+            null, null
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val google = c.getString(3) == "com.google"
+                val primary = c.getInt(5) == 1
+                val color = String.format("#%06X", 0xFFFFFF and c.getInt(4))
+                rows.add((if (google) 2 else 0) + (if (primary) 1 else 0) to JSONObject()
+                    .put("id", c.getLong(0).toString())
+                    .put("name", c.getString(1) ?: c.getString(2) ?: "Calendar")
+                    .put("account", c.getString(2) ?: "")
+                    .put("google", google)
+                    .put("primary", primary)
+                    .put("color", color))
+            }
+        }
+        val list = JSONArray()
+        rows.sortedByDescending { it.first }.forEach { list.put(it.second) }
+        return JSONObject().put("status", "ready").put("calendars", list).toString()
+    }
+
+    /** One calendar by id, if it still exists and can be written to. */
+    private fun calendarById(id: Long): Pair<Long, String>? {
+        contentResolver.query(
+            ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id),
+            arrayOf(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, CalendarContract.Calendars.ACCOUNT_NAME, CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL),
+            null, null, null
+        )?.use { c ->
+            if (c.moveToFirst() && c.getInt(2) >= CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR) {
+                return id to (c.getString(1)?.takeIf { it.contains("@") } ?: c.getString(0) ?: "your calendar")
+            }
+        }
+        return null
+    }
+
+    private fun insertEventNow(title: String, startMs: Long, endMs: Long, allDay: Boolean, notes: String, location: String, pickedId: Long? = null): String {
+        val (calId, calName) = (if (pickedId != null) calendarById(pickedId) else mainCalendar()) ?: return """{"ok":false,"reason":"no-calendar"}"""
         val values = android.content.ContentValues().apply {
             put(CalendarContract.Events.CALENDAR_ID, calId)
             put(CalendarContract.Events.TITLE, title)
