@@ -10,11 +10,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.ParcelFileDescriptor
 import android.provider.Settings
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -23,9 +28,15 @@ import androidx.core.content.ContextCompat
 import java.util.Locale
 
 /**
- * "Hey Ervo": listens with the phone's speech recognizer while it's turned on, and opens
- * Ervo when it hears its name. Runs as a foreground service, so Android shows a
- * notification the whole time (with a Turn off button). The user turns it on in Ervo.
+ * "Hey Ervo": listens while it's turned on, and opens Ervo when it hears its name. Runs as a
+ * foreground service, so Android shows a notification the whole time (with a Turn off button).
+ *
+ * Like "Hey Siri", waiting for the name never interrupts what you're listening to. Android's
+ * speech recognizer takes audio focus each time it opens the microphone, which pauses music
+ * and podcasts. So on Android 13 and newer Ervo records the microphone itself (recording
+ * doesn't take audio focus) and hands that sound to the recognizer, in one long session.
+ * Older phones can't do that, so there Ervo waits while other audio is playing.
+ * Only once it hears "Hey Ervo" does Ervo's pop-up take over, and other audio dips while you talk.
  */
 class WakeService : Service() {
 
@@ -33,6 +44,13 @@ class WakeService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var paused = false
     private val listenNow = Runnable { listenOnce() }
+
+    // Android 13+: Ervo's own microphone stream, fed to the recognizer
+    private var mic: AudioRecord? = null
+    private var micThread: Thread? = null
+    @Volatile private var micOn = false
+    private var ownAudioFails = 0
+    private val useOwnAudio get() = Build.VERSION.SDK_INT >= 33 && ownAudioFails < 3
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -43,7 +61,7 @@ class WakeService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
-            ACTION_PAUSE -> { paused = true; handler.removeCallbacks(listenNow); recognizer?.cancel() }
+            ACTION_PAUSE -> { paused = true; handler.removeCallbacks(listenNow); recognizer?.cancel(); stopMic() }
             ACTION_RESUME -> { paused = false; schedule(600) }
             else -> {
                 if (!startInForeground()) { stopSelf(); return START_NOT_STICKY }
@@ -58,6 +76,7 @@ class WakeService : Service() {
     override fun onDestroy() {
         running = false
         handler.removeCallbacks(listenNow)
+        stopMic()
         recognizer?.destroy()
         recognizer = null
         super.onDestroy()
@@ -109,6 +128,10 @@ class WakeService : Service() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             stopSelf(); return
         }
+        // Older Android: the recognizer would pause their music, so wait until nothing is playing
+        if (!useOwnAudio && getSystemService(AudioManager::class.java).isMusicActive) {
+            schedule(3000); return
+        }
         val r = recognizer ?: SpeechRecognizer.createSpeechRecognizer(this).also {
             it.setRecognitionListener(listener)
             recognizer = it
@@ -120,20 +143,84 @@ class WakeService : Service() {
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             putExtra("android.speech.extra.BIASING_STRINGS", arrayListOf("Hey Ervo", "Ervo"))
         }
+        if (useOwnAudio) {
+            val pipe = startMic()
+            if (pipe == null) { ownAudioFails++; schedule(500); return }
+            if (Build.VERSION.SDK_INT >= 33) {
+                intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, pipe)
+                intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, 1)
+                intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
+                intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE, RATE)
+                // One long session for as long as Ervo's microphone stream runs, with a result for each phrase
+                intent.putExtra(RecognizerIntent.EXTRA_SEGMENTED_SESSION, RecognizerIntent.EXTRA_AUDIO_SOURCE)
+            }
+        }
         try {
             r.startListening(intent)
         } catch (e: Exception) {
+            stopMic()
+            if (useOwnAudio) ownAudioFails++
             recognizer?.destroy(); recognizer = null
             schedule(2000)
         }
     }
 
+    /** Starts recording and returns the end of a pipe the recognizer reads from. */
+    private fun startMic(): ParcelFileDescriptor? {
+        stopMic()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return null
+        return try {
+            val size = maxOf(AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT), RATE / 5 * 2)
+            val rec = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, size * 2)
+            if (rec.state != AudioRecord.STATE_INITIALIZED) { rec.release(); return null }
+            val (readEnd, writeEnd) = ParcelFileDescriptor.createPipe()
+            rec.startRecording()
+            mic = rec
+            micOn = true
+            micThread = Thread {
+                val buf = ByteArray(size)
+                ParcelFileDescriptor.AutoCloseOutputStream(writeEnd).use { out ->
+                    try {
+                        while (micOn) {
+                            val n = rec.read(buf, 0, buf.size)
+                            if (n > 0) out.write(buf, 0, n) else if (n < 0) break
+                        }
+                    } catch (e: Exception) { /* the recognizer closed its end */ }
+                }
+            }.apply { isDaemon = true; start() }
+            readEnd
+        } catch (e: Exception) {
+            stopMic(); null
+        }
+    }
+
+    private fun stopMic() {
+        micOn = false
+        mic?.let { try { it.stop() } catch (e: Exception) {}; it.release() }
+        mic = null
+        micThread = null
+    }
+
     private val listener = object : RecognitionListener {
         override fun onResults(results: Bundle?) {
             val heard = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
+            stopMic()
             if (!wake(heard)) schedule(200)
         }
+        // Android 13+ long session: one result per phrase, and the session keeps going
+        override fun onSegmentResults(segmentResults: Bundle) {
+            ownAudioFails = 0
+            val heard = segmentResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
+            if (wake(heard)) { stopMic(); recognizer?.cancel() }
+        }
+        override fun onEndOfSegmentedSession() {
+            stopMic()
+            if (!paused) schedule(300)
+        }
         override fun onError(error: Int) {
+            stopMic()
+            // This phone's recognizer can't take Ervo's own audio: after a few tries, use the older way
+            if (useOwnAudio && error in listOf(SpeechRecognizer.ERROR_CLIENT, SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE, SpeechRecognizer.ERROR_CANNOT_CHECK_SUPPORT)) ownAudioFails++
             when (error) {
                 SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> stopSelf()
                 SpeechRecognizer.ERROR_RECOGNIZER_BUSY, SpeechRecognizer.ERROR_CLIENT -> {
@@ -200,6 +287,7 @@ class WakeService : Service() {
         private const val CHANNEL_HEARD = "ervo_heard"
         private const val NOTE_ID = 7
         private const val HEARD_ID = 8
+        private const val RATE = 16000
         private const val PREFS = "ervo_wake"
 
         @Volatile var running = false

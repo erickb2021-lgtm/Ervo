@@ -637,7 +637,7 @@
     d.settings = parseSettings(raw, t);
     if (d.settings) d.intent = "settings";
     else if (is(/^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|sounds good|please do|book it|add it|confirm|let'?s do it|correct|perfect)\b/)) d.intent = "yes";
-    else if (is(/^(no|nope|nah|not now|stop|never ?mind|don'?t)\b|^cancel( it| that| this)?[.!]?$/)) d.intent = "no";
+    else if (is(/^(no|nope|nah|not now|skip|stop|never ?mind|don'?t)\b|^cancel( it| that| this)?[.!]?$/)) d.intent = "no";
     else if (is(/\bhey ervo\b.*\b(on|off|settings?|set ?up|work)\b|\b(turn on|turn off|enable|disable|set up|setup)\b.*\b(hey ervo|wake word|hands.?free|voice activation)\b/)) { d.intent = "wake"; d.wakeTurn = /\b(off|disable)\b/.test(t) ? false : /\b(on|enable)\b/.test(t) ? true : undefined; }
     else if (is(/\b(timer|countdown)\b/) && !is(/\b(cancel|stop|delete)\b/)) { d.intent = "timer"; d.seconds = parseDuration(t); const lb = t.match(/\b(?:for|called|named) (?:the |my )?([a-z][a-z ]{1,25})$/); d.label = lb && !parseDuration(lb[1]) ? cap(lb[1].trim()) : ""; }
     else if (is(/\balarms?\b/) && is(/\b(cancel|delete|remove|turn off|switch off|clear|get rid of|dismiss|disable|stop)\b/)) { d.intent = "alarmOff"; d.alarm = parseAlarm(t.replace(/\b(all|every)\b/g, "")); if (is(/\b(all|every|my alarms)\b/)) d.alarm.h = null; }
@@ -648,7 +648,8 @@
     else if (is(/\balarms?\b|\bwake me\b/)) { d.intent = is(/\b(show|see|what|list|check)\b.*\balarms\b/) ? "alarms" : "alarm"; d.alarm = parseAlarm(t); }
     else if (is(/^(?:\s*(?:please|can you|could you|would you|hey|ok|okay|ervo|hey ervo)[,!]?\s+)*(?:call|phone|ring|dial|facetime|give)\b/) && !is(/\b(call|phone) with\b|\bschedule\b|\bset up\b|\bbook\b|\bcalled\b/) && !(is(/^give\b/) && !is(/\ba call\b/))) { d.intent = "call"; d.callee = callName(raw); }
     else if (EMERGENCY_RE.test(t) && is(/\b(call|phone|dial|text|contact|get|send)\b/)) d.intent = "emergency";
-    else if (is(/what can you do|how do you work|what do you do|^help\b|^menu$/)) d.intent = "help";
+    else if (is(/what can you do|how do you work|what do you do|^help[.!?]*$|^help me[.!?]*$|^menu$/)) d.intent = "help";
+    else if (!biz && PLAN_RE.test(t)) d.intent = "plan";
     else if (is(/^(thanks|thank you|thx|ty|appreciate it|cool|great|awesome|nice)\b/) && t.length < 30) d.intent = "thanks";
     else if (is(/^(hi|hey|hello|yo|sup|hiya|good (morning|afternoon|evening)|what'?s up)\b/) && t.length < 25) d.intent = "hello";
     else if (is(/\b(delete|remove|cancel|scrap|drop) (it|that|this( one)?)\b|\b(got|was|has been|is|been) (cancell?ed|called off)\b/) && !is(/\b(order|subscription|cart|membership|account|photo|file|alarms?|timers?)\b/)) { d.intent = "remove"; d.removeLast = true; }
@@ -1367,8 +1368,9 @@
       else if (x.t === "photo") photoBubble(x.src);
       else if (x.t === "link") linkBubble(x.url);
       else if (x.t === "choices") showChoices(x.options || [], x.picked || "");
+      else if (x.t === "list" && x.list) showList(x.list);
     });
-    thread.querySelectorAll(".msg, .products, .acts, .choices").forEach((el) => el.classList.add("old"));
+    thread.querySelectorAll(".msg, .products, .acts, .choices, .listcard").forEach((el) => el.classList.add("old"));
     restoring = false;
   }
   // The conversation the AI sees: the last messages of the saved chat, product picks included
@@ -1377,6 +1379,7 @@
     c.items.forEach((x) => {
       if (x.t === "msg") out.push({ role: x.who === "me" ? "user" : "assistant", text: x.text });
       else if (x.t === "products" && out.length) out[out.length - 1].text += `\n[Showed product cards: ${x.products.map((p) => [p.name, p.price].filter(Boolean).join(" ")).join("; ")}]`;
+      else if (x.t === "list" && x.list && out.length) out[out.length - 1].text += `\n[Showed a ${x.list.kind} list "${x.list.title}": ${x.list.items.map((i) => `${i.time ? i.time + " " : ""}${i.text}${i.on ? (x.list.kind === "plan" ? " (picked)" : " (got it)") : ""}`).join("; ")}${x.list.store ? `; store: ${storeName(x.list.store)}` : ""}${x.list.added ? "; added to calendar" : ""}]`;
       else if (x.t === "link") out.push({ role: "user", text: `(shared a link: ${x.url})` });
       else if (x.t === "photo") out.push({ role: "user", text: "(sent a photo)" });
     });
@@ -1523,6 +1526,303 @@
     if (it) { it.picked = o; storeChat(id, c); }
   }
 
+  // ---------- interactive lists: a plan for a day, a grocery list, to-dos ----------
+  // Apple: toggle buttons outside lists show a clear change (a checkmark and a fill), not color
+  // alone, and pickers appear in context. Ticks are saved with the chat, so they stay after a restart.
+  const TICK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  const SEARCH_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>';
+  const GROCERY_STORES = ["heb", "walmart", "target", "sprouts", "instacart", "amazon"];
+  function cleanList(a) {
+    const kind = ["plan", "grocery", "todo", "packing"].includes(a.kind) ? a.kind : "todo";
+    const items = (Array.isArray(a.items) ? a.items : []).slice(0, 30).map((x) => {
+      const it = typeof x === "string" ? { text: x } : x || {};
+      const tm = String(it.time || "").match(/^(\d{1,2}):(\d{2})/);
+      return {
+        text: String(it.text || "").trim().slice(0, 90),
+        detail: String(it.detail || "").trim().slice(0, 80),
+        time: tm && +tm[1] < 24 ? `${tm[1].padStart(2, "0")}:${tm[2]}` : "",
+        minutes: Math.min(600, Math.max(10, Number(it.minutes) || 60)),
+        icon: ICON[it.icon] ? it.icon : "",
+        on: kind === "plan", // a plan starts all picked; a shopping list starts with nothing ticked off
+      };
+    }).filter((x) => x.text);
+    if (kind === "plan") items.sort((x, y) => (x.time || "99").localeCompare(y.time || "99"));
+    const dm = String(a.date || "").match(/^\d{4}-\d{2}-\d{2}$/);
+    return { id: `l${Date.now().toString(36)}`, kind, title: String(a.title || (kind === "grocery" ? "Shopping list" : "Your list")).slice(0, 60), date: dm ? dm[0] : "", store: STORES[a.store] ? a.store : "", items, added: false };
+  }
+  // Saves ticks and the picked store back into the chat
+  function saveList(l) {
+    if (restoring) return;
+    const id = activeId();
+    const c = loadChat(id);
+    if (!c) return;
+    const it = c.items.find((x) => x.t === "list" && x.list && x.list.id === l.id);
+    if (it) { it.list = l; storeChat(id, c); }
+  }
+  const listText = (l, onlyLeft) => l.items.filter((x) => !onlyLeft || !x.on).map((x) => `• ${x.text}`).join("\n");
+
+  function showList(l) {
+    if (!restoring) record({ t: "list", list: l });
+    const card = document.createElement("div");
+    card.className = `daycard listcard ${l.kind}`;
+    card.setAttribute("role", "group");
+    card.setAttribute("aria-label", l.title);
+    const head = document.createElement("div");
+    head.className = "list-head";
+    const h = document.createElement("h3");
+    h.textContent = l.title;
+    const count = document.createElement("span");
+    count.className = "list-count";
+    head.append(h, count);
+    card.append(head);
+
+    const rows = l.items.map((x) => {
+      const wrap = document.createElement("div");
+      wrap.className = "listrow";
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "dayrow";
+      if (x.time) {
+        const t = document.createElement("span");
+        t.className = "dt";
+        const [hh, mm] = x.time.split(":").map(Number);
+        t.textContent = fmtTime({ h: hh, m: mm });
+        row.append(t);
+      }
+      const name = document.createElement("span");
+      name.className = "dn";
+      name.textContent = x.text;
+      if (x.detail) { const sm = document.createElement("small"); sm.textContent = x.detail; name.append(sm); }
+      const tick = document.createElement("span");
+      tick.className = "tick";
+      tick.innerHTML = TICK_SVG;
+      row.append(name, tick);
+      row.addEventListener("click", () => {
+        if (card.classList.contains("busy")) return;
+        x.on = !x.on;
+        buzz("tick");
+        update();
+        saveList(l);
+      });
+      wrap.append(row);
+      if (l.kind === "grocery") {
+        const find = document.createElement("button");
+        find.type = "button";
+        find.className = "list-find";
+        find.innerHTML = SEARCH_SVG;
+        find.addEventListener("click", () => openItemAt(l, x));
+        wrap.append(find);
+      }
+      card.append(wrap);
+      return { x, row, wrap };
+    });
+
+    const note = document.createElement("p");
+    note.className = "daycard-note";
+    let main = null;
+    if (l.kind === "plan") {
+      main = document.createElement("button");
+      main.type = "button";
+      main.className = "pill";
+      main.addEventListener("click", () => addPlanToCalendar(l, card, update));
+      card.append(main, note);
+    } else if (l.kind === "grocery") {
+      card.append(storePicker(l, update), note);
+    } else {
+      main = document.createElement("button");
+      main.type = "button";
+      main.className = "pill ghost";
+      main.textContent = "Copy List";
+      main.addEventListener("click", async () => { if (await copyText(`${l.title}\n${listText(l)}`)) toast("List copied"); });
+      card.append(main);
+    }
+
+    function update() {
+      const on = l.items.filter((x) => x.on).length;
+      rows.forEach(({ x, row, wrap }) => {
+        row.setAttribute("aria-pressed", String(x.on));
+        wrap.classList.toggle("done", l.kind !== "plan" && x.on);
+        wrap.classList.toggle("has-store", !!l.store);
+      });
+      if (l.kind === "plan") {
+        count.textContent = `${on} of ${l.items.length} picked`;
+        main.textContent = l.added ? "Added to Calendar" : on ? `Add ${on} to Calendar` : "Pick Something to Add";
+        main.disabled = l.added || !on;
+        note.textContent = l.added ? "" : "Tap to pick what you want to do.";
+      } else {
+        count.textContent = `${on} of ${l.items.length}`;
+        if (l.kind === "grocery") note.textContent = !l.store ? "Pick a store to search each item there." : on === l.items.length ? "All done. Nice." : "Tap an item when it's in your cart. The magnifying glass searches for it.";
+      }
+    }
+    update();
+    thread.append(card);
+    toBottom();
+  }
+
+  // Grocery list: the stores you use, plus "Other store near me" (an inline field, not a new screen)
+  function storePicker(l, update) {
+    const box = document.createElement("div");
+    box.className = "store-pick";
+    const label = document.createElement("p");
+    label.className = "store-label";
+    label.textContent = "Shop at";
+    const seg = document.createElement("div");
+    seg.className = "store-chips";
+    seg.setAttribute("role", "radiogroup");
+    seg.setAttribute("aria-label", "Store");
+    const fav = prefs().store;
+    const keys = [l.store, fav].concat(GROCERY_STORES).filter((k, i, a) => k && a.indexOf(k) === i && (STORES[k] || /^other:/.test(k))).slice(0, 6);
+    const other = document.createElement("form");
+    other.className = "store-other";
+    other.hidden = true;
+    const draw = () => {
+      seg.innerHTML = "";
+      keys.forEach((k) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "store-chip";
+        b.setAttribute("role", "radio");
+        b.setAttribute("aria-checked", String(l.store === k));
+        b.textContent = storeName(k);
+        b.addEventListener("click", () => pickStore(k));
+        seg.append(b);
+      });
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "store-chip more";
+      more.setAttribute("aria-expanded", String(!other.hidden));
+      more.innerHTML = `${ICON.location || ""}Other Store Near Me`;
+      more.addEventListener("click", () => { other.hidden = !other.hidden; draw(); if (!other.hidden) other.querySelector("input").focus(); });
+      seg.append(more);
+    };
+    other.innerHTML = '<div class="field-clear"><input type="text" enterkeyhint="go" autocomplete="off" autocapitalize="words" placeholder="Store name, like Kroger" aria-label="Store name"><button type="button" class="clear-x" aria-label="Clear" hidden>×</button></div><button type="submit" class="pill">Use</button><button type="button" class="pill ghost near">Find Stores Near Me</button>';
+    const input = other.querySelector("input");
+    const clear = other.querySelector(".clear-x");
+    input.addEventListener("input", () => { clear.hidden = !input.value; });
+    clear.addEventListener("click", () => { input.value = ""; clear.hidden = true; input.focus(); });
+    other.querySelector(".near").addEventListener("click", () => openOutside("https://www.google.com/maps/search/grocery+stores+near+me"));
+    other.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const v = input.value.trim().slice(0, 40);
+      if (!v) { input.focus(); return; }
+      const known = storeIn(` at ${v.toLowerCase()} `);
+      const k = known || `other:${v}`;
+      if (!keys.includes(k)) keys.unshift(k);
+      other.hidden = true;
+      pickStore(k);
+    });
+    async function pickStore(k) {
+      l.store = k;
+      const p = load(PREFS_KEY) || {};
+      p.store = k;
+      save(PREFS_KEY, p);
+      draw();
+      update();
+      saveList(l);
+      buzz("tick");
+      // The whole list goes with you: copied, so you can paste it into the store's list
+      const copied = await copyText(`${l.title}\n${listText(l, true)}`);
+      toast(copied ? `List copied. Paste it in ${storeName(k)}` : `Shopping at ${storeName(k)}`);
+      const first = l.items.find((x) => !x.on);
+      if (first) openItemAt(l, first);
+    }
+    draw();
+    box.append(label, seg, other);
+    return box;
+  }
+  const storeName = (k) => (STORES[k] ? STORES[k].name : String(k || "").replace(/^other:/, ""));
+  function storeSearchUrl(k, q) {
+    if (STORES[k]) return STORES[k].search(encodeURIComponent(q));
+    return `https://www.google.com/search?q=${encodeURIComponent(`${storeName(k)} ${q}`)}`;
+  }
+  async function openItemAt(l, x) {
+    if (!l.store) { toast("Pick a store first"); return; }
+    const q = x.text.replace(/,.*$/, "").replace(/\(.*?\)/g, "").trim();
+    if (STORES[l.store] && !(await ensure(l.store, `Look up "${q}"`))) return;
+    logActivity({ kind: "shop", ico: "shop", title: `Looked up ${q}`, detail: storeName(l.store), link: storeSearchUrl(l.store, q) });
+    openOutside(storeSearchUrl(l.store, q));
+  }
+
+  // Plan: add the picked items to the calendar in one go
+  async function addPlanToCalendar(l, card, update) {
+    const base = l.date ? new Date(`${l.date}T00:00:00`) : addDays(startOfDay(new Date()), 1);
+    const evs = l.items.filter((x) => x.on).map((x) => {
+      const start = new Date(base);
+      if (x.time) { const [hh, mm] = x.time.split(":").map(Number); start.setHours(hh, mm, 0, 0); }
+      const end = new Date(start.getTime() + (x.time ? x.minutes : 1440) * 60000);
+      return { title: x.text, start, end, allDay: !x.time, notes: x.detail ? `${x.detail} · Planned with Ervo` : "Planned with Ervo" };
+    });
+    if (!evs.length) return;
+    card.classList.add("busy");
+    let which = null;
+    if (!native && evs.length > 1) {
+      // iPhone and computers: one calendar file with every event
+      if (!(await ensure("calendar", `Add ${evs.length} events to your calendar`))) { card.classList.remove("busy"); return; }
+      openIcsMany(evs);
+      which = "file";
+    } else {
+      for (const ev of evs) {
+        which = await addToCalendar(ev);
+        if (!which || which === "denied") break;
+      }
+    }
+    card.classList.remove("busy");
+    if (which === "denied") return ervoSays("I need permission to use your calendar. Ask me again and tap Allow.");
+    if (!which) return;
+    evs.forEach((ev) => logActivity({ kind: "event", ico: "calendar", title: ev.title, when: ev.start.toISOString(), allDay: ev.allDay, link: googleLink(ev) }));
+    l.added = true;
+    update();
+    saveList(l);
+    buzz("confirm");
+    ervoSays(which === "file" ? `Your calendar opened with ${evs.length} events. Tap Add to save them.` : `Added ${evs.length === 1 ? `"${evs[0].title}"` : `${evs.length} things`} to your calendar for ${dayName(base).toLowerCase() === "tomorrow" ? "tomorrow" : dayName(base)}.`);
+  }
+  function openIcsMany(evs) {
+    const esc = (s) => String(s).replace(/\\/g, "\\\\").replace(/[,;]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+    const utc = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+    const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Ervo//Ervo app//EN"];
+    evs.forEach((ev, i) => {
+      const when = (d) => (ev.allDay ? `;VALUE=DATE:${stamp(d)}` : `:${stamp(d, true)}`);
+      lines.push("BEGIN:VEVENT", `UID:${Date.now().toString(36)}-${i}@ervo.app`, `DTSTAMP:${utc}`, `DTSTART${when(ev.start)}`, `DTEND${when(ev.end)}`, `SUMMARY:${esc(ev.title)}`, `DESCRIPTION:${esc(ev.notes)}`, "END:VEVENT");
+    });
+    lines.push("END:VCALENDAR");
+    const url = `data:text/calendar;charset=utf-8,${encodeURIComponent(lines.join("\r\n"))}`;
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) { location.href = url; return; }
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ervo-plan.ics";
+    document.body.append(a);
+    a.click();
+    a.remove();
+  }
+
+  // A plan Ervo can make without its AI (offline, or before it knows you): a varied day,
+  // bent toward what your Psyche already says
+  function localPlan(day) {
+    const d = day || addDays(startOfDay(new Date()), 1);
+    const weekend = d.getDay() === 0 || d.getDay() === 6;
+    const facts = psyche().facts;
+    const find = (k) => facts.filter((f) => f.kind === k).map((f) => f.text);
+    const items = weekend ? [
+      { time: "09:00", text: "Slow breakfast or coffee somewhere new", minutes: 60 },
+      { time: "10:30", text: "Get outside: a park, trail or market", minutes: 90 },
+      { time: "13:00", text: "Lunch with a friend", minutes: 60 },
+      { time: "15:00", text: "Groceries for the week", minutes: 60 },
+      { time: "19:00", text: "Movie, game or something fun", minutes: 120 },
+    ] : [
+      { time: "07:30", text: "Breakfast and look over the day", minutes: 30 },
+      { time: "12:30", text: "Lunch, then a 15-minute walk", minutes: 45 },
+      { time: "17:30", text: "Workout or a walk outside", minutes: 60 },
+      { time: "19:00", text: "Cook dinner at home", minutes: 60 },
+      { time: "21:30", text: "Wind down, screens off by 10:30", minutes: 60 },
+    ];
+    const goal = find("goal")[0];
+    if (goal) items.splice(2, 0, { time: weekend ? "11:30" : "16:00", text: `Work on it: ${short(goal.replace(/^(my goal( is)?( to)?|wants? to|would like to|trying to|plans? to)\s+/i, ""), 40)}`, minutes: 45 });
+    const music = find("music")[0];
+    if (music) items.push({ time: weekend ? "17:00" : "20:30", text: "Make a playlist for the week", detail: short(music, 40), minutes: 20 });
+    return cleanList({ kind: "plan", title: `${dayName(d)}, ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`, date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, items: items.slice(0, 6) });
+  }
+  const PLAN_RE = /\b(plan (my |the |out )?(day|tomorrow|today|weekend|saturday|sunday)|plan tomorrow|what (should|could|can) i do|things (to|i could) do|i'?m bored|ideas for (tomorrow|today|the weekend))\b/;
+
   function showActs(acts) {
     const links = acts.filter((a) => a.href);
     if (links.length) record({ t: "links", acts: links.map((a) => ({ label: a.label, icon: a.icon, href: a.href })) });
@@ -1609,7 +1909,7 @@
     let said;
     try { said = await Promise.resolve(text); } catch (e) { said = "I ran into a problem answering that. Ask again in a moment."; }
     if (said && typeof said === "object") {
-      opts = Object.assign({}, opts, { products: said.products, chips: said.chips || opts.chips, acts: said.acts || opts.acts, choices: said.choices || opts.choices });
+      opts = Object.assign({}, opts, { products: said.products, chips: said.chips || opts.chips, acts: said.acts || opts.acts, choices: said.choices || opts.choices, list: said.list || opts.list });
       said = said.text;
     }
     said = plain(said);
@@ -1622,8 +1922,10 @@
     else if (/^I couldn't\b/.test(String(said))) buzz("reject");
     // The AI remembers what it showed, so "the second one" or "those lights" still make sense later
     const shown = opts.products && opts.products.length ? `\n[Showed product cards: ${opts.products.map((p) => [p.name, p.price].filter(Boolean).join(" ")).join("; ")}]` : "";
-    history.push({ role: "assistant", text: said + shown });
+    const listed = opts.list ? `\n[Showed a ${opts.list.kind} list "${opts.list.title}": ${opts.list.items.map((i) => `${i.time ? i.time + " " : ""}${i.text}`).join("; ")}]` : "";
+    history.push({ role: "assistant", text: said + shown + listed });
     if (opts.products && opts.products.length) showProducts(opts.products);
+    if (opts.list && opts.list.items.length) showList(opts.list);
     if (opts.acts && opts.acts.length) showActs(opts.acts);
     const choosing = opts.choices && opts.choices.length;
     if (choosing) showChoices(opts.choices);
@@ -1690,6 +1992,7 @@
     p.facts.forEach((f) => { kinds[f.kind] = f; });
     if (kinds.health) add("Plan a workout for me", "Plan a workout that fits my health and schedule", true);
     if (kinds.food) add("Dinner ideas for me", "Give me dinner ideas that fit what I eat", true);
+    if (kinds.music) add("Concerts near me", "Find concerts near me for music I like", true);
     if (kinds.routine) add("Plan my day", "Plan my day around my routine", true);
     if (kinds.places) add("What's on near me?", "What's happening near me this week?", true);
     if (kinds.money) add("Check my budget plan", "Help me stay on my budget this week", true);
@@ -1814,6 +2117,7 @@
     return { lines, firstTime, p };
   }
 
+  const biz = () => account && account.plan === "business";
   async function greet(firstTime) {
     const g = greetingText(firstTime);
     const build = (async () => {
@@ -1826,6 +2130,10 @@
           if (lines.length > 1) lines[lines.length - 1] = lines[lines.length - 1].replace(/\.$/, `, ${weather}`);
           else lines.push(`It's ${weather}`);
         }
+      }
+      if (g.firstTime && !biz()) {
+        lines.push("I get to know you as we talk, so the more you tell me, the more I can help. What would you like help with most?");
+        return { text: lines.join(" "), choices: ["Planning my days", "Food and groceries", "Shopping", "Skip for now"] };
       }
       lines.push(g.firstTime ? "What do you need?" : "How can I help?");
       return lines.join(" ");
@@ -2071,8 +2379,8 @@
   const MEMORY_KEY = "ervo-memory"; // before 0.2.8: plain facts
   const PSYCHE_KEY = "ervo-psyche";
   const STYLE_NAMES = { tone: "Tone", length: "Length", emojis: "Emojis", humor: "Humor", language: "Language", other: "Also" };
-  const KIND_NAMES = { health: "Health", food: "Food", goal: "Goals", likes: "Likes", dislikes: "Dislikes", people: "People", places: "Places", work: "Work", routine: "Routine", money: "Money", other: "Other" };
-  const KIND_ICON = { health: "health", food: "food", goal: "star", likes: "heart", dislikes: "brain", people: "people", places: "location", work: "clock", routine: "clock", money: "money", other: "brain" };
+  const KIND_NAMES = { health: "Health", food: "Food", goal: "Goals", likes: "Likes", dislikes: "Dislikes", people: "People", places: "Places", work: "Work", routine: "Routine", money: "Money", music: "Music", other: "Other" };
+  const KIND_ICON = { health: "health", food: "food", goal: "star", likes: "heart", dislikes: "brain", people: "people", places: "location", work: "clock", routine: "clock", money: "money", music: "music", other: "brain" };
   function psyche() {
     let p = load(PSYCHE_KEY);
     if (!p || !Array.isArray(p.facts)) {
@@ -2177,7 +2485,10 @@
       const out = { text: j.reply || "Done.", products: [], chips: null };
       out.quiet = (j.actions || []).some((a) => SELF_REPORTING.has(a.type));
       (j.actions || []).forEach((a) => {
-        if (a.type === "offer_choices" && Array.isArray(a.options)) {
+        if (a.type === "make_list") {
+          const l = cleanList(a);
+          if (l.items.length) out.list = l;
+        } else if (a.type === "offer_choices" && Array.isArray(a.options)) {
           out.choices = a.options.map((o) => String(o).trim().slice(0, 80)).filter(Boolean).slice(0, 4);
         } else if (a.type === "show_products" && Array.isArray(a.products)) {
           out.products = a.products;
@@ -2231,7 +2542,9 @@
         }
       });
       return out;
-    }).catch(() => navigator.onLine === false
+    }).catch(() => d.intent === "plan"
+      ? { text: "I can't reach my AI right now, so here's a simple plan to start from. Tap what you want, then add it to your calendar.", list: localPlan(planDay(d)) }
+      : navigator.onLine === false
       ? "Your phone is offline. Connect to Wi-Fi or mobile data, then ask again."
       : "I couldn't reach my AI service just now. Ask again in a moment.");
     const r = await result;
@@ -2762,7 +3075,7 @@
       const r = parseRemove(d);
       if (r.range || r.count || (d.intent === "unknown" && r.title && d.t.split(/\s+/).length <= 4)) return removeEvents(Object.assign({}, q, r, { title: r.title || q.title }));
     }
-    if (AI_URL && ["unknown", "event", "reserve", "shop"].includes(d.intent)) return askAI(d);
+    if (AI_URL && ["unknown", "event", "reserve", "shop", "plan", "yes", "no"].includes(d.intent)) return askAI(d);
 
     switch (d.intent) {
       case "settings": return applySettings(d.settings);
@@ -2771,6 +3084,9 @@
         if (biz && d.intent === "event" && task.title === "New event") task.title = "Meeting";
         return missing(task).length ? askForMissing(task) : propose(task);
       }
+      case "plan": return ervoSays({ text: "Here's an idea for the day. Tap what you want, then add it to your calendar.", list: localPlan(planDay(d)) });
+      case "yes": return ervoSays("Okay. What should I do?");
+      case "no": return ervoSays("No problem.");
       case "hello": return ervoSays(`Hi ${prefs().nickname || account.name}! What can I do for you?`);
       case "thanks": return ervoSays("Anytime! 😊");
       case "help": return ervoSays(biz
@@ -2810,8 +3126,8 @@
       default:
         return ervoSays(biz
           ? "I want to make sure I get this right. Is it about a customer, a refund, or a meeting?"
-          : "I want to make sure I get this right. Should I plan something, add it to your calendar, or find something to buy?",
-        { chips: biz ? ["A customer", "A refund", "A meeting"] : ["Plan dinner", "Add to my calendar", "Buy something"] });
+          : "I'm not sure what you mean yet. Could you say it another way?",
+        { chips: biz ? ["A customer", "A refund", "A meeting"] : null });
     }
   }
 
@@ -2859,6 +3175,15 @@
     }
     if (s.status === "web") return ervoSays("Steps work in the Android app right now. On iPhone they'll come with the App Store version, because Apple only shares Health data with installed apps.", { acts: [open] });
     return ervoSays("I need permission to read your steps first. Open Ervo Stats and tap Connect Health.", { acts: [open] });
+  }
+
+  // The day a plan request is about: today, tomorrow (the default) or this weekend
+  function planDay(d) {
+    const today = startOfDay(new Date());
+    if (/\btoday\b|\btonight\b/.test(d.t)) return today;
+    if (/\bweekend\b|\bsaturday\b/.test(d.t)) { const n = (6 - today.getDay() + 7) % 7; return addDays(today, n); }
+    if (d.when && d.when.date && d.when.date > today) return startOfDay(d.when.date);
+    return addDays(today, 1);
   }
 
   function send(text, byVoice) {
@@ -3425,10 +3750,20 @@
       return;
     }
     if (found && !manual && dismissedUpdate === found.version) return;
+    if (found && !manual) { markUpdate(found); return; }
     if (found) showUpdate(found);
     else if (manual) ervoSays(`You're up to date ✅ This is Ervo ${currentVersion()}, the newest version.`);
   }
 
+  // Apple: don't show an alert when an app starts. A found update waits quietly behind •••
+  function markUpdate(found) {
+    update = found;
+    $("menu-btn").classList.add("has-update");
+    $("menu-btn").setAttribute("aria-label", `Menu, Ervo ${found.version} is ready`);
+    const b = $("check-update");
+    b.classList.add("ready");
+    b.lastChild.textContent = `Update to ${found.version}`;
+  }
   function showUpdate(found) {
     update = found;
     $("update-title").textContent = "Update available";
@@ -3890,14 +4225,35 @@
   $("psyche-tell").addEventListener("click", () => { show("chat"); setTimeout(() => $("message").focus(), 100); });
   $("open-library").addEventListener("click", () => openLibrary());
   // Signing out clears everything on this phone, so ask first (Apple: confirm destructive actions)
-  $("sign-out").addEventListener("click", () => {
+  let confirmDo = null;
+  function askConfirm(title, text, ok, run) {
     toggleMenu(false);
+    $("confirm-title").textContent = title;
+    $("confirm-text").textContent = text;
+    $("confirm-ok").textContent = ok;
+    confirmDo = run;
     $("confirm").hidden = false;
     setTimeout(() => $("confirm-cancel").focus(), 50);
-  });
-  $("confirm-cancel").addEventListener("click", () => { $("confirm").hidden = true; });
+  }
+  $("sign-out").addEventListener("click", () => askConfirm("Sign out of Ervo?", "Your chats, Psyche and activity will be removed from this phone.", "Sign Out", signOut));
+  // For testing Ervo like a new person: everything Ervo learned and every chat goes, your account stays
+  $("reset-ervo").addEventListener("click", () => askConfirm("Reset Ervo?", "Ervo forgets everything it learned about you and clears your chats, ideas, activity and settings. You stay signed in, and Ervo starts over like the first time.", "Reset", resetErvo));
+  $("confirm-cancel").addEventListener("click", () => { $("confirm").hidden = true; confirmDo = null; });
   $("confirm-ok").addEventListener("click", () => {
     $("confirm").hidden = true;
+    const run = confirmDo;
+    confirmDo = null;
+    if (run) run();
+  });
+  function resetErvo() {
+    buzz("reject");
+    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY].forEach(drop);
+    history = [];
+    closeChats();
+    openChat(account, true);
+    toast("Ervo was reset");
+  }
+  function signOut() {
     buzz("reject");
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
     [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY].forEach(drop);
@@ -3906,7 +4262,7 @@
     setPlan("personal");
     step("contact");
     show("welcome");
-  });
+  }
 
   // Android back button: close whatever is open first, then go back to the chat
   window.ervoBack = function () {

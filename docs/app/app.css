@@ -1124,3 +1124,57 @@ html.docked .chats-drawer { border-right: 0.5px solid var(--sep); background: va
 .row.idea + .row.idea { background-size: calc(100% - 74px) 0.5px; }
 .app-ico.big { border-radius: 16px; }
 @media (prefers-contrast: more) { .app-ico::before, .app-ico::after { display: none; } }
+
+/* ===== 0.2.9 (more): stronger scroll edges, list cards, store picker ===== */
+/* Apple's scroll edge: content fades out well before it reaches the controls, so nothing
+   reads through Ervo's name, the buttons or the suggestions. */
+.chat-header::before { inset: 0 0 -26px;
+  background: linear-gradient(var(--chat-bg) 62%, color-mix(in srgb, var(--chat-bg) 0%, transparent));
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(#000 72%, transparent); mask-image: linear-gradient(#000 72%, transparent); }
+.dock::before { inset: -30px 0 0;
+  background: linear-gradient(color-mix(in srgb, var(--chat-bg) 0%, transparent), var(--chat-bg) 34%);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(transparent, #000 30%); mask-image: linear-gradient(transparent, #000 30%); }
+.thread { padding-top: calc(var(--head-h, 100px) + 22px); padding-bottom: calc(var(--dock-h, 110px) + 24px); }
+
+/* List cards: a plan for a day, a grocery list, to-dos */
+.listcard { width: min(94%, 380px); gap: 4px; padding: 12px 10px 10px; }
+.list-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 6px 4px; }
+.list-head h3 { margin: 0 !important; font-size: var(--fs-body); font-weight: 600; }
+.list-count { flex: none; font-size: var(--fs-foot); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.listrow { display: flex; align-items: stretch; gap: 6px; }
+.listrow .dayrow { flex: 1; min-width: 0; }
+.listcard .dayrow .tick { order: -1; }
+.listcard .dayrow[aria-pressed="true"] { background: color-mix(in srgb, var(--tint) 14%, var(--bg)); color: var(--text); }
+.listcard .dayrow[aria-pressed="true"] .dt, .listcard .dayrow[aria-pressed="true"] .dn small { color: var(--text-2); }
+.listcard .dayrow[aria-pressed="true"] .tick { background: var(--tint); border-color: var(--tint); color: #fff; }
+.listrow.done .dn { text-decoration: line-through; color: var(--text-2); }
+.listrow.done .dayrow[aria-pressed="true"] { background: var(--bg); }
+.list-find { flex: none; width: 44px; border: 0; border-radius: 12px; background: var(--bg); color: var(--tint); display: none; align-items: center; justify-content: center; }
+.listrow.has-store .list-find { display: flex; }
+.list-find svg { width: 19px; height: 19px; }
+.list-find:active { background: var(--fill-2); }
+.listcard .pill:disabled { opacity: 0.5; }
+.store-pick { margin: 6px 2px 0; display: flex; flex-direction: column; gap: 8px; }
+.store-label { margin: 4px 6px 0; font-size: var(--fs-foot); font-weight: 600; color: var(--text-2); }
+.store-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.store-chip { min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--bg); color: var(--text); font: inherit; font-size: var(--fs-sub); font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
+.store-chip svg { width: 16px; height: 16px; color: var(--tint); }
+.store-chip[aria-checked="true"] { background: var(--tint); color: #fff; }
+.store-chip[aria-checked="true"]::before { content: "✓"; font-weight: 700; }
+.store-chip.more[aria-expanded="true"] { box-shadow: inset 0 0 0 1.5px var(--tint); }
+.store-other { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.store-other[hidden] { display: none; }
+.store-other .near { grid-column: 1 / -1; }
+.store-other .pill { margin: 0; width: auto; min-height: 40px; }
+.field-clear { position: relative; }
+.field-clear input { width: 100%; min-height: 40px; padding: 0 36px 0 12px; border: 0; border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; font-size: var(--fs-body); }
+.clear-x { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border: 0; border-radius: 50%; background: var(--text-2); color: var(--bg); font-size: 16px; line-height: 1; opacity: 0.6; }
+.clear-x[hidden] { display: none; }
+
+/* Update ready: a small dot on ••• instead of a pop-up at launch (Apple: no alerts at startup) */
+#menu-btn { position: relative; }
+#menu-btn.has-update::after { content: ""; position: absolute; top: 9px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--tint); box-shadow: 0 0 0 2px var(--chat-bg); }
+#check-update.ready { color: var(--tint); font-weight: 600; }
+.listcard .dayrow .tick { border-color: color-mix(in srgb, var(--text-2) 60%, transparent); }

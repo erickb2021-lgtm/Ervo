@@ -98,6 +98,18 @@ Icons in lists (Ideas, Stats, Connected apps) are layered like iOS app icons: th
 
 Message bubbles group like iMessage: back-to-back messages sit close together and only the last one in a run has a tail.
 
+### Lists you can tap through
+When Ervo plans a day or makes a grocery, packing or to-do list, it shows a card instead of a wall of text. Items are toggle buttons with a checkmark and a fill, so the change doesn't rely on color alone (Apple, Toggles). A plan starts with everything picked; untick what you don't want, then Add to Calendar adds the rest at once (one calendar file on iPhone). A grocery list shows first, then the stores: the one you used last, the usual stores, and Other Store Near Me, which opens a field right in the card (Apple: show pickers in context) with a Clear button, plus Find Stores Near Me. Picking a store copies the list so you can paste it there, and the magnifying glass next to each item searches that store. Ticks and the store are saved with the chat. If Ervo can't reach its AI, "plan tomorrow" still gets a simple, varied day built from what Psyche knows.
+
+### Learning, for new and returning people
+Ervo checks every message for something worth remembering, including music (artists, genres, when you listen). When it knows little about you, it ends some replies with one easy question you can tap to answer or skip, never in the middle of a task and never twice. The first greeting says Ervo learns as you talk and offers a first question with Skip for now (Apple, Inclusion: onboarding people can skip). Ervo doesn't assume gender, family, age or money. Reset Ervo in the menu clears everything it learned and every chat, keeps you signed in, and starts over like the first time, for testing the new-person experience.
+
+### Alerts and status
+Ervo doesn't show an alert when it opens (Apple, Alerts). A new version shows as a dot on ••• and an "Update to 0.x" menu item; the update sheet opens only when you tap it. Confirmations name the action ("Sign Out", "Reset") with Cancel last, and Escape or Back cancels.
+
+### "Hey Ervo" and your music
+Like "Hey Siri", waiting for the name never interrupts what's playing. On Android 13 and newer Ervo records the microphone itself, which doesn't take audio focus, and feeds the sound to Android's speech recognizer in one long session. On older Android the recognizer would pause your music each time it listens, so Ervo waits while other audio is playing. Only after it hears "Hey Ervo" does audio dip while you talk, then it comes back.
+
 ### The app icon (Icon Composer style)
 Apple's Icon Composer (Xcode 26, on a Mac) builds an icon from layers: a background and foreground layers, with the system adding highlights and shadows. Ervo's icon is now built the same way:
 - `brand/app-icon/layers/1-background.png`: plain white, 1024 × 1024.
