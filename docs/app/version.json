@@ -1,25 +1,17 @@
 {
-  "version": "0.3.1",
+  "version": "0.3.2",
   "notes": [
+    "Ervo's full answer always shows now. Before, if it also showed buttons or links, only its last sentence came through",
+    "Introduce yourself (\"I'm a night shift nurse, my son is 6\") and Ervo learns it instead of searching your calendar",
+    "Questions about time zones, quoted messages and \"what does this mean\" go to Ervo's AI and never start a meeting or a removal",
+    "Alarms keep their reason, like \"to water the plants\" or \"to join the zoom\", and understand \"quarter past 7\", \"half past six\", \"630\" and \"6 y media\"",
+    "Two requests in one message, like an alarm and a timer, or an event and a timer, both get done",
+    "Personal and Business tell apart better: a concert ticket, your mom's customer service job or a staff badge are personal",
+    "Emergency words like \"call nine one one\" or the suicide hotline show the dialer right away (911 or 988); Ervo still never calls for you",
+    "\"Is it cold outside\" and \"should I wear a jacket\" show the weather",
+    "Typos like alram, tiemr and wether are understood",
     "New quick suggestions: Ervo picks 3 to 5 from about 1,000 everyday ideas that fit the time, the day, the season and your city, shuffled differently for each person",
     "Repeating events work: \"every Wednesday until December\" adds every date, not just one, with one Undo for all of them",
-    "A new look, designed like an iPhone app: glass buttons, message bubbles with tails, and one purple color for everything you can tap",
-    "Suggestions above the message box are picked for you from your Psyche, your goals, what's coming up and the time of day, and they slide in as they change",
-    "Ask Ervo to plan tomorrow and get a list you can tap through, then add what you picked to your calendar, even before Ervo knows you",
-    "Grocery lists come first, then you pick a store, or tap Other Store Near Me for any store; tick items off as you shop",
-    "Ervo learns more about you as you talk, including the music you like, and asks a few easy questions when you're new",
-    "Saying no to something Ervo offered now just works",
-    "Hey Ervo no longer pauses your music while it waits for its name (Android 13 and newer)",
-    "Reset Ervo in the menu starts over like the first time, without signing out",
-    "Updates show as a dot on the menu instead of a pop-up when Ervo opens",
-    "Icons in Ideas and Stats have depth now: soft light, texture and a glossy edge",
-    "Screens slide in from the right and back, and big titles shrink into the top bar as you scroll",
-    "A cleaner app icon: same Ervo, without the shadow under his feet",
-    "Opens straight to your chat, with no logo screen to wait through",
-    "Text follows your phone's text size, up to twice as big, and Ervo follows your phone's Dark mode",
-    "Touch and hold Ervo's reply to copy it or ask again",
-    "Sign Out now asks first, because it clears your chats from this phone",
-    "On Galaxy Z Fold and tablets, your chats stay open beside the conversation",
-    "Touch and hold Ervo's icon to talk, start a side chat, or open Ideas or Psyche (Android)"
+    "A new look, designed like an iPhone app: glass buttons, message bubbles with tails, and one purple color for everything you can tap"
   ]
 }

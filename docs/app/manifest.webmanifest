@@ -2,7 +2,7 @@
   "name": "Ervo",
   "short_name": "Ervo",
   "description": "Your AI helper, for your life and your business.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

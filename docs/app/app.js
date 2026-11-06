@@ -471,7 +471,7 @@
     }
     if (!date && (m = t.match(/\b(?:(next|this|on) )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)s?\b/))) {
       let diff = (DAY_NAMES.indexOf(m[2]) - today.getDay() + 7) % 7;
-      if (diff === 0 && m[1] === "next") diff = 7;
+      if (m[1] === "next" && (diff === 0 || today.getDay() + diff <= 6)) diff += 7; // the one in next week
       date = addDays(today, diff);
     }
     if (!date && /\b(this )?weekend\b/.test(t)) date = addDays(today, (6 - today.getDay() + 7) % 7);
@@ -615,18 +615,56 @@
   }
 
   // ---------- understanding: what does the person want? ----------
-  const BUSINESS_WORDS = /\b(customer|customers|ticket|tickets|employee|employees|staff|invoice|invoices|client|clients|sales team|my team|payroll|vendor|vendors)\b/i;
-  const PERSONAL_WORDS = /\b(buy me|for me to eat|groceries|snacks|gym|workout|my birthday|my headphones|vacation|date night|my mom|my dad|my kids|dentist|haircut)\b/i;
+  // Business work is about YOUR customers, staff and clients. "A ticket to the concert", "my mom works in
+  // customer service" or "the staff at the restaurant" are personal.
+  const BUSINESS_WORDS = /\b(payroll|(my|our) (employees?|staff|clients?|customers?|vendors?|sales team|support team|invoices)(?! (badge|id|card|discount|parking|room|lounge|entrance|meal|uniform|shirt)s?\b)|customers?'s?|(a|an|the|this|that|upset|angry|unhappy) (customer|client)s? (wants?|asked|asks|is|says|said|needs?|called|emailed|complained|left|wrote)|(reply|respond|answer|write) to (an? |the |my |our )?(upset |angry )?(customer|client)s?|(support|customer|help ?desk|open) tickets|tickets? (queue|backlog)|invoice (a|my|our|the) client)\b/i;
+  const PERSONAL_WORDS = /\b(buy me|for me to eat|groceries|snacks|gym|workout|my birthday|my headphones|vacation|date night|my mom|my dad|my kids|dentist|haircut|pizza|my weekend|running shoes|for dinner|cook|my (son|daughter|girlfriend|boyfriend|wife|husband|partner)\b|movie|netflix|date night)\b/i;
+  const BUSINESS_CONTEXT = /\b(customers?|clients?|refunds?|orders?|tickets?|employees?|staff|members?|membership)\b/i;
 
   // Common typos, so "calander" and "tmrw" still make sense
   const fixSpelling = (s) => s
     .replace(/\bcal[aeiou]n?d[aeiou]?r+s?\b/gi, "calendar")
     .replace(/\b(tmrw|tmr|tmrow|tommorow|tomorow|tommorrow|tomm?orrow)\b/gi, "tomorrow")
     .replace(/\b(nick name|nickanme|nicname)\b/gi, "nickname")
-    .replace(/\b(resturant|restraunt|restaraunt)\b/gi, "restaurant");
+    .replace(/\b(resturant|restraunt|restaraunt)\b/gi, "restaurant")
+    .replace(/\b(alram|alarn|alrm|alaram|allarm|alarma|alrams|alarns)\b/gi, (w) => (/s$/i.test(w) ? "alarms" : "alarm"))
+    .replace(/\b(tiemr|timr|timmer|tmer|temporizador)\b/gi, "timer")
+    .replace(/\b(wether|weahter|wheather|waether|weathr)\b/gi, "weather")
+    .replace(/\b(pon|ponme|pone) (una|un) /gi, "set an ")
+    .replace(/\ba las (\d{1,2})\b/gi, "at $1")
+    .replace(/\bmañana\b/gi, "tomorrow");
+  // "quarter past 7", "half past six", "seven thirty am", "630" and "6 30 am" become 7:15, 6:30, 7:30 am...
+  const HOUR_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+  const HW = "(\\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)";
+  const hourOf = (w) => (/^\d/.test(w) ? +w : HOUR_WORDS[w.toLowerCase()]);
+  const MIN_WORDS = { "oh five": 5, ten: 10, fifteen: 15, twenty: 20, "twenty five": 25, thirty: 30, "thirty five": 35, forty: 40, "forty five": 45, fifty: 50, "fifty five": 55 };
+  const pad2 = (n) => String(n).padStart(2, "0");
+  function spokenTimes(s) {
+    s = s
+      .replace(new RegExp(`\\bquarter (past|after) ${HW}\\b`, "gi"), (_, p, h) => `${hourOf(h)}:15`)
+      .replace(new RegExp(`\\bhalf (past|after) ${HW}\\b`, "gi"), (_, p, h) => `${hourOf(h)}:30`)
+      .replace(new RegExp(`\\bquarter (to|till|til|before) ${HW}\\b`, "gi"), (_, p, h) => `${(hourOf(h) + 10) % 12 + 1}:45`)
+      .replace(new RegExp(`\\b${HW}[ -](oh five|twenty five|thirty five|forty[ -]five|fifty five|fifteen|thirty|forty|fifty|ten|twenty)\\b(?!\\s*(minutes?|mins?|hours?|hrs?|seconds?|secs?|people|dollars|bucks|percent))`, "gi"), (all, h, mm) => {
+        if (/^\d/.test(h) && /^(ten|twenty|thirty|forty|fifty)$/i.test(mm)) return all; // "5 ten" is too unclear
+        return `${hourOf(h)}:${pad2(MIN_WORDS[mm.toLowerCase().replace("-", " ")])}`;
+      })
+      .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)(\s*(?:o'?clock)?\s*)(am|pm|a\.m\.|p\.m\.|o'?clock)\b/gi, (_, h, sp, ap) => `${hourOf(h)}${/clock/i.test(ap) ? "" : " " + ap}`)
+      .replace(/\b(\d{1,2}) ([0-5]\d)\s*(am|pm|a\.m\.|p\.m\.)/gi, "$1:$2 $3")
+      .replace(/\b(\d{1,2}) y media\b/gi, "$1:30").replace(/\b(\d{1,2}) y cuarto\b/gi, "$1:15")
+      .replace(/\b(\d{1,2}) menos cuarto\b/gi, (_, h) => `${(+h + 10) % 12 + 1}:45`)
+      .replace(/\bnine[- ]one[- ]one\b/gi, "911").replace(/\bnine[- ]eight[- ]eight\b/gi, "988");
+    // Texting style, only around alarms and wake-ups: "alarm 630", "wake me 7 30", "alarm 4 7am" (4 = for)
+    if (/\b(alarms?|wake me|wake up)\b/i.test(s)) {
+      s = s
+        .replace(/\b(1[0-2]|[1-9])([0-5]\d)\b(?!\s*(minutes?|mins?|hours?|people|dollars))/g, "$1:$2")
+        .replace(/\b(alarms?|wake me( up)?) (\d{1,2}) ([0-5]\d)\b/gi, "$1 $3:$4")
+        .replace(/\b4 (?=\d{1,2}(:\d{2})?\s*(am|pm|a\.m\.|p\.m\.)?\b)/gi, "for ");
+    }
+    return s;
+  }
 
   function understand(text) {
-    const raw = fixSpelling(text.trim());
+    const raw = spokenTimes(fixSpelling(text.trim()));
     const t = raw.toLowerCase().replace(/[’‘]/g, "'");
     const evening = /\b(dinner|tonight|evening|drinks|supper)\b/.test(t);
     const when = parseWhen(t, new Date(), evening);
@@ -634,29 +672,37 @@
     const is = (re) => re.test(t);
     const biz = account.plan === "business";
 
-    d.settings = parseSettings(raw, t);
-    if (d.settings) d.intent = "settings";
+    // Quoted text ("my friend sent me this: '...delete every event...'") is something to explain, never a command
+    const quoted = raw.match(/["“]([^"”]{10,})["”]|(?:^|[\s:])['‘]([^'’]{10,})['’](?=[\s?.!,]|$)/);
+    const outside = quoted ? t.replace(quoted[0].toLowerCase().replace(/[’‘]/g, "'"), " ") : t;
+    const explainQuote = quoted && /\b(mean|meaning|translate|sent me|says?|said|is this|is that|what'?s this|real|scam|legit)\b/.test(outside);
+    // Telling Ervo about yourself ("quick intro: I'm a night shift nurse...") is for learning, not a calendar search
+    const aboutMe = /^(hey!?,? |hi!?,? |hello!?,? |so,? |ok,? )?(quick intro|intro|about me|fyi|a bit about me|some things about me|let me introduce|i'?m a |i am a |i work (as|at|in|nights|days)|i'?m an? )/.test(t)
+      && !/(remind|set|add|schedule|book|remove|delete|cancel|move|change)/.test(t.replace(/^.*?(and )?(can you|could you|please)/, ""));
+    d.settings = explainQuote || aboutMe ? null : parseSettings(raw, t);
+    if (explainQuote || aboutMe) d.intent = "unknown";
+    else if (d.settings) d.intent = "settings";
     else if (is(/^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|sounds good|please do|book it|add it|confirm|let'?s do it|correct|perfect)\b/)) d.intent = "yes";
-    else if (is(/^(no|nope|nah|not now|skip|stop|never ?mind|don'?t)\b|^cancel( it| that| this)?[.!]?$/)) d.intent = "no";
+    else if (is(/^(no|nope|nah|not now|skip|stop|never ?mind|don'?t)\b|^cancel( it| that| this)?[.!]?$/) && !is(/\b(alarms?|timers?|music|reminders?|calls?|calendar)\b/)) d.intent = "no";
     else if (is(/\bhey ervo\b.*\b(on|off|settings?|set ?up|work)\b|\b(turn on|turn off|enable|disable|set up|setup)\b.*\b(hey ervo|wake word|hands.?free|voice activation)\b/)) { d.intent = "wake"; d.wakeTurn = /\b(off|disable)\b/.test(t) ? false : /\b(on|enable)\b/.test(t) ? true : undefined; }
-    else if (is(/\b(timer|countdown)\b/) && !is(/\b(cancel|stop|delete)\b/)) { d.intent = "timer"; d.seconds = parseDuration(t); const lb = t.match(/\b(?:for|called|named) (?:the |my )?([a-z][a-z ]{1,25})$/); d.label = lb && !parseDuration(lb[1]) ? cap(lb[1].trim()) : ""; }
+    else if (is(/\b(timer|countdown)\b/) && !is(/\b(cancel|stop|delete)\b/) && !(is(/\b(buy|purchase|recommend\w*|best|good|app|apps|which|review\w*|shop\w*|amazon)\b/) && !parseDuration(t))) { d.intent = "timer"; d.seconds = parseDuration(t) || ((m) => (m ? +m[1] * 60 : 0))(t.match(/\b(?:timer|countdown)(?: for)? (\d{1,3})$/)); const lb = t.match(/\b(?:for|called|named) (?:the |my )?([a-z][a-z ]{1,25})$/); d.label = lb && !parseDuration(lb[1]) ? cap(lb[1].trim()) : ""; }
     else if (is(/\balarms?\b/) && is(/\b(cancel|delete|remove|turn off|switch off|clear|get rid of|dismiss|disable|stop)\b/)) { d.intent = "alarmOff"; d.alarm = parseAlarm(t.replace(/\b(all|every)\b/g, "")); if (is(/\b(all|every|my alarms)\b/)) d.alarm.h = null; }
     else if (is(/\balarm\b/) && is(/\b(change|move|reset|re-set|push|switch|update|make)\b.*\bto\b/)) d.intent = "alarmChange";
-    else if (is(/\b(google meet|meet link|zoom|ms teams|microsoft teams|teams (meeting|call)|skype|video (call|meeting|chat))\b/) && !is(/\b(remove|delete|cancel)\b/)) { d.intent = "meeting"; d.meeting = parseMeeting(d); }
+    else if (is(/\b(google meet|meet link|zoom|ms teams|microsoft teams|teams (meeting|call)|skype|video (call|meeting|chat))\b/) && !is(/\b(remove|delete|cancel)\b/) && !is(/\b(alarms?|timers?|wake me|remind me)\b/) && !is(/\bwhat time\b|\btime (is )?(that|it) (for|in|be)\b|\b(her|his|their|your) time\b|\btime ?zones?\b|\bfor me\?/)) { d.intent = "meeting"; d.meeting = parseMeeting(d); }
     // Calendar edits only; "rename my screenshots" or "rename this file" goes to the AI
-    else if (!is(/\b(files?|screenshots?|photos?|pictures?|pics?|images?|documents?|docs?|folders?|songs?|playlists?|pdfs?|wi-?fi|contacts?)\b/) && (is(/\b(rename|re-name|retitle|reschedule|change the (name|title) of)\b/) || (is(/\b(change|move|push|shift|update|bump)\b/) && is(/\bto\b/) && !is(/\b(nickname|name to|theme|mode|calendar to|greeting|alarm|timer)\b/) && (is(/\b(event|meeting|appointment|reservation|dinner|lunch|breakfast|gym|call|dentist|doctor|class|practice)\b/) || parseWhen(t.split(/\bto\b/).pop(), new Date(), false).time)))) d.intent = "edit";
-    else if (is(/\balarms?\b|\bwake me\b/)) { d.intent = is(/\b(show|see|what|list|check)\b.*\balarms\b/) ? "alarms" : "alarm"; d.alarm = parseAlarm(t); }
-    else if (is(/^(?:\s*(?:please|can you|could you|would you|hey|ok|okay|ervo|hey ervo)[,!]?\s+)*(?:call|phone|ring|dial|facetime|give)\b/) && !is(/\b(call|phone) with\b|\bschedule\b|\bset up\b|\bbook\b|\bcalled\b/) && !(is(/^give\b/) && !is(/\ba call\b/))) { d.intent = "call"; d.callee = callName(raw); }
-    else if (EMERGENCY_RE.test(t) && is(/\b(call|phone|dial|text|contact|get|send)\b/)) d.intent = "emergency";
+    else if (!is(/\b(night|day|morning|evening|late|early|double|graveyard|swing|work) shifts?\b/) && !is(/\b(files?|screenshots?|photos?|pictures?|pics?|images?|documents?|docs?|folders?|songs?|playlists?|pdfs?|wi-?fi|contacts?)\b/) && (is(/\b(rename|re-name|retitle|reschedule|change the (name|title) of)\b/) || (is(/\b(change|move|push|shift|update|bump)\b/) && is(/\bto\b/) && !is(/\b(nickname|name to|theme|mode|calendar to|greeting|alarm|timer)\b/) && (is(/\b(event|meeting|appointment|reservation|dinner|lunch|breakfast|gym|call|dentist|doctor|class|practice)\b/) || parseWhen(t.split(/\bto\b/).pop(), new Date(), false).time)))) d.intent = "edit";
+    else if (is(/\balarms?\b|\bwake me\b/) && !is(/\b(car|smoke|fire|carbon monoxide|co|house|home|security|burglar|door|motion) alarms?\b|\balarm (system|company|companies|panel)s?\b/) && !(is(/\b(buy|purchase|recommend\w*|best|good|review\w*|shop\w*|amazon|clocks?)\b/) && !parseWhen(t, new Date(), false).time)) { d.intent = is(/\b(show|see|what|list|check)\b.*\balarms\b/) ? "alarms" : "alarm"; d.alarm = parseAlarm(t); }
+    else if (EMERGENCY_RE.test(t) && (is(/\b(call|phone|dial|ring|text|contact|get|send|need|now|help)\b/) || t.split(/\s+/).length <= 3) && !is(/\b(what|why|how|when|is|are|does|number for|should)\b.*\?$/)) { d.intent = "emergency"; d.crisis = is(/\b(988|suicid\w*|crisis|self.?harm|kill myself)\b/); }
+    else if (is(/^(?:\s*(?:please|can you|could you|would you|hey|ok|okay|ervo|hey ervo)[,!]?\s+)*(?:call|phone|ring|dial|facetime|give)\b/) && !is(/\b(call|phone) with\b|\bschedule\b|\bset up\b|\bbook\b|\bcalled\b|\bcall of\b|\bcall (it|that) a\b/) && !(is(/^give\b/) && !is(/\ba call\b/))) { d.intent = "call"; d.callee = callName(raw); }
     else if (is(/what can you do|how do you work|what do you do|^help[.!?]*$|^help me[.!?]*$|^menu$/)) d.intent = "help";
     else if (!biz && PLAN_RE.test(t)) d.intent = "plan";
     else if (is(/^(thanks|thank you|thx|ty|appreciate it|cool|great|awesome|nice)\b/) && t.length < 30) d.intent = "thanks";
     else if (is(/^(hi|hey|hello|yo|sup|hiya|good (morning|afternoon|evening)|what'?s up)\b/) && t.length < 25) d.intent = "hello";
     else if (is(/\b(delete|remove|cancel|scrap|drop) (it|that|this( one)?)\b|\b(got|was|has been|is|been) (cancell?ed|called off)\b/) && !is(/\b(order|subscription|cart|membership|account|photo|file|alarms?|timers?)\b/)) { d.intent = "remove"; d.removeLast = true; }
-    else if (is(/\b(remove|delete|cancel|take off|clear|get rid of)\b/) && (is(/\b(calendar|events?|appointments?|meetings?|reservations?|plans?|reminders?)\b|\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/) || is(/^(please |can you |could you |ervo,? )*(cancel|remove|delete) (my |the )/) ) && !is(/\b(order|subscription|membership|account|cart|amazon|package|photo|photos|file|files|email|message|alarms?|timers?)\b/)) d.intent = "remove";
-    else if (is(/what time is it|what'?s the time|current time|time is it/)) d.intent = "time";
+    else if (is(/\b(remove|delete|cancel|take off|clear|get rid of)\b|\btake\b.+\boff (of )?(my |the )?calendar\b/) && (is(/\b(calendar|events?|appointments?|meetings?|reservations?|plans?|reminders?)\b|\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/) || is(/^(please |can you |could you |ervo,? )*(cancel|remove|delete|take off|get rid of|clear|erase) (my |the )?[a-z]/) || is(/\btake\b.+\boff (of )?(my |the )?calendar\b/) ) && !is(/\b(order|subscription|membership|account|cart|amazon|package|photo|photos|file|files|email|message|alarms?|timers?)\b/)) d.intent = "remove";
+    else if (is(/what time is it|what'?s the time|current time|time is it/) && !is(/\b(in|at) (?!the\b|my\b|here\b)[a-z]{3,}/)) d.intent = "time";
     else if (is(/what'?s (the |today'?s )?date|what day is (it|today)|today'?s date/)) d.intent = "date";
-    else if (is(/\bweather\b|temperature|forecast|\brain(ing)?\b|\bsnow|umbrella|how (hot|cold)/)) d.intent = "weather";
+    else if (is(/\bweather\b|temperature|forecast|\brain(ing)?\b|\bsnow|umbrella|how (hot|cold)|\b(cold|hot|warm|chilly|nice|windy) (out|outside)\b|like outside|\bwear an? (jacket|coat|sweater|hoodie)\b|\bneed an? (jacket|coat|sweater)\b/)) d.intent = "weather";
     else if (is(/\bnews\b|headlines|what'?s happening/)) d.intent = "news";
     else if (is(/ervo stats|what (have|did) you (done|do)|recent (activity|events)|upcoming|coming up|what'?s (on )?my (schedule|calendar|plans|week)|my plans/)) d.intent = "stats";
     else if (!biz && is(/\bsteps\b|walked|how much .*walk|calories|\bhealth\b|fitness|activity/)) d.intent = "steps";
@@ -781,7 +827,6 @@
 
   // ---------- calendars: the phone's own calendar app, or Google Calendar ----------
   // An event is { title, start: Date, end: Date, allDay, notes }.
-  const pad2 = (n) => String(n).padStart(2, "0");
   const stamp = (x, withTime) => `${x.getFullYear()}${pad2(x.getMonth() + 1)}${pad2(x.getDate())}` + (withTime ? `T${pad2(x.getHours())}${pad2(x.getMinutes())}00` : "");
   const CAL_NAMES = { phone: "your phone's calendar", google: "Google Calendar" };
   let lastEvent = null;
@@ -888,7 +933,8 @@
     "everything event events appointment appointments plan plans reservation reservations reminder reminders thing things stuff from " +
     "on in at for calendar calendars today tonight tomorrow week weeks month months day days and set are is it its it's them they " +
     "scheduled schedule there one two three four five six seven eight nine ten couple of up coming soon thanks thank " +
-    "monday tuesday wednesday thursday friday saturday sunday").split(" "));
+    "monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december " +
+    "jan feb mar apr jun jul aug sep sept oct nov dec").split(" "));
   const cleanTitle = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}'&\s-]/gu, " ").split(/\s+/)
     .filter((w) => w && !REMOVE_STOP.has(w) && !/^\d+(st|nd|rd|th|am|pm)?$/.test(w)).join(" ");
 
@@ -2569,6 +2615,17 @@
     return out.join(" ");
   }
 
+  // The AI writes plain sentences, but just in case: no **bold**, __underline__, # headings or `code` marks
+  function plainText(x) {
+    return String(x || "")
+      .replace(/\*\*([^*]+)\*\*/g, "$1").replace(/__([^_]+)__/g, "$1")
+      .replace(/(^|\n)\s*[*-] (?=\S)/g, "$1• ")
+      .replace(/(^|\s)#{1,6}\s+/g, "$1")
+      .replace(/`{1,3}([^`]*)`{1,3}/g, "$1")
+      .replace(/\*\*|__|##+/g, "")
+      .replace(/[ \t]{2,}/g, " ").trim();
+  }
+
   // What the status pill says while the AI works on it
   function guessStatus(d) {
     if (d.intent === "photo") return ["📷", "Looking at your photo"];
@@ -2594,7 +2651,9 @@
       // Learn first, so "use emojis" already shows in this reply
       if (Array.isArray(j.psyche) && j.psyche.length) j.psyche.forEach(learn);
       else if (j.memories && j.memories.length) remember(j.memories);
-      const out = { text: j.reply || "Done.", products: [], chips: null };
+      const said = plainText(j.reply);
+      const out = { text: said, products: [], chips: null };
+      const afters = [];
       out.quiet = (j.actions || []).some((a) => SELF_REPORTING.has(a.type));
       (j.actions || []).forEach((a) => {
         if (a.type === "make_list") {
@@ -2618,9 +2677,9 @@
           const um = String(a.repeat_until || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
           if (["weekly", "every_2_weeks", "daily", "monthly"].includes(a.repeat)) {
             const until = um ? new Date(+um[1], +um[2] - 1, +um[3], 23, 59) : addDays(date, 91);
-            (out.repeats = out.repeats || []).push({ tk, every: a.repeat, until });
-            out.after = () => addRepeating(out.repeats);
-          } else if (!out.repeats) out.after = () => runTask(tk);
+            if (!out.repeats) { out.repeats = []; afters.push(() => addRepeating(out.repeats)); }
+            out.repeats.push({ tk, every: a.repeat, until });
+          } else afters.push(() => runTask(tk));
         } else if ((a.type === "amazon_search" || a.type === "shop_search") && a.query) {
           task = { intent: "shop", item: String(a.query).slice(0, 80), store: STORES[a.store] ? a.store : "amazon" };
           confirming = true;
@@ -2628,27 +2687,31 @@
         } else if (a.type === "show_links" && Array.isArray(a.links)) {
           out.acts = a.links.filter((l) => l && /^https:\/\//.test(String(l.url))).slice(0, 4)
             .map((l) => ({ label: String(l.title || "Open").slice(0, 60), icon: "open", href: String(l.url) }));
+        } else if (a.type === "set_timer" && !(Number(a.seconds) >= 1 && Number(a.seconds) <= 86400)) {
+          // a bad length (negative, zero, more than a day) never reaches the phone
+        } else if (a.type === "set_alarm" && !(Number.isInteger(Number(a.hour)) && Number(a.hour) >= 0 && Number(a.hour) <= 23 && Number.isInteger(Number(a.minute || 0)) && Number(a.minute || 0) >= 0 && Number(a.minute || 0) <= 59)) {
+          // a time that doesn't exist (hour 25, minute 75) never reaches the phone
         } else if (a.type === "set_timer" && a.seconds) {
-          out.after = () => doTimer(Math.round(Number(a.seconds)), String(a.label || ""));
+          afters.push(() => doTimer(Math.round(Number(a.seconds)), String(a.label || "")));
         } else if (a.type === "set_alarm" && a.hour !== undefined) {
-          out.after = () => doAlarm({ h: Number(a.hour), m: Number(a.minute || 0), label: String(a.label || ""), days: Array.isArray(a.days) ? a.days.map(Number).filter((x) => x >= 1 && x <= 7) : [] });
+          afters.push(() => doAlarm({ h: Number(a.hour), m: Number(a.minute || 0), label: String(a.label || ""), days: Array.isArray(a.days) ? a.days.map(Number).filter((x) => x >= 1 && x <= 7) : [] }));
         } else if (a.type === "dismiss_alarm") {
-          out.after = () => alarmsOff({ h: a.hour === undefined || a.hour === null ? null : Number(a.hour), m: Number(a.minute || 0) });
+          afters.push(() => alarmsOff({ h: a.hour === undefined || a.hour === null ? null : Number(a.hour), m: Number(a.minute || 0) }));
         } else if (a.type === "edit_calendar_event" && a.title) {
           const dm = String(a.new_date || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
           const tm = String(a.new_time || "").match(/^(\d{1,2}):(\d{2})/);
           const when = dm || tm ? { date: dm ? new Date(+dm[1], +dm[2] - 1, +dm[3]) : null, time: tm ? { h: +tm[1], m: +tm[2] } : null } : null;
-          out.after = () => editEvents({ target: String(a.title), newTitle: a.new_title ? String(a.new_title) : "", when });
+          afters.push(() => editEvents({ target: String(a.title), newTitle: a.new_title ? String(a.new_title) : "", when }));
         } else if (a.type === "plan_meeting") {
           const dm = String(a.date || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
           const tm = String(a.time || "").match(/^(\d{1,2}):(\d{2})/);
-          out.after = () => planMeeting({ app: ["meet", "zoom", "teams", "skype"].includes(a.platform) ? a.platform : "meet", who: String(a.with || ""), now: !!a.now, when: { date: dm ? new Date(+dm[1], +dm[2] - 1, +dm[3]) : null, time: tm ? { h: +tm[1], m: +tm[2] } : null } });
+          afters.push(() => planMeeting({ app: ["meet", "zoom", "teams", "skype"].includes(a.platform) ? a.platform : "meet", who: String(a.with || ""), now: !!a.now, when: { date: dm ? new Date(+dm[1], +dm[2] - 1, +dm[3]) : null, time: tm ? { h: +tm[1], m: +tm[2] } : null } }));
         } else if (a.type === "call_contact" && a.name) {
-          out.after = () => doCall(String(a.name));
+          afters.push(() => doCall(String(a.name)));
         } else if (a.type === "remove_calendar_event") {
           const m = String(a.date || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
           const asked = parseRemove(d);
-          out.after = () => removeEvents({ title: String(a.title || ""), count: asked.count, all: asked.all, range: m ? dayRange(new Date(+m[1], +m[2] - 1, +m[3])) : asked.range });
+          afters.push(() => removeEvents({ title: String(a.title || ""), count: asked.count, all: asked.all, range: m ? dayRange(new Date(+m[1], +m[2] - 1, +m[3])) : asked.range }));
         } else if (a.type === "update_settings") {
           const p = prefs();
           if (a.nickname) p.nickname = String(a.nickname).slice(0, 30);
@@ -2658,6 +2721,11 @@
           if (a.theme === "dark" || a.theme === "light") themeHelp(a.theme);
         }
       });
+      if (afters.length) out.after = async () => { for (const f of afters) await f(); };
+      if (!out.text) {
+        out.text = out.after ? "Done." : out.products.length || out.list || out.acts || out.choices ? "Here you go."
+          : "Sorry, I didn't get an answer that time. Could you ask me again?";
+      }
       return out;
     }).catch(() => d.intent === "plan"
       ? { text: "I can't reach my AI right now, so here's a simple plan to start from. Tap what you want, then add it to your calendar.", list: localPlan(planDay(d)) }
@@ -2692,7 +2760,7 @@
 
   const DUR_WORDS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, fifteen: 15, twenty: 20, thirty: 30, "forty five": 45, forty: 40, fifty: 50, sixty: 60, ninety: 90, "half an": 0.5, "half a": 0.5 };
   function parseDuration(t) {
-    const re = /(\d+(?:\.\d+)?|half an?|forty five|an?|one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|thirty|forty|fifty|sixty|ninety)[\s-]*(hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\b(\s+and a half)?/g;
+    const re = /\b(\d+(?:\.\d+)?|half an?|forty five|an?|one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|thirty|forty|fifty|sixty|ninety)[\s-]*(hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\b(\s+and a half)?/g;
     let secs = 0;
     let m;
     while ((m = re.exec(t))) {
@@ -2733,8 +2801,9 @@
     else if (/\bweekdays?\b/.test(t)) days = [2, 3, 4, 5, 6];
     else if (/\bweekends?\b/.test(t)) days = [1, 7];
     else if (/\bevery\b/.test(t)) DAY_NAMES.forEach((n, i) => { if (new RegExp(`\\b${n}s?\\b`).test(t)) days.push(i + 1); });
-    const lab = t.match(/\bto ((?:go|get|take|leave|call|pick|start|finish|feed|walk)\b[a-z' ]{2,40})/);
-    return { h, m: mi, days, label: lab ? cap(lab[1].trim()) : "" };
+    const lab = t.match(/\b(?:to|so i can|so i) (?!(?:\d|wake\b|ring\b|go off\b|be\b|for\b|at\b|me\b))([a-z][a-z' ]{1,40})/);
+    const label = lab ? lab[1].replace(/\s+((at|by|around|on|in|for|every)\s+(\d|noon|midnight|tomorrow|today|tonight|the (morning|evening|afternoon)|(sun|mon|tues|wednes|thurs|fri|satur)day|an? (hour|minute))|tomorrow|today|tonight|every|this|next|please|pls)\b.*$/, "").trim() : "";
+    return { h, m: mi, days, label: label.length > 1 ? cap(label) : "" };
   }
 
   let clockAsk = null; // waiting for an alarm time
@@ -2767,8 +2836,14 @@
   }
 
   // Calls: Ervo never calls emergency services. It points you to the dialer instead.
-  const EMERGENCY_RE = /\b(911|9-1-1|112|999|988|emergency|police|cops|ambulance|paramedics?|fire ?(department|fighters?|station)|poison control)\b/;
-  function emergencyReply() {
+  const EMERGENCY_RE = /\b(911|9-1-1|112|999|988|emergency|police|cops|ambulance|paramedics?|fire ?(department|dept|fighters?|station)|poison control|suicide (hotline|line|prevention)|crisis (line|hotline))\b/;
+  function emergencyReply(crisis) {
+    if (crisis) {
+      const acts = native && native.dialNumber
+        ? [{ label: "Open dialer with 988", icon: "phone", onClick: () => native.dialNumber("988") }]
+        : [{ label: "Call 988", icon: "phone", href: "tel:988" }];
+      return ervoSays("I'm really glad you reached out. I can't call emergency services or crisis lines for you, but you can call or text 988 right now to talk with someone at the Suicide & Crisis Lifeline, any time of day. If you're in danger, call 911 💙", { acts: acts.concat([{ label: "Text 988", icon: "open", href: "sms:988" }]) });
+    }
     const acts = native && native.dialNumber
       ? [{ label: "Open dialer with 911", icon: "phone", onClick: () => native.dialNumber("911") }]
       : [{ label: "Call 911", icon: "phone", href: "tel:911" }];
@@ -3101,6 +3176,12 @@
 
   // ---------- answering ----------
   function reply(text) {
+    const two = String(text).match(/^(.*\b(?:alarm|timer|wake me)\b.*?)\s*(?:,\s*)?\b(?:and|then|also|plus)\s+(?:(?:set|start|make|add)\s+)?((?:an?\s+|the\s+|another\s+)?(?:alarm|timer)\b.+)$/i);
+    if (two && !task && !clockAsk && parseDuration(two[2]) + (parseWhen(two[2].toLowerCase(), new Date(), false).time ? 1 : 0) > 0) {
+      return Promise.resolve(reply(two[1])).then(() => reply(/^set\b/i.test(two[2]) ? two[2] : `set ${two[2]}`));
+    }
+    const mixed = String(text).match(/^(.{8,}?)\s*,?\s+(?:and|then|also|plus)\s+(?:can you\s+|please\s+)?(?:set|start|make)\s+(?:me\s+)?(?:an?|the|another)\s+(?:\d+\s*\w+\s+)?(?:alarm|timer)\b/i);
+    if (mixed && AI_URL && !task && !/\b(alarm|timer|wake me)\b/i.test(mixed[1])) return askAI(understand(text));
     const d = understand(text);
     const biz = account.plan === "business";
 
@@ -3109,7 +3190,7 @@
       task = null; confirming = false;
       return ervoSays("That sounds like a business task. Ervo Personal is for personal use only, so I can't help with customers or company work. Ervo for Business is built for that.");
     }
-    if (biz && PERSONAL_WORDS.test(d.t)) {
+    if (biz && PERSONAL_WORDS.test(d.t) && !BUSINESS_CONTEXT.test(d.t)) {
       task = null; confirming = false;
       return ervoSays("That sounds personal. Ervo for Business only handles business tasks, like customer support, refunds and scheduling. Ervo Personal can help with that one.");
     }
@@ -3183,7 +3264,7 @@
     }
     if (d.intent === "alarms") return native && native.showAlarms ? (native.showAlarms(), ervoSays("Here are your alarms ⏰")) : ervoSays("I can show your alarms in the Ervo Android app ⏰");
     if (d.intent === "call") { task = null; confirming = false; return doCall(d.callee); }
-    if (d.intent === "emergency") return emergencyReply();
+    if (d.intent === "emergency") return emergencyReply(d.crisis);
     if (d.intent === "wake") return heyErvo(d.wakeTurn);
     // Ervo asked "when is it?": a day or "this week" answers it
     if (removeAsk) {
@@ -3823,7 +3904,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.3.1"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.3.2"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
