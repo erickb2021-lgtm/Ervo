@@ -1,6 +1,9 @@
 {
-  "version": "0.3.3",
+  "version": "0.3.4",
   "notes": [
+    "Faster answers: Ervo's reply now appears word by word as it's written, so you see it start in a second or two instead of waiting for the whole thing",
+    "Everyday questions get a quicker, lighter answer; research, shopping and plans still get the full deep look",
+    "Quick replies show with less waiting",
     "Ask for something \"near me\" and Ervo uses your location (it asks once) instead of asking for your city or zip",
     "What Ervo is doing shows the same at the top and in its message, with an emoji, like \"🥗 Making your meal plan\" or \"📍 Looking near you\"",
     "Ervo's full answer always shows now. Before, if it also showed buttons or links, only its last sentence came through",
@@ -9,9 +12,6 @@
     "Alarms keep their reason, like \"to water the plants\" or \"to join the zoom\", and understand \"quarter past 7\", \"half past six\", \"630\" and \"6 y media\"",
     "Two requests in one message, like an alarm and a timer, or an event and a timer, both get done",
     "Personal and Business tell apart better: a concert ticket, your mom's customer service job or a staff badge are personal",
-    "Emergency words like \"call nine one one\" or the suicide hotline show the dialer right away (911 or 988); Ervo still never calls for you",
-    "\"Is it cold outside\" and \"should I wear a jacket\" show the weather",
-    "Typos like alram, tiemr and wether are understood",
-    "New quick suggestions: Ervo picks 3 to 5 from about 1,000 everyday ideas that fit the time, the day, the season and your city, shuffled differently for each person"
+    "Emergency words like \"call nine one one\" or the suicide hotline show the dialer right away (911 or 988); Ervo still never calls for you"
   ]
 }

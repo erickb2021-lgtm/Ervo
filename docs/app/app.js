@@ -2017,7 +2017,7 @@
   let lastWasVoice = false;
   async function ervoSays(text, opts) {
     opts = opts || {};
-    showTyping(opts.status ? opts.status[1] : liveTyping ? null : "typing");
+    if (!opts.instant) showTyping(opts.status ? opts.status[1] : liveTyping ? null : "typing");
     if (opts.status) setStatus(opts.status[0], opts.status[1]);
     else setStatus("", "Typing…");
     const speakIt = lastWasVoice;
@@ -2029,9 +2029,10 @@
       said = said.text;
     }
     said = plain(said);
-    await delay(500 + Math.min(String(said).length * 8, 900));
+    if (!opts.instant) await delay(250 + Math.min(String(said).length * 3, 400)); // a short beat, so it still feels like a reply
     hideTyping();
     idleStatus();
+    if (opts.replace) opts.replace.remove();
     bubble(said, "them");
     // A done or failed action gets the matching haptic (Android); plain answers get none
     if (/^(Done|Undone|All set)\b/.test(String(said))) buzz("confirm");
@@ -2525,7 +2526,7 @@
     try { return await Promise.race([getPlace(), new Promise((r) => setTimeout(() => r(null), 5000))]) || cached || null; }
     catch (e) { return cached || null; }
   }
-  async function askServer(extra) {
+  async function askServer(extra, onText) {
     let place = null;
     try { place = await placeForAI(); } catch (e) { /* ignore */ }
     const ctrl = new AbortController();
@@ -2541,6 +2542,7 @@
           messages: history.slice(-16),
           psyche: psycheForServer(),
           memory: memory(),
+          stream: !!onText,
           context: {
             now: new Date().toString(),
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -2549,6 +2551,30 @@
         }, extra || {})),
       });
       if (!r.ok && r.status !== 429) throw new Error(`server ${r.status}`);
+      // Streaming (server 0.3.4+): {"t":"text","d":"..."} lines while Claude writes, then {"t":"done",...}
+      if (onText && r.body && /ndjson/.test(r.headers.get("content-type") || "")) {
+        const reader = r.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "", all = "", final = null;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let i;
+          while ((i = buf.indexOf("\n")) >= 0) {
+            const line = buf.slice(0, i).trim();
+            buf = buf.slice(i + 1);
+            if (!line) continue;
+            let ev;
+            try { ev = JSON.parse(line); } catch (e) { continue; }
+            if (ev.t === "text" && ev.d) { all += ev.d; try { onText(all); } catch (e) { /* keep reading */ } }
+            else if (ev.t === "done") final = ev;
+          }
+        }
+        if (!final) throw new Error("stream ended early");
+        delete final.t;
+        return final;
+      }
       return await r.json();
     } finally {
       clearTimeout(timer);
@@ -2686,7 +2712,23 @@
     const status = guessStatus(d);
     showTyping(status[1], status[0]);
     setStatus(status[0], status[1]);
-    const result = askServer(extra).then((j) => {
+    // The answer appears word by word; the status at the top keeps saying what Ervo is doing
+    let live = null;
+    const onText = (all) => {
+      const txt = plainText(all);
+      if (!txt) return;
+      if (!live) {
+        hideTyping();
+        live = document.createElement("div");
+        live.className = "msg them streaming";
+        live.dir = "auto";
+        live.setAttribute("aria-live", "polite");
+        thread.append(live);
+      }
+      live.textContent = txt;
+      toBottom();
+    };
+    const result = askServer(extra, extra ? null : onText).then((j) => {
       // Learn first, so "use emojis" already shows in this reply
       if (Array.isArray(j.psyche) && j.psyche.length) j.psyche.forEach(learn);
       else if (j.memories && j.memories.length) remember(j.memories);
@@ -2773,11 +2815,14 @@
       : "I couldn't reach my AI service just now. Ask again in a moment.");
     const r = await result;
     if (r && r.quiet && r.after) {
+      if (live) live.remove();
       hideTyping();
       idleStatus();
       return r.after();
     }
-    await ervoSays(r, { status });
+    // The streamed words become the real message (same text, no extra wait)
+    if (live && (typeof r === "string" || !r || !r.text)) { live.remove(); live = null; }
+    await ervoSays(r, { status, instant: !!live, replace: live });
     if (r && r.after) return r.after();
   }
 
@@ -3943,7 +3988,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.3.3"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.3.4"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);

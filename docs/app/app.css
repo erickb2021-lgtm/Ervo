@@ -1178,3 +1178,8 @@ html.docked .chats-drawer { border-right: 0.5px solid var(--sep); background: va
 #menu-btn.has-update::after { content: ""; position: absolute; top: 9px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--tint); box-shadow: 0 0 0 2px var(--chat-bg); }
 #check-update.ready { color: var(--tint); font-weight: 600; }
 .listcard .dayrow .tick { border-color: color-mix(in srgb, var(--text-2) 60%, transparent); }
+
+/* 0.3.4: Ervo's answer appears word by word, with a soft cursor while it's still writing */
+.msg.them.streaming::after { content: "▍"; margin-left: 2px; opacity: .45; animation: ervo-caret 1s steps(2, start) infinite; }
+@keyframes ervo-caret { to { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .msg.them.streaming::after { animation: none; } }
