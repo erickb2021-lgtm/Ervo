@@ -1,11 +1,12 @@
 {
-  "version": "0.2.8",
+  "version": "0.2.9",
   "notes": [
-    "Psyche: Ervo learns who you are and how you like it to talk. Change it by telling Ervo",
-    "One main chat that never resets, plus side chats for things you want to keep apart",
-    "Send a photo and Ervo helps with it, like counting the calories in a meal",
-    "Ideas: plans, health, food, shopping and more, picked for you",
-    "Tap an answer instead of typing when Ervo gives you choices",
-    "Hey Ervo is off unless you turn it on, so the mic isn't always in use"
+    "Opens straight to your chat, with no logo screen to wait through",
+    "Text follows your phone's text size, up to twice as big",
+    "Follows your phone's Dark mode, with stronger contrast if you've turned that on",
+    "Touch and hold Ervo's reply to copy it or ask again",
+    "Bigger buttons, and light taps you can feel when you send or pick an answer (Android)",
+    "On Galaxy Z Fold and tablets, your chats stay open beside the conversation",
+    "Touch and hold Ervo's icon to talk, start a side chat, or open Ideas or Psyche (Android)"
   ]
 }

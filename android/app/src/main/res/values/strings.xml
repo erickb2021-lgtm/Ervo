@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ervo</string>
+    <!-- App shortcuts: touch and hold Ervo's icon -->
+    <string name="sc_talk_short">Ask Ervo</string>
+    <string name="sc_talk_long">Talk to Ervo</string>
+    <string name="sc_side_short">Side chat</string>
+    <string name="sc_side_long">New side chat</string>
+    <string name="sc_ideas_short">Ideas</string>
+    <string name="sc_ideas_long">Ideas for you</string>
+    <string name="sc_psyche_short">Psyche</string>
+    <string name="sc_psyche_long">What Ervo knows about you</string>
 </resources>

@@ -67,6 +67,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Touch and hold the icon: Talk to Ervo, New side chat, Ideas, Psyche -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <!-- Ervo as a pop-up over other apps: "Hey Ervo" and the phone's assistant button open this -->

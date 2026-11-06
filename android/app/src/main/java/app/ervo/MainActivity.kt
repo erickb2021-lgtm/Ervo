@@ -17,6 +17,8 @@ import android.speech.SpeechRecognizer
 import android.telephony.PhoneNumberUtils
 import android.telephony.TelephonyManager
 import android.provider.Settings
+import android.view.HapticFeedbackConstants
+import android.os.Build
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.webkit.GeolocationPermissions
@@ -150,6 +152,7 @@ open class MainActivity : AppCompatActivity() {
 
     private var recognizer: SpeechRecognizer? = null
     private var pendingWake: String? = null
+    private var pendingShortcut: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -159,7 +162,7 @@ open class MainActivity : AppCompatActivity() {
             .build()
 
         webView = WebView(this)
-        if (overlay) webView.setBackgroundColor(Color.TRANSPARENT)
+        webView.setBackgroundColor(if (overlay) Color.TRANSPARENT else ContextCompat.getColor(this, R.color.ervo_background))
         setContentView(webView)
 
         webView.settings.apply {
@@ -168,8 +171,8 @@ open class MainActivity : AppCompatActivity() {
             allowFileAccess = false
             allowContentAccess = true
             setGeolocationEnabled(true)
-            // Follow the phone's text size, but keep it from breaking the layout
-            textZoom = (resources.configuration.fontScale * 100).toInt().coerceIn(85, 115)
+            // Follow the phone's font size, up to 200% (the layout is built to handle it)
+            textZoom = (resources.configuration.fontScale * 100).toInt().coerceIn(85, 200)
         }
         webView.addJavascriptInterface(Bridge(), "ErvoNative")
 
@@ -233,6 +236,7 @@ open class MainActivity : AppCompatActivity() {
             try { WakeService.start(this) } catch (e: Exception) { /* try again next time */ }
         }
         takeWakeIntent(intent)
+        takeShortcutIntent(intent)
 
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
@@ -299,6 +303,37 @@ open class MainActivity : AppCompatActivity() {
             for (i in tries) {
                 try { startActivity(i); break } catch (e: Exception) { /* try the next one */ }
             }
+        }
+
+        /** The app shortcut Ervo was opened with (touch and hold the icon), once. */
+        @JavascriptInterface
+        fun takeShortcut(): String {
+            val s = pendingShortcut ?: return ""
+            pendingShortcut = null
+            return s
+        }
+
+        /**
+         * A short haptic through the phone's own haptic feedback, so it follows the phone's
+         * "Touch feedback" setting. tap: sent; tick: picked an answer; long: touch and hold;
+         * confirm: something got done; reject: something didn't work.
+         */
+        @JavascriptInterface
+        fun haptic(kind: String) = runOnUiThread {
+            val c = when (kind) {
+                "tick" -> HapticFeedbackConstants.CLOCK_TICK
+                "long" -> HapticFeedbackConstants.LONG_PRESS
+                "confirm" -> if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.CONTEXT_CLICK
+                "reject" -> if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.REJECT else HapticFeedbackConstants.LONG_PRESS
+                else -> HapticFeedbackConstants.KEYBOARD_TAP
+            }
+            webView.performHapticFeedback(c)
+        }
+
+        /** The phone's Display settings, where Dark mode is (Ervo follows it). */
+        @JavascriptInterface
+        fun openDisplaySettings() = runOnUiThread {
+            try { startActivity(Intent(Settings.ACTION_DISPLAY_SETTINGS)) } catch (e: ActivityNotFoundException) { /* not on this phone */ }
         }
 
         /** What Ervo was opened with ("Hey Ervo, ..." or the assistant button), once. */
@@ -1094,12 +1129,27 @@ open class MainActivity : AppCompatActivity() {
         return true
     }
 
+    /** Opened from an app shortcut (touch and hold Ervo's icon): ervo://shortcut/ideas and so on. */
+    private fun takeShortcutIntent(intent: Intent?): Boolean {
+        val data = intent?.data ?: return false
+        if (intent.action != ACTION_SHORTCUT || data.scheme != "ervo") return false
+        val what = data.lastPathSegment.orEmpty()
+        if (what !in listOf("talk", "side", "ideas", "psyche")) return false
+        pendingShortcut = what
+        intent.action = Intent.ACTION_MAIN // don't run it again after a rotation
+        return true
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (takeWakeIntent(intent)) {
             val w = pendingWake ?: return
             pendingWake = null
             callJs("ervoWake", w)
+        } else if (takeShortcutIntent(intent)) {
+            val s = pendingShortcut ?: return
+            pendingShortcut = null
+            callJs("ervoShortcut", s)
         }
     }
 
@@ -1218,6 +1268,7 @@ open class MainActivity : AppCompatActivity() {
         // Updates only ever come from Ervo's own GitHub releases
         private const val UPDATE_PREFIX = "https://github.com/erickb2021-lgtm/Ervo/releases/download/"
         const val ACTION_WAKE = "app.ervo.WAKE"
+        const val ACTION_SHORTCUT = "app.ervo.SHORTCUT"
         private const val SPEAK_REPLIES = false
         const val EXTRA_COMMAND = "command"
         @Volatile var visible = false

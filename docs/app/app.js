@@ -24,25 +24,44 @@
   const drop = (k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } };
   const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // ---------- theme: follows the phone until the user picks one ----------
+  // ---------- theme: always follows the phone's light/dark setting ----------
+  // (Apple and Samsung both say not to add an app-only appearance switch.)
   const root = document.documentElement;
   const system = window.matchMedia("(prefers-color-scheme: dark)");
+  drop(THEME_KEY); // 0.2.9: the old sun/moon choice is gone; follow the phone again
   function applyTheme(t) {
     root.dataset.theme = t;
     document.querySelectorAll("img[data-dark]").forEach((img) => {
       if (!img.dataset.light) img.dataset.light = img.getAttribute("src");
       img.src = t === "dark" ? img.dataset.dark : img.dataset.light;
     });
-    $("theme-toggle").setAttribute("aria-label", t === "dark" ? "Switch to light mode" : "Switch to dark mode");
     syncBars();
   }
-  const storedTheme = () => { try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; } };
-  system.addEventListener("change", (e) => { if (!storedTheme()) applyTheme(e.matches ? "dark" : "light"); });
-  $("theme-toggle").addEventListener("click", () => {
-    const next = root.dataset.theme === "dark" ? "light" : "dark";
-    try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* ignore */ }
-    applyTheme(next);
-  });
+  system.addEventListener("change", (e) => applyTheme(e.matches ? "dark" : "light"));
+
+  // ---------- text size: follows the phone, up to twice the normal size ----------
+  // iPhone: read the Dynamic Type body size (17px at the default setting).
+  // Android: the app's WebView already scales text with the phone's font size.
+  const IOS = /iP(hone|ad|od)/.test(navigator.platform || navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+  function fitTextSize() {
+    if (!IOS || !CSS.supports("font", "-apple-system-body")) return;
+    const probe = document.createElement("span");
+    probe.style.cssText = "font:-apple-system-body;position:absolute;visibility:hidden";
+    probe.textContent = "x";
+    document.body.appendChild(probe);
+    const px = parseFloat(getComputedStyle(probe).fontSize) || 17;
+    probe.remove();
+    // 17px is the normal size; keep small phones a touch smaller, and cap at 2x
+    const narrow = Math.min(1, Math.max(0.88, window.innerWidth / 400));
+    root.style.fontSize = Math.min(34, Math.max(14, px * narrow)) + "px";
+  }
+  fitTextSize();
+  window.addEventListener("resize", fitTextSize);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) fitTextSize(); });
+
+  // ---------- haptics (Android): light, only for clear cause and effect ----------
+  // Uses the phone's own haptic feedback, so it follows the phone's touch-feedback setting.
+  function buzz(kind) { try { if (native && native.haptic) native.haptic(kind); } catch (e) { /* older app */ } }
 
   // Android: color the phone's top and bottom bars to match the screen
   function syncBars() {
@@ -67,6 +86,7 @@
     document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("active", s.id === id));
     if (id === "chat" && !chatWas && savedScroll !== null) { const keep = savedScroll; savedScroll = null; requestAnimationFrame(() => { if (!stuck) $("thread").scrollTop = keep; else $("thread").scrollTop = $("thread").scrollHeight; }); }
     syncBars();
+    syncDock();
   }
 
   // ---------- Personal vs Business ----------
@@ -550,6 +570,17 @@
     return null;
   }
 
+  // Ervo follows the phone's look, so point to where it's changed
+  function themeHelp(want) {
+    const already = root.dataset.theme === want;
+    if (native && native.openDisplaySettings) {
+      return ervoSays(already ? `Your phone is already in ${want} mode, and Ervo follows it.` : `Ervo follows your phone's look. Turn ${want === "dark" ? "on" : "off"} Dark mode in your phone's Display settings.`,
+        already ? {} : { acts: [{ label: "Open Display settings", icon: "sun", onClick: () => native.openDisplaySettings() }] });
+    }
+    const where = IOS ? `go to Settings > Display & Brightness and choose ${want === "dark" ? "Dark" : "Light"}` : `turn Dark mode ${want === "dark" ? "on" : "off"} in your phone's display settings`;
+    return ervoSays(already ? `Your phone is already in ${want} mode, and Ervo follows it.` : `Ervo follows your phone's look. To switch, ${where}.`);
+  }
+
   async function applySettings(s) {
     const p = prefs();
     if (s.kind === "nickname") {
@@ -557,11 +588,7 @@
       save(PREFS_KEY, p);
       return ervoSays(`Done ✅ I'll call you ${s.value} from now on.`, { status: ["✏️", "Updating your nickname"] });
     }
-    if (s.kind === "theme") {
-      try { localStorage.setItem(THEME_KEY, s.value); } catch (e) { /* ignore */ }
-      applyTheme(s.value);
-      return ervoSays(`Switched to ${s.value} mode.`);
-    }
+    if (s.kind === "theme") return themeHelp(s.value);
     if (s.kind === "greeting") {
       if (s.on && s.items.some((i) => i === "weather" || i === "news") && !allowed("location")) {
         if (!(await ensure("location", "Show the weather and local news in your greeting"))) return ervoSays("Okay, I'll leave your greeting as it is.");
@@ -1301,6 +1328,7 @@
     }
     c.updated = new Date().toISOString();
     storeChat(id, c);
+    refreshDock();
   }
   // "Today", "Yesterday" or the date, between messages from different days
   function dayMark(when) {
@@ -1347,6 +1375,7 @@
     record({ t: "msg", who, text: String(text) });
     const el = document.createElement("div");
     el.className = `msg ${who}`;
+    el.dir = "auto"; // Arabic or Hebrew lines up right-to-left inside the bubble
     if (who === "them" && URL_RE.test(text)) {
       URL_RE.lastIndex = 0;
       String(text).split(URL_RE).forEach((part, i) => {
@@ -1464,6 +1493,7 @@
       b.addEventListener("click", () => {
         box.querySelectorAll("button").forEach((x) => { x.disabled = true; });
         b.classList.add("picked");
+        buzz("tick");
         markPicked(o);
         send(o);
       });
@@ -1564,7 +1594,7 @@
     const speakIt = lastWasVoice;
     lastWasVoice = false;
     let said;
-    try { said = await Promise.resolve(text); } catch (e) { said = "Sorry, something went wrong. Try again in a moment."; }
+    try { said = await Promise.resolve(text); } catch (e) { said = "I ran into a problem answering that. Ask again in a moment."; }
     if (said && typeof said === "object") {
       opts = Object.assign({}, opts, { products: said.products, chips: said.chips || opts.chips, acts: said.acts || opts.acts, choices: said.choices || opts.choices });
       said = said.text;
@@ -1574,6 +1604,9 @@
     hideTyping();
     idleStatus();
     bubble(said, "them");
+    // A done or failed action gets the matching haptic (Android); plain answers get none
+    if (/^(Done|Undone|All set)\b/.test(String(said))) buzz("confirm");
+    else if (/^I couldn't\b/.test(String(said))) buzz("reject");
     // The AI remembers what it showed, so "the second one" or "those lights" still make sense later
     const shown = opts.products && opts.products.length ? `\n[Showed product cards: ${opts.products.map((p) => [p.name, p.price].filter(Boolean).join(" ")).join("; ")}]` : "";
     history.push({ role: "assistant", text: said + shown });
@@ -1702,6 +1735,7 @@
     toggleMenu(false);
     save(ACTIVE_KEY, id);
     openChat(account, false);
+    if (docked()) renderChats();
   }
   function deleteSide(id) {
     save(SIDES_KEY, sides().filter((c) => c.id !== id));
@@ -1729,15 +1763,32 @@
   function openChats() {
     toggleMenu(false);
     renderChats();
+    if (docked()) return;
     $("chats-panel").hidden = false;
     requestAnimationFrame(() => $("chats-panel").classList.add("open"));
   }
   function closeChats() {
     const w = $("chats-panel");
-    if (w.hidden) return;
+    if (w.hidden || docked()) return;
     w.classList.remove("open");
     setTimeout(() => { w.hidden = true; }, 200);
   }
+  // Wide screens (Galaxy Z Fold open, tablets): keep the Chats list open beside the chat,
+  // instead of sliding over it (Samsung: show menus together with content at 840dp and up)
+  const WIDE = window.matchMedia("(min-width: 840px)");
+  const docked = () => root.classList.contains("docked");
+  function syncDock() {
+    const on = WIDE.matches && !OVERLAY && !!account && $("chat").classList.contains("active");
+    if (on === docked()) return;
+    const w = $("chats-panel");
+    root.classList.toggle("docked", on);
+    w.classList.toggle("open", on);
+    w.hidden = !on;
+    if (on) renderChats();
+  }
+  WIDE.addEventListener("change", syncDock);
+  let dockTimer = 0;
+  const refreshDock = () => { if (!docked()) return; clearTimeout(dockTimer); dockTimer = setTimeout(renderChats, 400); };
   function renderChats() {
     const id = activeId();
     const box = $("chats-list");
@@ -2062,11 +2113,13 @@
           ["weather", "news", "time", "date"].forEach((k) => { if (typeof a[k] === "boolean") p[k] = a[k]; });
           if (a.calendar === "phone" || a.calendar === "google") p.calendar = a.calendar;
           save(PREFS_KEY, p);
-          if (a.theme === "dark" || a.theme === "light") { try { localStorage.setItem(THEME_KEY, a.theme); } catch (e) { /* ignore */ } applyTheme(a.theme); }
+          if (a.theme === "dark" || a.theme === "light") themeHelp(a.theme);
         }
       });
       return out;
-    }).catch(() => "I couldn't reach my AI service just now. Try again in a moment.");
+    }).catch(() => navigator.onLine === false
+      ? "Your phone is offline. Connect to Wi-Fi or mobile data, then ask again."
+      : "I couldn't reach my AI service just now. Ask again in a moment.");
     const r = await result;
     if (r && r.quiet && r.after) {
       hideTyping();
@@ -2699,6 +2752,7 @@
     if (!v || !account) return;
     thread.querySelectorAll(".choices button:not(:disabled)").forEach((b) => { b.disabled = true; });
     bubble(v, "me");
+    buzz("tap");
     toBottom(true);
     history.push({ role: "user", text: v });
     $("chips").innerHTML = "";
@@ -3210,7 +3264,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.2.8"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.2.9"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -3723,6 +3777,7 @@
   // Android back button: close whatever is open first, then go back to the chat
   window.ervoBack = function () {
     if (OVERLAY) { closeVoice(); return true; }
+    if (document.querySelector(".msg-menu")) { closeMsgMenu(); return true; }
     if (!$("perm").hidden) { answerPermission(false); return true; }
     if (!$("update").hidden) { $("update").hidden = true; return true; }
     if (!$("greet").hidden) { $("greet").hidden = true; return true; }
@@ -3730,7 +3785,7 @@
     if (!menu.hidden) { toggleMenu(false); return true; }
     if ($("activity").classList.contains("active")) { renderStats(); show("stats"); return true; }
     if ($("stats").classList.contains("active")) { show("chat"); return true; }
-    if (!$("chats-panel").hidden) { closeChats(); return true; }
+    if (!$("chats-panel").hidden && !docked()) { closeChats(); return true; }
     if ($("psyche").classList.contains("active") || $("ideas").classList.contains("active")) { show("chat"); return true; }
     if (document.querySelector(".photo-view")) { document.querySelector(".photo-view").remove(); return true; }
     if (!$("calpick").hidden) { answerCalendar(null); return true; }
@@ -3745,6 +3800,139 @@
     return false;
   };
 
+  // ---------- small notices ("Copied") ----------
+  // One line, gone after a couple of seconds; only for minor things (Samsung toasts)
+  let toastTimer = 0;
+  function toast(text) {
+    let t = document.querySelector(".toast");
+    if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
+    t.textContent = text;
+    t.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("on"), 2200);
+  }
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) {
+      const a = document.createElement("textarea");
+      a.value = text; a.setAttribute("readonly", ""); a.style.cssText = "position:fixed;opacity:0";
+      document.body.append(a); a.select();
+      let ok = false; try { ok = document.execCommand("copy"); } catch (e2) { /* not allowed */ }
+      a.remove(); return ok;
+    }
+  }
+
+  // ---------- touch and hold one of Ervo's replies: Copy, Ask again ----------
+  // (Apple: let people copy and retry AI results; One UI: touch and hold opens a menu)
+  function closeMsgMenu() {
+    const m = document.querySelector(".msg-menu");
+    if (m) m.remove();
+    thread.querySelectorAll(".msg.held").forEach((x) => x.classList.remove("held"));
+  }
+  function msgMenu(el) {
+    closeMsgMenu();
+    buzz("long");
+    el.classList.add("held");
+    const menu = document.createElement("div");
+    menu.className = "msg-menu";
+    menu.setAttribute("role", "menu");
+    const item = (label, icon, fn) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("role", "menuitem");
+      b.innerHTML = icon;
+      b.append(label);
+      b.addEventListener("click", () => { closeMsgMenu(); fn(); });
+      menu.append(b);
+    };
+    item("Copy", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+      () => copyText(el.innerText).then((ok) => toast(ok ? "Copied" : "Couldn't copy that. Try again.")));
+    // The question this reply answered
+    let q = el.previousElementSibling;
+    while (q && !(q.classList.contains("msg") && q.classList.contains("me") && !q.classList.contains("photo") && !q.classList.contains("link"))) q = q.previousElementSibling;
+    if (q && account) {
+      const tag = q.querySelector(".voice-tag");
+      const asked = (tag ? q.innerText.replace(tag.innerText, "") : q.innerText).trim();
+      if (asked) item("Ask again", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>', () => send(asked));
+    }
+    document.body.append(menu);
+    const r = el.getBoundingClientRect();
+    const mh = menu.offsetHeight, mw = menu.offsetWidth;
+    const below = r.bottom + 8 + mh < window.innerHeight - 90;
+    menu.style.top = Math.max(60, below ? r.bottom + 8 : r.top - mh - 8) + "px";
+    menu.style.left = Math.min(Math.max(12, r.left), window.innerWidth - mw - 12) + "px";
+  }
+  {
+    let holdTimer = 0, startX = 0, startY = 0;
+    const cancel = () => clearTimeout(holdTimer);
+    thread.addEventListener("pointerdown", (e) => {
+      const el = e.target.closest(".msg.them");
+      if (!el || e.target.closest("a")) return;
+      startX = e.clientX; startY = e.clientY;
+      cancel();
+      holdTimer = setTimeout(() => msgMenu(el), 480);
+    });
+    thread.addEventListener("pointermove", (e) => { if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) cancel(); });
+    ["pointerup", "pointercancel"].forEach((n) => thread.addEventListener(n, cancel));
+    // Right-click or a keyboard's menu key does the same
+    thread.addEventListener("contextmenu", (e) => { const el = e.target.closest(".msg.them"); if (el) { e.preventDefault(); cancel(); msgMenu(el); } });
+    document.addEventListener("pointerdown", (e) => { if (!e.target.closest(".msg-menu")) closeMsgMenu(); }, true);
+    thread.addEventListener("scroll", () => { cancel(); closeMsgMenu(); }, { passive: true });
+  }
+
+  // ---------- sheets: a grabber, swipe down or tap outside to close (Apple sheets) ----------
+  const SHEET_CLOSE = { perm: "perm-deny", calpick: "cal-cancel", update: "update-later", greet: "greet-cancel" };
+  document.querySelectorAll(".sheet-wrap").forEach((wrap) => {
+    const sheet = wrap.querySelector(".sheet");
+    const close = () => { const b = $(SHEET_CLOSE[wrap.id]); if (b && !b.disabled) b.click(); };
+    wrap.addEventListener("click", (e) => { if (e.target === wrap) close(); });
+    let y0 = null, dy = 0;
+    sheet.addEventListener("touchstart", (e) => {
+      // Only when the sheet is scrolled to the top, and not while typing
+      if (sheet.scrollTop > 0 || e.target.closest("input, select, textarea")) { y0 = null; return; }
+      y0 = e.touches[0].clientY; dy = 0;
+    }, { passive: true });
+    sheet.addEventListener("touchmove", (e) => {
+      if (y0 === null) return;
+      dy = Math.max(0, e.touches[0].clientY - y0);
+      sheet.style.transition = "none";
+      sheet.style.transform = dy ? `translateY(${dy}px)` : "";
+    }, { passive: true });
+    sheet.addEventListener("touchend", () => {
+      if (y0 === null) return;
+      y0 = null;
+      sheet.style.transition = "";
+      sheet.style.transform = "";
+      if (dy > Math.min(140, sheet.offsetHeight * 0.3)) close();
+    });
+  });
+
+  // ---------- iPhone: swipe in from the left edge to go back ----------
+  // (Android has its own back gesture, so this is for the home-screen iPhone app only)
+  if (IOS && !native) {
+    let sx = null, sy = 0;
+    document.addEventListener("touchstart", (e) => {
+      const t = e.touches[0];
+      sx = t.clientX < 24 && !$("chat").classList.contains("active") ? t.clientX : null;
+      sy = t.clientY;
+    }, { passive: true });
+    document.addEventListener("touchend", (e) => {
+      if (sx === null) return;
+      const t = e.changedTouches[0];
+      if (t.clientX - sx > 70 && Math.abs(t.clientY - sy) < 60 && window.ervoBack) window.ervoBack();
+      sx = null;
+    }, { passive: true });
+  }
+
+  // ---------- app shortcuts: touch and hold Ervo's icon (Android) ----------
+  function ervoShortcut(what) {
+    if (!account) return;
+    if (what === "talk") startVoice();
+    else if (what === "side") { show("chat"); newSideChat(); }
+    else if (what === "ideas") openIdeas();
+    else if (what === "psyche") openPsyche();
+  }
+  window.ervoShortcut = ervoShortcut;
+
   // ---------- offline support for the home-screen (iPhone) version ----------
   // The Android app bundles its files already, so it doesn't need this.
   if ("serviceWorker" in navigator && !native && location.protocol === "https:") {
@@ -3752,14 +3940,18 @@
   }
 
   // ---------- start: always opens straight to the chat ----------
-  applyTheme(storedTheme() || (system.matches ? "dark" : "light"));
+  applyTheme(system.matches ? "dark" : "light");
   setPlan("personal");
-  setTimeout(() => {
+  // Opens straight to where you were, with no logo screen to wait through (Apple: launch fast,
+  // and make the first frame look like the first screen)
+  root.classList.add("first"); // the first screen appears without fading in
+  setTimeout(() => root.classList.remove("first"), 600);
+  {
     const saved = load(ACCOUNT_KEY);
     if (saved && saved.plan && saved.name) openChat(saved, false);
     else if (OVERLAY && native && native.openFullApp) native.openFullApp(); // sign in first, in the full app
     else show("welcome");
-  }, OVERLAY ? 0 : 1100);
+  }
   setTimeout(() => checkForUpdate(false), 3000);
   // iPhone / web: check again when Ervo comes back to the screen
   document.addEventListener("visibilitychange", () => { if (!document.hidden && !native) checkForUpdate(false); });
@@ -3768,5 +3960,6 @@
     const w = native && native.takeWake ? native.takeWake() : "";
     if (w) { try { handleWake(JSON.parse(w)); } catch (e) { /* ignore */ } }
     else if (OVERLAY && account) startVoice();
-  }, OVERLAY ? 150 : 1500);
+    else if (native && native.takeShortcut) { const s = native.takeShortcut(); if (s) ervoShortcut(s); }
+  }, OVERLAY ? 150 : 400);
 })();

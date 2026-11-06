@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Touch and hold Ervo's icon for these (Android app shortcuts; Apple calls them quick actions) -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="talk"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_talk"
+        android:shortcutShortLabel="@string/sc_talk_short"
+        android:shortcutLongLabel="@string/sc_talk_long">
+        <intent
+            android:action="app.ervo.SHORTCUT"
+            android:targetPackage="app.ervo"
+            android:targetClass="app.ervo.MainActivity"
+            android:data="ervo://shortcut/talk" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="side"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_side"
+        android:shortcutShortLabel="@string/sc_side_short"
+        android:shortcutLongLabel="@string/sc_side_long">
+        <intent
+            android:action="app.ervo.SHORTCUT"
+            android:targetPackage="app.ervo"
+            android:targetClass="app.ervo.MainActivity"
+            android:data="ervo://shortcut/side" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="ideas"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_ideas"
+        android:shortcutShortLabel="@string/sc_ideas_short"
+        android:shortcutLongLabel="@string/sc_ideas_long">
+        <intent
+            android:action="app.ervo.SHORTCUT"
+            android:targetPackage="app.ervo"
+            android:targetClass="app.ervo.MainActivity"
+            android:data="ervo://shortcut/ideas" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="psyche"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_psyche"
+        android:shortcutShortLabel="@string/sc_psyche_short"
+        android:shortcutLongLabel="@string/sc_psyche_long">
+        <intent
+            android:action="app.ervo.SHORTCUT"
+            android:targetPackage="app.ervo"
+            android:targetClass="app.ervo.MainActivity"
+            android:data="ervo://shortcut/psyche" />
+    </shortcut>
+</shortcuts>

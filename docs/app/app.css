@@ -371,8 +371,12 @@ html.overlay .typing { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); }
   .sheet { border-radius: 22px; }
 }
 
+/* Reduce Motion: no bouncing, sliding or glowing; things just appear. Spinners keep turning
+   so Ervo never looks frozen (Apple: keep progress indicators moving). */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  .typing .spin, .progress.busy i { animation-duration: 0.8s !important; animation-iteration-count: infinite !important; }
+  .typing .dots i { animation: none !important; opacity: 0.7; }
 }
 
 /* Calendar day card: tap events to pick them, then Remove */
@@ -604,3 +608,93 @@ html:not(.overlay) #chat { background: var(--chat-bg); }
 .to-latest { background: var(--chat-field); color: var(--chat-ico); -webkit-backdrop-filter: none; backdrop-filter: none; }
 #chat #send-btn { background: var(--me); }
 .msg.me.photo { background: none; padding: 0; }
+
+/* ---------- 0.2.9: built to Apple's and Samsung's (One UI) design guidelines ---------- */
+/* Launch: the first frame is the chat's plain background, no logo */
+.splash { background: #f2f2f3; }
+[data-theme="dark"] .splash { background: #212121; }
+
+/* Text never smaller than 11pt (Apple), even on small phones */
+.status, .chat-name, .receipt, .voice-tag, .week .bar-col span, .day-sep, .menu-version, .mini-stats small,
+.toggle small, .dayrow .dn small, .row.compact .txt small, .chat-go small, .side-banner, .side-banner button,
+.typing-body small, .chats-head, .sky-chip, .sky-cond small, .row .txt small, .row .side, .card-note, .perm-note,
+.product small, .msg.link small, .stats-date, .preview-note, .demo { font-size: max(11px, 0.8rem); }
+
+/* Touch targets at least 44 x 44 (Apple), with space between them (Samsung) */
+.act, .chip { min-height: 44px; }
+.chats-plus { width: 44px; height: 44px; }
+.chat-x { min-width: 44px; height: 44px; }
+.link-btn { min-height: 44px; }
+.to-latest { width: 44px; height: 44px; }
+/* Small buttons keep their look but get a bigger invisible hit area */
+.round, .side-banner button, .row .switch, .lib-tabs button { position: relative; }
+.round::after, .side-banner button::after, .row .switch::after { content: ""; position: absolute; inset: -6px; }
+
+/* Every button shows it's being pressed */
+button, .act, .chip { transition: opacity 0.1s, background-color 0.15s, transform 0.1s; }
+.btn:active, .pill:active, .act:active, .round:active, .icon-btn:active, .back:active, .chat-go:active,
+.link-btn:active, .choice:active, .chats-plus:active, .side-banner button:active, .to-latest:active,
+.row .switch:active, .lib-tabs button:active, .dayrow:active, .product-pic:active, .attach-sheet button:active { opacity: 0.6; }
+.chip:active { background: color-mix(in srgb, var(--text) 8%, transparent); }
+button:disabled { cursor: default; }
+
+/* A clear focus ring for keyboards, switches and screen readers (Samsung focus mark) */
+:focus-visible { outline: 2.5px solid var(--accent, var(--blue)); outline-offset: 2px; border-radius: 10px; }
+.bar input:focus-visible, .field:focus-visible { outline: none; }
+
+/* Increase Contrast (iPhone) and high-contrast settings: darker secondary text and borders */
+@media (prefers-contrast: more) {
+  :root { --text-2: #1c1c1e; --line: #8e8e93; --glass-line: rgba(0, 0, 0, 0.45); }
+  [data-theme="dark"] { --text-2: #f2f2f7; --line: #8e8e93; --glass-line: rgba(255, 255, 255, 0.5); }
+  #chat { --chat-ico: #3a3a3c; }
+  [data-theme="dark"] #chat { --chat-ico: #e5e5ea; }
+  .chip, .choice-opt, .bar { border-color: var(--line) !important; }
+  .msg.them { box-shadow: 0 0 0 1px var(--line); }
+}
+@media (forced-colors: active) {
+  .msg, .chip, .act, .choice-opt, .bar, .sheet, .menu, .msg-menu { border: 1px solid CanvasText; }
+}
+
+/* Menu: where AI is used */
+.menu-ai { margin: 6px 10px 0; font-size: max(11px, 0.78rem); line-height: 1.35; color: var(--text-2); }
+
+/* Sheets: a grabber at the top; swipe down to close. Bottom-sheet easing from One UI. */
+.sheet { position: relative; padding-top: 26px; animation-timing-function: cubic-bezier(0.22, 0.25, 0, 1); transition: transform 0.25s cubic-bezier(0.22, 0.25, 0, 1); }
+.sheet::before { content: ""; position: absolute; top: 8px; left: 50%; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: color-mix(in srgb, var(--text) 22%, transparent); }
+.chats-drawer { transition-timing-function: cubic-bezier(0.22, 0.25, 0, 1); }
+
+/* Touch and hold a reply: Copy, Ask again */
+@media (pointer: coarse) { .msg.them { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; } }
+.msg.them { transition: transform 0.15s; }
+.msg.held { transform: scale(1.02); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important; }
+.msg-menu { position: fixed; z-index: 40; min-width: 180px; padding: 6px; border-radius: 14px; background: var(--bg); box-shadow: 0 12px 34px rgba(0, 0, 0, 0.25), 0 0 0 1px var(--line); animation: fade 0.15s ease both; }
+[data-theme="dark"] .msg-menu { background: #2c2c2e; }
+.msg-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: none; color: var(--text); font-size: 1rem; text-align: left; }
+.msg-menu button:active { background: var(--surface); opacity: 1; }
+.msg-menu svg { width: 20px; height: 20px; color: var(--text-2); flex: none; }
+
+/* Small notice at the bottom, like "Copied" */
+.toast { position: fixed; left: 50%; bottom: calc(var(--dock-h, 110px) + 16px); z-index: 45; max-width: min(86vw, 420px); padding: 10px 16px; border-radius: 999px; background: color-mix(in srgb, var(--text) 88%, transparent); color: var(--bg); font-size: 0.9rem; font-weight: 600; text-align: center; transform: translate(-50%, 10px); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.25s cubic-bezier(0.22, 0.25, 0, 1); }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* Bigger text sizes (up to 200%): let long labels wrap instead of cutting them off */
+.chip { max-width: 80vw; overflow: hidden; text-overflow: ellipsis; }
+.row .txt b { white-space: normal; }
+
+/* Wide screens: Galaxy Z Fold open, tablets (840dp and up). Chats stay open beside the chat. */
+html.docked .chats-wrap { position: fixed; top: 0; bottom: 0; left: 0; right: auto; width: 300px; z-index: 5; background: none !important; transition: none; }
+html.docked .chats-drawer { width: 100%; transform: none; box-shadow: none; border-right: 1px solid var(--line); background: var(--bg); }
+html.docked #chat { left: 300px; }
+html.docked #chats-btn { visibility: hidden; }
+
+/* Flex mode: a Galaxy Z Flip or Fold half folded on a table. Messages stay on the top half;
+   the message box and suggestions sit on the bottom half, away from the crease. */
+@media (vertical-viewport-segments: 2) {
+  #chat .dock { top: env(viewport-segment-top 0 1); display: flex; flex-direction: column; justify-content: flex-end; background: var(--chat-bg); }
+  #chat .thread { padding-bottom: calc(100vh - env(viewport-segment-bottom 0 0) + 12px); }
+  #chat .to-latest { bottom: calc(100vh - env(viewport-segment-bottom 0 0) + 12px); }
+}
+html.first .screen.active { animation: none; }
+/* Typing fields grow with the text size too (never under 16px, so iPhone doesn't zoom in) */
+.bar input, .voice-bar input, .field, .link-row .field { font-size: max(16px, 1rem); }
+.field.code { font-size: 1.4rem; }
