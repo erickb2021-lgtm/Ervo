@@ -700,7 +700,7 @@ html.first .screen.active { animation: none; }
 .field.code { font-size: 1.4rem; }
 
 /* =====================================================================================
-   0.3.0: Ervo, designed like an iPhone app (Apple Human Interface Guidelines, iOS 26)
+   0.2.9: Ervo, designed like an iPhone app (Apple Human Interface Guidelines, iOS 26)
    - One tint color (Ervo purple) for everything you can tap. No more mixed blue.
    - iOS text styles: Large Title 34, Title 3 20, Headline/Body 17, Subhead 15, Footnote 13,
      Caption 12, never under 11. They scale with the phone's text size.

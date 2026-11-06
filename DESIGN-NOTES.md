@@ -70,7 +70,7 @@ Size classes (Samsung, Android): compact under 600dp, medium 600–839dp, expand
 - App shortcuts: touch and hold the Ervo icon for Talk to Ervo, New side chat, Ideas and Psyche (Apple calls these quick actions; Android calls them app shortcuts).
 - No themed icon: Ervo's icon always stays the purple owl on white, even when Android's themed icons are on.
 
-## 0.3.0: designed like an iPhone app (and the same on Android)
+## Designed like an iPhone app (and the same on Android)
 
 Built from Apple's Human Interface Guidelines: design principles, foundations (color, typography, materials, layout, icons, dark mode, accessibility), patterns, components and inputs. The same design runs on Android; Android keeps its own back gesture and haptics.
 

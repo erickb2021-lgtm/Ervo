@@ -1,12 +1,14 @@
 {
-  "version": "0.3.0",
+  "version": "0.2.9",
   "notes": [
     "A new look, designed like an iPhone app: glass buttons, message bubbles with tails, and one purple color for everything you can tap",
     "Screens slide in from the right and back, and big titles shrink into the top bar as you scroll",
-    "A cleaner menu, grouped like iPhone menus",
-    "Touch and hold Ervo's reply: the rest of the chat blurs behind Copy and Ask again",
-    "Sign Out now asks first, because it clears your chats from this phone",
     "A cleaner app icon: same Ervo, without the shadow under his feet",
-    "Photos open with a Close button, and Escape closes things on a keyboard"
+    "Opens straight to your chat, with no logo screen to wait through",
+    "Text follows your phone's text size, up to twice as big, and Ervo follows your phone's Dark mode",
+    "Touch and hold Ervo's reply to copy it or ask again",
+    "Sign Out now asks first, because it clears your chats from this phone",
+    "On Galaxy Z Fold and tablets, your chats stay open beside the conversation",
+    "Touch and hold Ervo's icon to talk, start a side chat, or open Ideas or Psyche (Android)"
   ]
 }
