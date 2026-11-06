@@ -1743,6 +1743,62 @@
     openOutside(storeSearchUrl(l.store, q));
   }
 
+  // Repeating events ("every Wednesday until December"): every date is added, with one Undo
+  async function addRepeating(list) {
+    const evs = [];
+    list.forEach(({ tk, every, until }) => {
+      let d = new Date(tk.date);
+      for (let i = 0; i < 120 && d <= until; i++) {
+        const t = Object.assign({}, tk, { date: new Date(d) });
+        evs.push(eventFromTask(t, tk.title, tk.minutes || 60));
+        if (every === "daily") d = addDays(d, 1);
+        else if (every === "every_2_weeks") d = addDays(d, 14);
+        else if (every === "monthly") { d = new Date(d); d.setMonth(d.getMonth() + 1); }
+        else d = addDays(d, 7);
+      }
+    });
+    if (!evs.length) return ervoSays("That end date has already passed. Until when should it repeat?");
+    evs.sort((x, y) => x.start - y.start);
+    const first = evs[0], last = evs[evs.length - 1];
+    const span = `${fmtDate(first.start)} to ${fmtDate(last.start)}`;
+    const at = first.allDay ? "" : ` at ${fmtTime({ h: first.start.getHours(), m: first.start.getMinutes() })}`;
+    const undos = [];
+    let which = null;
+    if (!native && evs.length > 1) {
+      if (!(await ensure("calendar", `Add ${evs.length} events to your calendar`))) return ervoSays("Okay, I won't add them.");
+      openIcsMany(evs);
+      which = "file";
+    } else {
+      setStatus("📅", `Adding ${evs.length} events`);
+      for (const ev of evs) {
+        which = await addToCalendar(ev, undos.length ? prefs().calendar : undefined);
+        if (!which || which === "denied") break;
+        if (which === "phone" && lastAdded && lastAdded.ev === ev && lastAdded.undo) undos.push(lastAdded.undo);
+        if (which === "google") break; // the website adds one at a time, so stop after the first
+      }
+      idleStatus();
+    }
+    if (which === "denied") return ervoSays("I need permission to use your calendar. Ask me again and tap Allow.");
+    if (!which) return;
+    evs.forEach((ev) => logActivity({ kind: "event", ico: "calendar", title: ev.title, when: ev.start.toISOString(), allDay: ev.allDay, link: googleLink(ev) }));
+    const days = [...new Set(evs.map((e) => e.start.toLocaleDateString(undefined, { weekday: "long" })))];
+    const acts = [];
+    if (undos.length) acts.push({ label: "Undo", icon: "undo", onClick: async (e) => {
+      e.currentTarget.disabled = true;
+      let ok = 0;
+      for (const id of undos) {
+        const u = await nativeCall((f) => { restoreWaiter = f; }, () => native.restoreEvent(String(id)));
+        if (u.ok) ok++;
+      }
+      evs.forEach((ev) => forgetPlanned(ev.title, ev.start));
+      ervoSays(ok ? `Undone. Removed ${ok} events from your calendar.` : "Sorry, I couldn't undo that.");
+    } });
+    if (which === "google") return ervoSays(`Google Calendar opened with the first one, ${fmtDate(first.start)}${at}. The website adds one at a time, so switch to your phone's calendar in Change calendar to add all ${evs.length} at once.`, { acts: [{ label: "Change calendar", icon: "calendar", onClick: () => switchCalendar("phone") }] });
+    if (which === "file") return ervoSays(`Your calendar opened with ${evs.length} events, every ${days.join(" and ")}${at}, ${span}. Tap Add to save them.`);
+    buzz("confirm");
+    return ervoSays(`Added ${evs.length} events ✅ "${first.title}", every ${days.join(" and ")}${at}, ${span}.`, { acts });
+  }
+
   // Plan: add the picked items to the calendar in one go
   async function addPlanToCalendar(l, card, update) {
     const base = l.date ? new Date(`${l.date}T00:00:00`) : addDays(startOfDay(new Date()), 1);
@@ -1997,15 +2053,71 @@
     if (kinds.places) add("What's on near me?", "What's happening near me this week?", true);
     if (kinds.money) add("Check my budget plan", "Help me stay on my budget this week", true);
     if (kinds.people) add("Plan time with friends", "Help me plan something with the people I care about", true);
-    // 5. The moment: morning, evening, the weekend
+    // At most 2 from what Ervo knows, so there's always something new in the bar too
+    out.splice(2);
     if (biz) {
       if (h < 12) add("Summarize today's tickets"); else add("What's left today?", "What's still open today?");
-    } else if (h >= 5 && h < 11) add("What's on today?", "What's coming up today?");
-    else if (h >= 17 && h < 23) add("Plan tomorrow", "Help me plan tomorrow");
-    if (!biz && (day === 5 || day === 6)) add("Weekend plans near me", "What's happening near me this weekend?");
-    // 6. Starters, only to fill the bar until Ervo knows more
-    pick(PLAN[biz ? "business" : "personal"].chips).forEach((c) => add(c));
-    return out.slice(0, 5);
+      pick(PLAN.business.chips).forEach((c) => add(c));
+      return out.slice(0, 4);
+    }
+    // 5. The rest come from Ervo's library of about 1,000 everyday suggestions: ones that fit
+    // the time of day, the day of the week, the season and your city, shuffled for you.
+    // Every person (and every Reset) gets a different mix, and it changes every few hours.
+    const want = 3 + Math.floor(rand(suggestSeed(2))() * 3); // 3 to 5
+    librarySuggestions(want + 4).forEach((x) => { if (out.length < want) add(x.label, x.prompt); });
+    return out.slice(0, want);
+  }
+
+  // A random number generator that gives the same numbers for the same seed
+  function rand(seed) {
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  const SUGGEST_KEY = "ervo-suggest-salt";
+  // Your own shuffle: made once per person (and again after Reset), changes every 4 hours
+  function suggestSeed(extra) {
+    let salt = load(SUGGEST_KEY);
+    if (!salt) { salt = Math.floor(Math.random() * 2147483647); save(SUGGEST_KEY, salt); }
+    const block = Math.floor(Date.now() / (4 * 3600000));
+    let x = (salt ^ Math.imul(block, 2654435761) ^ Math.imul(extra || 1, 40503)) >>> 0;
+    String(account ? account.name : "").split("").forEach((c) => { x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; });
+    return x;
+  }
+  function librarySuggestions(n) {
+    const lib = window.ERVO_SUGGESTIONS || [];
+    const now = new Date(), h = now.getHours(), day = now.getDay(), mon = now.getMonth();
+    const part = h >= 5 && h < 11 ? "m" : h >= 11 && h < 17 ? "a" : h >= 17 && h < 22 ? "e" : "n";
+    const weekend = day === 0 || day === 6 || (day === 5 && h >= 17);
+    const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const season = ["win", "win", "spr", "spr", "spr", "sum", "sum", "sum", "fal", "fal", "fal", "win"][mon];
+    let city = "";
+    try { const pl = allowed("location") ? load(PLACE_KEY) : null; city = (pl && pl.city) || ""; } catch (e) { /* no city */ }
+    const fits = (tags) => {
+      if (!tags) return true;
+      const t = tags.split(" ");
+      if (t.includes("city") && !city) return false;
+      const times = t.filter((x) => "maen".includes(x) && x.length === 1);
+      if (times.length && !times.includes(part)) return false;
+      if (t.includes("we") && !weekend) return false;
+      if (t.includes("wd") && weekend) return false;
+      const months = t.filter((x) => MONTHS.includes(x));
+      const seasons = t.filter((x) => ["win", "spr", "sum", "fal"].includes(x));
+      if ((months.length || seasons.length) && !months.includes(MONTHS[mon]) && !seasons.includes(season)) return false;
+      return true;
+    };
+    // Things that fit right now come first; any-time ones fill in
+    const r = rand(suggestSeed(1));
+    const pool = lib.filter((e) => fits(e[2])).map((e) => ({ e, k: r() - (e[2] ? 0.35 : 0) })).sort((a, b) => a.k - b.k).map((x) => x.e);
+    const groups = new Set();
+    const picked = [];
+    for (const e of pool) {
+      if (picked.length >= n) break;
+      if (groups.has(e[3])) continue; // one per topic, so the bar feels varied
+      groups.add(e[3]);
+      const fill = (x) => String(x).replace(/\{city\}/g, city);
+      picked.push({ label: fill(e[0]), prompt: fill(e[1] || e[0]) });
+    }
+    return picked;
   }
   // Ideas from Ervo's AI, fetched quietly once a day once Ervo knows a few things about you
   let ideasFetching = null;
@@ -2503,7 +2615,12 @@
           if (time && e) minutes = Math.max(15, (+e[1] * 60 + +e[2]) - (time.h * 60 + time.m)) || 60;
           // Added right away (with Undo), no extra Yes/No
           const tk = { intent: "event", title: String(a.title).slice(0, 80), date, time, allDay: !time, minutes };
-          out.after = () => runTask(tk);
+          const um = String(a.repeat_until || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (["weekly", "every_2_weeks", "daily", "monthly"].includes(a.repeat)) {
+            const until = um ? new Date(+um[1], +um[2] - 1, +um[3], 23, 59) : addDays(date, 91);
+            (out.repeats = out.repeats || []).push({ tk, every: a.repeat, until });
+            out.after = () => addRepeating(out.repeats);
+          } else if (!out.repeats) out.after = () => runTask(tk);
         } else if ((a.type === "amazon_search" || a.type === "shop_search") && a.query) {
           task = { intent: "shop", item: String(a.query).slice(0, 80), store: STORES[a.store] ? a.store : "amazon" };
           confirming = true;
@@ -3140,7 +3257,7 @@
     const now = Date.now();
     const up = activity().filter((a) => a.when && new Date(a.when).getTime() > now).sort((a, b) => new Date(a.when) - new Date(b.when));
     const open = { label: "Open Ervo Stats", icon: "stats", onClick: () => openStats() };
-    if (!up.length) return ervoSays("Nothing coming up yet. Want me to plan something?", { acts: [open], chips: ["Book a table for 4 tonight", "Gym Friday at 6pm"] });
+    if (!up.length) return ervoSays("Nothing coming up yet. Want me to plan something?", { acts: [open], chips: ["Plan tomorrow", "Plan my week"] });
     const lines = up.slice(0, 4).map((a) => `• ${a.title}, ${whenText(a)}`);
     return ervoSays(`Coming up:\n${lines.join("\n")}`, { acts: [open] });
   }
@@ -3706,7 +3823,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.3.0"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.3.1"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -4247,7 +4364,7 @@
   });
   function resetErvo() {
     buzz("reject");
-    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY].forEach(drop);
+    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt"].forEach(drop);
     history = [];
     closeChats();
     openChat(account, true);
@@ -4256,7 +4373,7 @@
   function signOut() {
     buzz("reject");
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
-    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY].forEach(drop);
+    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt"].forEach(drop);
     account = null;
     ["contact", "code", "name"].forEach((id) => { $(id).value = ""; });
     setPlan("personal");

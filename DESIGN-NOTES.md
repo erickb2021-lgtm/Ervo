@@ -98,6 +98,12 @@ Icons in lists (Ideas, Stats, Connected apps) are layered like iOS app icons: th
 
 Message bubbles group like iMessage: back-to-back messages sit close together and only the last one in a run has a tail.
 
+### Quick suggestions library
+The suggestions above the message box come from `docs/app/suggestions.js`, about 1,000 everyday ideas in 40 topics (food near you, cooking, things to do, your city, fitness, money, learning, tech help, seasons and holidays, and more). Each is tagged with when it fits: time of day, weekday or weekend, month or season, and whether it needs your city. Ervo shows 3 to 5: at most 2 from what it knows about you (goals, what's coming up, Psyche, today's ideas), the rest from the library, one per topic. The shuffle is your own (a random number saved on the phone, made again after Reset) and changes every 4 hours. To add or change suggestions, edit `tools/make_suggestions.py` and run it.
+
+### Repeating events
+"Every Wednesday until December" adds every date. Ervo's AI sends one event with repeat (weekly, every 2 weeks, daily or monthly) and repeat_until, and the app adds each date: straight into the phone's calendar on Android with one Undo for all of them, or as one calendar file on iPhone. Arriving early moves the start and keeps the real time in the title.
+
 ### Lists you can tap through
 When Ervo plans a day or makes a grocery, packing or to-do list, it shows a card instead of a wall of text. Items are toggle buttons with a checkmark and a fill, so the change doesn't rely on color alone (Apple, Toggles). A plan starts with everything picked; untick what you don't want, then Add to Calendar adds the rest at once (one calendar file on iPhone). A grocery list shows first, then the stores: the one you used last, the usual stores, and Other Store Near Me, which opens a field right in the card (Apple: show pickers in context) with a Clear button, plus Find Stores Near Me. Picking a store copies the list so you can paste it there, and the magnifying glass next to each item searches that store. Ticks and the store are saved with the chat. If Ervo can't reach its AI, "plan tomorrow" still gets a simple, varied day built from what Psyche knows.
 
