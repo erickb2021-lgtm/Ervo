@@ -1,6 +1,8 @@
 {
-  "version": "0.3.2",
+  "version": "0.3.3",
   "notes": [
+    "Ask for something \"near me\" and Ervo uses your location (it asks once) instead of asking for your city or zip",
+    "What Ervo is doing shows the same at the top and in its message, with an emoji, like \"🥗 Making your meal plan\" or \"📍 Looking near you\"",
     "Ervo's full answer always shows now. Before, if it also showed buttons or links, only its last sentence came through",
     "Introduce yourself (\"I'm a night shift nurse, my son is 6\") and Ervo learns it instead of searching your calendar",
     "Questions about time zones, quoted messages and \"what does this mean\" go to Ervo's AI and never start a meeting or a removal",
@@ -10,8 +12,6 @@
     "Emergency words like \"call nine one one\" or the suicide hotline show the dialer right away (911 or 988); Ervo still never calls for you",
     "\"Is it cold outside\" and \"should I wear a jacket\" show the weather",
     "Typos like alram, tiemr and wether are understood",
-    "New quick suggestions: Ervo picks 3 to 5 from about 1,000 everyday ideas that fit the time, the day, the season and your city, shuffled differently for each person",
-    "Repeating events work: \"every Wednesday until December\" adds every date, not just one, with one Undo for all of them",
-    "A new look, designed like an iPhone app: glass buttons, message bubbles with tails, and one purple color for everything you can tap"
+    "New quick suggestions: Ervo picks 3 to 5 from about 1,000 everyday ideas that fit the time, the day, the season and your city, shuffled differently for each person"
   ]
 }

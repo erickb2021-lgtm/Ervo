@@ -1950,11 +1950,19 @@
   }
 
   // ---------- status pill: what Ervo is doing right now ----------
+  const capFirst = (w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w);
+  // An emoji for what Ervo is doing, when the caller didn't pick one
+  function statusIcon(w) {
+    return /calendar|event|planning it/i.test(w) ? "📅" : /contact/i.test(w) ? "📇" : /remov/i.test(w) ? "🗑️"
+      : /putting (it|them) back/i.test(w) ? "↩️" : /alarm/i.test(w) ? "⏰" : /timer/i.test(w) ? "⏱️" : /weather/i.test(w) ? "🌤️" : "💭";
+  }
   function setStatus(ico, text) {
-    if (liveTyping && text && !/^typing/i.test(text)) showTyping(text);
-    $("status-ico").textContent = ico || "";
+    text = capFirst(String(text || "").replace(/[….]+$/, ""));
+    ico = ico || (text && !/^typing$/i.test(text) ? statusIcon(text) : "");
+    $("status-ico").textContent = ico;
     $("status-text").textContent = text;
     $("status").classList.add("busy");
+    if (liveTyping && text && !/^typing$/i.test(text)) showTyping(text, ico);
   }
   function idleStatus() {
     $("status-ico").textContent = "";
@@ -1980,7 +1988,7 @@
 
   // While Ervo works: its picture, name and what it's doing ("checking your calendar")
   let liveTyping = null;
-  function showTyping(words) {
+  function showTyping(words, ico) {
     if (!liveTyping) {
       liveTyping = document.createElement("div");
       liveTyping.className = "typing";
@@ -1988,9 +1996,15 @@
       liveTyping.innerHTML = '<img src="img/ervo-classic.png" alt=""><span class="typing-body"><b>Ervo</b><small><span class="spin"></span><span class="dots"><i></i><i></i><i></i></span><em></em></small></span>';
     }
     if (words) {
-      const w = String(words).replace(/[….]+$/, "");
-      liveTyping.classList.toggle("is-typing", /^typing$/i.test(w));
-      liveTyping.querySelector("em").textContent = w.charAt(0).toLowerCase() + w.slice(1);
+      const w = capFirst(String(words).replace(/[….]+$/, ""));
+      const typing = /^typing$/i.test(w);
+      liveTyping.classList.toggle("is-typing", typing);
+      if (!typing) {
+        // Same words and emoji as the status at the top
+        const i = ico || statusIcon(w);
+        liveTyping.querySelector("em").textContent = `${i} ${w}`;
+        if ($("status-text").textContent !== w) { $("status-ico").textContent = i; $("status-text").textContent = w; $("status").classList.add("busy"); }
+      } else liveTyping.querySelector("em").textContent = w;
     }
     thread.append(liveTyping); // keep it last
     toBottom();
@@ -2502,9 +2516,18 @@
   }
 
   // ---------- Ervo's private AI server (optional; its code is kept private) ----------
+  const NEAR_RE = /\b(near me|nearby|near here|around me|around here|close to me|closest|nearest|in my (area|city|town)|local|near my (house|home|place))\b/;
+  // Your city, fresh if it's allowed (waits a few seconds at most, then uses the last one)
+  async function placeForAI() {
+    if (!allowed("location")) return null;
+    const cached = load(PLACE_KEY);
+    if (cached && cached.city && Date.now() - cached.at < 3 * 60 * 60 * 1000) return cached;
+    try { return await Promise.race([getPlace(), new Promise((r) => setTimeout(() => r(null), 5000))]) || cached || null; }
+    catch (e) { return cached || null; }
+  }
   async function askServer(extra) {
     let place = null;
-    try { place = allowed("location") ? load(PLACE_KEY) : null; } catch (e) { /* ignore */ }
+    try { place = await placeForAI(); } catch (e) { /* ignore */ }
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 75000); // research with web search can take a bit
     try {
@@ -2628,12 +2651,24 @@
 
   // What the status pill says while the AI works on it
   function guessStatus(d) {
+    const t = d.t || "";
     if (d.intent === "photo") return ["📷", "Looking at your photo"];
+    if (/\b(meal plan|diet|lose weight|calories|macros|protein|eat healthier|eating plan)\b/.test(t)) return ["🥗", "Making your meal plan"];
+    if (/\b(workout|work out|training plan|exercise|running plan|marathon|5k|10k|lift)\b/.test(t)) return ["💪", "Making your workout plan"];
+    if (/\b(recipe|cook|bake|what should i (make|eat)|for dinner|for lunch|for breakfast)\b/.test(t)) return ["🍳", "Finding recipes"];
+    if (/\b(grocer(y|ies)|shopping list)\b/.test(t)) return ["🛒", "Making your grocery list"];
+    if (/\b(trip|travel|flight|hotel|vacation|itinerary)\b/.test(t)) return ["✈️", "Planning your trip"];
+    if (/\b(packing)\b/.test(t)) return ["🧳", "Making your packing list"];
+    if (/\b(song|songs|music|playlist|album|concert|artist)\b/.test(t)) return ["🎵", "Finding music"];
+    if (/\b(gift|present)s?\b/.test(t)) return ["🎁", "Finding gift ideas"];
+    if (d.intent === "plan") return ["🗓️", "Planning your day"];
+    if (NEAR_RE.test(t)) return ["📍", "Looking near you"];
     if (d.intent === "shop") {
       const item = topicOf(shopItem(d.raw)) || "that";
       return wantsAdvice(item, d.t) ? ["🔍", `Researching ${item}`] : ["🔍", `Looking for ${item}`];
     }
-    if (d.intent === "event" || d.intent === "reserve") return ["📅", "Planning it"];
+    if (d.intent === "reserve") return ["🍽️", "Finding a table"];
+    if (d.intent === "event") return ["📅", "Planning it"];
     if (/\b(how|what|why|when|where|who|which|best|recommend|compare)\b/.test(d.t)) return ["🔎", "Looking it up"];
     return ["💭", "Thinking"];
   }
@@ -2644,8 +2679,12 @@
   // These show their own message in the app (Added ✅, the alarm card...), so the AI's words would only repeat it
   const SELF_REPORTING = new Set(["add_calendar_event", "set_timer", "set_alarm", "dismiss_alarm", "edit_calendar_event", "remove_calendar_event", "call_contact", "plan_meeting"]);
   async function askAI(d, extra) {
+    // "Find a pickup soccer game near me": ask once for location instead of asking for a city or zip
+    if (!extra && d && NEAR_RE.test(d.t || "") && !allowed("location") && (connections().location || {}).status !== "denied") {
+      await ensure("location", "Find things near you");
+    }
     const status = guessStatus(d);
-    showTyping(status[1]);
+    showTyping(status[1], status[0]);
     setStatus(status[0], status[1]);
     const result = askServer(extra).then((j) => {
       // Learn first, so "use emojis" already shows in this reply
@@ -3904,7 +3943,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.3.2"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.3.3"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
