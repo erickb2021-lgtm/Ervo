@@ -698,3 +698,397 @@ html.first .screen.active { animation: none; }
 /* Typing fields grow with the text size too (never under 16px, so iPhone doesn't zoom in) */
 .bar input, .voice-bar input, .field, .link-row .field { font-size: max(16px, 1rem); }
 .field.code { font-size: 1.4rem; }
+
+/* =====================================================================================
+   0.3.0: Ervo, designed like an iPhone app (Apple Human Interface Guidelines, iOS 26)
+   - One tint color (Ervo purple) for everything you can tap. No more mixed blue.
+   - iOS text styles: Large Title 34, Title 3 20, Headline/Body 17, Subhead 15, Footnote 13,
+     Caption 12, never under 11. They scale with the phone's text size.
+   - iOS system colors: grouped gray backgrounds with white cards (black and dark gray at night).
+   - Liquid Glass only on the floating controls (header buttons, message bar, menus, sheets),
+     never on the content. A soft scroll edge keeps them readable over the messages.
+   - Inset grouped lists with hairline separators and chevrons; iOS switches, capsule
+     buttons and segmented controls; screens push in from the right and pop back.
+   The same design runs on Android; only things Android does itself (back gesture, haptics)
+   are left to Android.
+   ===================================================================================== */
+:root {
+  --tint: #6b2fd0; --tint-fill: #6b2fd0; --on-tint: #ffffff;
+  --tint-soft: color-mix(in srgb, #6b2fd0 13%, transparent);
+  --bg: #ffffff; --group: #f2f2f7; --card: #ffffff; --surface: #f2f2f7; --surface-2: #e5e5ea;
+  --text: #000000; --text-2: #6c6c70; --text-3: #aeaeb2;
+  --fill: rgba(120, 120, 128, 0.12); --fill-2: rgba(120, 120, 128, 0.2);
+  --sep: rgba(60, 60, 67, 0.22); --line: #d1d1d6;
+  --red: #ff3b30; --green: #34c759;
+  --blue: var(--tint);
+  /* Liquid Glass */
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-solid: #f9f9fb;
+  --glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.85), inset 0 1px 0.5px rgba(255, 255, 255, 0.95), 0 0 0 0.5px rgba(0, 0, 0, 0.07);
+  --glass-shadow: 0 6px 22px rgba(0, 0, 0, 0.09), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --glass-blur: blur(16px) saturate(1.9) brightness(1.04);
+  /* Text styles */
+  --fs-large: 2rem; --fs-title2: 1.294rem; --fs-title3: 1.176rem; --fs-body: 1rem; --fs-callout: 0.941rem;
+  --fs-sub: 0.882rem; --fs-foot: max(11px, 0.765rem); --fs-cap: max(11px, 0.706rem); --fs-cap2: max(11px, 0.647rem);
+  /* iPhone-like springs */
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, Roboto, "Segoe UI", sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, Roboto, "Segoe UI", sans-serif;
+}
+[data-theme="dark"] {
+  --tint: #b69cff; --tint-fill: #7a4be0; --on-tint: #ffffff;
+  --tint-soft: color-mix(in srgb, #9d7bff 22%, transparent);
+  --bg: #000000; --group: #000000; --card: #1c1c1e; --surface: #1c1c1e; --surface-2: #2c2c2e;
+  --text: #ffffff; --text-2: #aeaeb2; --text-3: #636366;
+  --fill: rgba(118, 118, 128, 0.24); --fill-2: rgba(118, 118, 128, 0.32);
+  --sep: rgba(84, 84, 88, 0.6); --line: #38383a;
+  --red: #ff453a; --green: #30d158;
+  --glass-bg: rgba(44, 44, 48, 0.58);
+  --glass-solid: #2c2c2e;
+  --glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.16), inset 0 1px 0.5px rgba(255, 255, 255, 0.2), 0 0 0 0.5px rgba(0, 0, 0, 0.4);
+  --glass-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+}
+body { font-family: var(--font); letter-spacing: -0.01em; -webkit-font-smoothing: antialiased; }
+h1, h2, .welcome-top h1, .chats-title { font-family: var(--font-display); }
+
+/* The glass material, for floating controls only */
+.chat-header .icon-btn, .who-pill, .round.plus, .bar, .chip, .to-latest, .menu, .msg-menu,
+.stats-header .back, .voice-bar, .photo-x, .sky-chip {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  border: 0;
+}
+
+/* ---------- Chat ---------- */
+#chat { --chat-bg: #f2f2f7; --me: var(--tint-fill); --me-text: #fff; --them: #ffffff; --them-text: #000; --chat-field: var(--glass-bg); --chat-ico: var(--text); --accent: var(--tint); }
+[data-theme="dark"] #chat { --chat-bg: #000000; --them: #262628; --them-text: #fff; --chat-ico: var(--text); }
+.splash { background: #f2f2f7; }
+[data-theme="dark"] .splash { background: #000; }
+
+/* Header: two round glass buttons, Ervo's picture, and his name in a glass capsule.
+   The scroll edge softly blurs messages that slide under it. */
+.chat-header { grid-template-columns: 44px 1fr 44px; gap: 8px; padding: calc(6px + env(safe-area-inset-top)) max(16px, calc((100% - var(--col)) / 2 + 4px)) 10px; background: none; }
+.chat-header::before { content: ""; position: absolute; inset: 0 0 -18px; z-index: -1; pointer-events: none;
+  background: linear-gradient(var(--chat-bg) 35%, color-mix(in srgb, var(--chat-bg) 0%, transparent));
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+#chats-btn { grid-column: 1; }
+.chat-header .who { grid-column: 2; gap: 0; }
+#menu-btn { grid-column: 3; }
+.chat-header .icon-btn { width: 44px; height: 44px; color: var(--text); align-self: start; margin-top: 8px; }
+.chat-header .icon-btn svg { width: 21px; height: 21px; }
+.chat-header .avatar { width: 46px; height: 46px; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); position: relative; z-index: 1; }
+.who-pill { display: flex; flex-direction: column; align-items: center; margin-top: -6px; padding: 7px 14px 5px; border-radius: 999px; max-width: min(66vw, 320px); min-width: 0; }
+.chat-header .who b { margin: 0; font-size: var(--fs-foot); font-weight: 600; line-height: 1.2; color: var(--text); }
+.chat-header .status { margin: 0; padding: 0; background: none !important; box-shadow: none; font-size: var(--fs-cap2); font-weight: 500; line-height: 1.25; color: var(--text-2); max-width: 100%; }
+.chat-header .status.busy { color: var(--tint); }
+.chat-name { margin: 0; font-size: var(--fs-cap2); line-height: 1.25; color: var(--tint); }
+
+/* Messages: iMessage-style bubbles that group, with a tail on the last one of each run */
+.thread { gap: 0; padding-left: max(14px, calc((100% - var(--col)) / 2 + 14px)); padding-right: max(14px, calc((100% - var(--col)) / 2 + 14px)); }
+.msg { position: relative; margin-top: 10px; padding: 7px 13px 8px; border-radius: 19px; font-size: var(--fs-body); line-height: 1.3; max-width: min(76%, 34rem); }
+.msg.me, .msg.them { border-radius: 19px; }
+.msg.me + .msg.me, .msg.them + .msg.them { margin-top: 2px; }
+[data-theme="light"] .msg.them, :root:not([data-theme]) .msg.them { box-shadow: none; }
+.msg.me:not(.photo):not(.link):not(:has(+ .msg.me))::before,
+.msg.them:not(.photo):not(.link):not(:has(+ .msg.them))::before { content: ""; position: absolute; bottom: 0; width: 20px; height: 18px; z-index: -1; }
+.msg.me:not(.photo):not(.link):not(:has(+ .msg.me))::after,
+.msg.them:not(.photo):not(.link):not(:has(+ .msg.them))::after { content: ""; position: absolute; bottom: 0; width: 10px; height: 20px; background: var(--chat-bg); z-index: -1; }
+.msg.me::before { right: -7px; background: var(--me); border-bottom-left-radius: 16px 14px; }
+.msg.me::after { right: -10px; border-bottom-left-radius: 10px; }
+.msg.them::before { left: -7px; background: var(--them); border-bottom-right-radius: 16px 14px; }
+.msg.them::after { left: -10px; border-bottom-right-radius: 10px; }
+.msg { isolation: isolate; }
+html.overlay .msg::before, html.overlay .msg::after { display: none; }
+.msg.photo { margin-top: 10px; }
+.msg.photo img { border-radius: 18px; }
+.msg.link { border-radius: 18px; }
+.msg.link .link-top { background: var(--tint-fill); }
+.receipt { font-size: var(--fs-cap2); color: var(--text-2); margin: 3px 6px 0; }
+.day-sep { margin: 16px 0 2px; font-size: var(--fs-cap); font-weight: 600; color: var(--text-2); }
+.typing { margin-top: 10px; border-radius: 22px; padding: 6px 16px 6px 6px; }
+.typing img { background: #fff; }
+.typing-body b { font-size: var(--fs-sub); font-weight: 600; }
+.typing-body small { font-size: var(--fs-foot); }
+.acts { gap: 8px; margin-top: 8px; }
+.act { min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--tint-soft); color: var(--tint); font-size: var(--fs-sub); font-weight: 600; position: relative; }
+.act::after { content: ""; position: absolute; inset: -4px 0; }
+.act.primary { background: var(--tint-fill) !important; color: var(--on-tint); }
+.act.danger { background: color-mix(in srgb, var(--red) 13%, transparent) !important; color: var(--red); border: 0; }
+.product { border-radius: 22px; background: var(--them); }
+.product-btns .act { background: var(--tint-soft); }
+.inline-link, .msg.them .inline-link { color: var(--tint); }
+.choice-opt { border-radius: 16px; border: 0; background: var(--them); color: var(--text); box-shadow: inset 0 0 0 1px var(--sep); font-size: var(--fs-body); }
+.choice-opt.picked { box-shadow: inset 0 0 0 2px var(--tint); color: var(--text); }
+.choice-opt.picked::after, [data-theme="dark"] .choice-opt.picked::after { background-color: var(--tint-fill); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4L18 8'/%3E%3C/svg%3E"); }
+.daycard { border-radius: 24px; background: var(--them); }
+.dayrow { border-radius: 14px; background: color-mix(in srgb, var(--text) 4%, var(--them)); }
+.dayrow[aria-pressed="true"] { background: var(--tint-fill); }
+.dayrow[aria-pressed="true"] .tick { color: var(--tint-fill); }
+.dayrow .initial { background: var(--tint-soft); color: var(--tint); }
+.side-banner { background: var(--fill); color: var(--text-2); font-size: var(--fs-cap); }
+.side-banner button { background: var(--tint-fill); }
+
+/* Context menu: the reply lifts out, everything else blurs (Apple context menus) */
+#chat::after { content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; background: rgba(0, 0, 0, 0.12); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); transition: opacity 0.25s var(--ease-ios); }
+#chat.ctx::after { opacity: 1; }
+#chat.ctx .msg.held { z-index: 7; }
+.msg.held { transform: scale(1.03); transition: transform 0.3s var(--ease-ios); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18) !important; }
+.msg.held::before, .msg.held::after { display: none; }
+.msg-menu { min-width: 220px; padding: 6px 0; border-radius: 22px; transform-origin: top left; animation: pop-in 0.3s var(--ease-ios) both; }
+[data-theme="dark"] .msg-menu { background: var(--glass-bg); }
+.msg-menu button { justify-content: space-between; flex-direction: row-reverse; min-height: 46px; padding: 0 18px; border-radius: 0; font-size: var(--fs-body); }
+.msg-menu button + button { box-shadow: inset 0 0.5px 0 var(--sep); }
+.msg-menu svg { color: var(--text); width: 20px; height: 20px; }
+.msg-menu button:active { background: var(--fill); }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
+
+/* Bottom: suggestions as glass capsules, then + and the message capsule */
+.dock { background: none; padding-bottom: env(safe-area-inset-bottom); }
+.dock::before { content: ""; position: absolute; inset: -22px 0 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(color-mix(in srgb, var(--chat-bg) 0%, transparent), var(--chat-bg) 70%);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(transparent, #000 45%); mask-image: linear-gradient(transparent, #000 45%); }
+.chips { gap: 8px; padding: 8px 16px 6px; scroll-padding: 16px; }
+.chip { min-height: 38px; padding: 0 15px; border-radius: 999px; color: var(--text); font-size: var(--fs-sub); font-weight: 500; position: relative; }
+.chip::after { content: ""; position: absolute; inset: -3px 0; }
+.chip:active { background: var(--fill-2); }
+.composer { gap: 10px; padding: 4px 16px 10px; align-items: flex-end; }
+.round.plus { width: 44px; height: 44px; margin: 0; color: var(--text); }
+.round.plus svg { width: 20px; height: 20px; }
+.bar { min-height: 44px; border-radius: 22px; padding: 3px 4px 3px 16px; }
+.bar input { font-size: max(16px, var(--fs-body)); }
+.bar input::placeholder { color: var(--text-2); }
+.round.mic { width: 36px; height: 36px; color: var(--text-2); }
+.round.send, #chat #send-btn { width: 34px; height: 34px; background: var(--tint-fill); color: var(--on-tint); }
+.round.send svg { width: 18px; height: 18px; }
+.attach-sheet { gap: 10px; padding: 8px 16px 2px; }
+.attach-sheet button { border-radius: 22px; background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-edge), var(--glass-shadow); font-size: var(--fs-sub); }
+.sheet-ico { border-radius: 12px; }
+.sheet-ico.link { background: var(--tint-fill); }
+.link-row { padding: 8px 16px 2px; }
+.link-row .field { border-radius: 22px; background: var(--card); border: 0; box-shadow: inset 0 0 0 0.5px var(--sep); }
+.to-latest { width: 40px; height: 40px; color: var(--text); right: max(16px, calc((100% - var(--col)) / 2 + 16px)); }
+.to-latest::after { content: ""; position: absolute; inset: -2px; }
+
+/* The menu: a glass panel that grows out of the ••• button; groups split by a wider line */
+.menu { right: max(16px, calc((100% - var(--col)) / 2 + 4px)); top: calc(100% - 4px); width: min(264px, calc(100vw - 32px)); max-height: calc(100vh - 120px); overflow-y: auto; padding: 0; border-radius: 26px; transform-origin: top right; animation: pop-in 0.32s var(--ease-ios) both; }
+.menu-who { margin: 0; padding: 14px 18px 8px; font-size: var(--fs-foot); color: var(--text-2); }
+.menu-group + .menu-group { border-top: 8px solid var(--fill); }
+.menu button { gap: 14px; padding: 0 18px; min-height: 46px; border-radius: 0; font-size: var(--fs-body); color: var(--text); }
+.menu-group button + button { box-shadow: inset 0 0.5px 0 var(--sep); }
+.menu button:active { background: var(--fill-2); opacity: 1; }
+.menu .mi { width: 22px; height: 22px; border-radius: 0; background: none !important; color: var(--text) !important; }
+.menu .mi svg { width: 21px; height: 21px; }
+.menu button.danger, .menu button.danger .mi { color: var(--red) !important; }
+.menu hr { display: none; }
+.menu-ai { margin: 0; padding: 10px 18px 2px; border-top: 8px solid var(--fill); font-size: var(--fs-cap); color: var(--text-2); }
+.menu-version { margin: 0; padding: 4px 18px 14px; font-size: var(--fs-cap); color: var(--text-2); }
+
+/* ---------- Pushed screens: Stats, Psyche, Ideas, Chats & Media, All activity ---------- */
+.stats { background: var(--group); }
+.stats-header { position: absolute; top: 0; left: 0; right: 0; z-index: 4; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; min-height: 0; padding: calc(6px + env(safe-area-inset-top)) max(16px, calc((100% - var(--col)) / 2 + 4px)) 6px; }
+.stats-header::before { content: ""; position: absolute; inset: 0 0 -14px; z-index: -1; pointer-events: none; opacity: 0; transition: opacity 0.2s;
+  background: linear-gradient(var(--group) 40%, color-mix(in srgb, var(--group) 0%, transparent));
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+.stats-header.edge::before { opacity: 1; }
+.stats-header .back { grid-column: 1; width: 44px; height: 44px; padding: 0; border-radius: 50%; justify-content: center; color: var(--text); }
+.stats-header .back svg { width: 22px; height: 22px; margin-left: -2px; }
+.nav-title { grid-column: 2; text-align: center; font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateY(4px); transition: opacity 0.2s, transform 0.25s var(--ease-ios); }
+.stats-header.scrolled .nav-title { opacity: 1; transform: none; }
+.stats-body { padding: calc(58px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom)); }
+.screen.stats { padding-top: 0; }
+.stats-body h1 { margin: 6px 4px 4px; font-size: var(--fs-large); font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; }
+.stats-weather { margin: 0 4px 6px; font-size: var(--fs-sub); color: var(--text-2); }
+.stats-body h2 { margin: 26px 4px 8px; font-size: var(--fs-title3); font-weight: 700; letter-spacing: 0; }
+.stats-body h2.day { font-size: var(--fs-foot); font-weight: 600; text-transform: none; letter-spacing: 0; }
+.stats-date { font-size: var(--fs-foot); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+.card { border-radius: 24px; padding: 14px 16px; background: var(--card); }
+.list { padding: 0; overflow: hidden; }
+.card-note, .foot-note { font-size: var(--fs-foot); }
+.foot-note { margin: 8px 18px 0; }
+
+/* Inset grouped rows: 44pt+ tall, hairline separators that start where the text starts */
+.row { min-height: 52px; padding: 9px 16px; gap: 14px; }
+.row + .row { border-top: 0; background-image: linear-gradient(var(--sep), var(--sep)); background-repeat: no-repeat; background-size: calc(100% - 62px) 0.5px; background-position: right top; }
+.row.compact + .row.compact, .row.compact + .row { background-size: calc(100% - 58px) 0.5px; }
+.row .txt b { font-size: var(--fs-body); font-weight: 400; }
+.row .txt small { font-size: var(--fs-foot); color: var(--text-2); margin-top: 1px; }
+.row .side { font-size: var(--fs-sub); color: var(--text-2); }
+.row.tap:active, .row.idea:active, .see-all:active, a.row:active { background-color: var(--fill-2); opacity: 1; }
+.see-all .txt b { color: var(--tint); }
+.chev { flex: none; display: flex; color: var(--text-3); margin-right: -4px; }
+.chev svg { width: 15px; height: 15px; }
+.app-ico { width: 32px; height: 32px; border-radius: 8px; }
+.app-ico svg { width: 19px; height: 19px; }
+.row.compact .app-ico { width: 30px; height: 30px; border-radius: 7px; }
+.app-ico.done, .app-ico.brain, .app-ico.chat { background: var(--tint-fill); }
+.app-ico.plane { background: #0a84ff; }
+.empty { padding: 14px 16px; font-size: var(--fs-sub); }
+.row .switch { min-height: 30px; padding: 0 14px; border-radius: 999px; background: var(--tint-soft); color: var(--tint); font-size: var(--fs-sub); font-weight: 600; }
+.row .switch.on { background: var(--fill); color: var(--text); border: 0; }
+.link-btn { color: var(--tint); font-size: var(--fs-sub); }
+.row.style-row .txt b { color: var(--text); font-weight: 400; }
+.row.style-row .side { color: var(--text-2); font-size: var(--fs-sub); }
+.psyche-tell { border-radius: 24px; }
+.psyche-tell b { font-size: var(--fs-body); font-weight: 600; }
+.psyche-tell small { font-size: var(--fs-sub); }
+.mini-stats div { border-radius: 14px; background: var(--fill); }
+.filters select { border-radius: 12px; border: 0; background: var(--card); min-height: 44px; font-size: var(--fs-body); }
+.filters label { font-size: var(--fs-foot); }
+.lib-grid { border-radius: 20px; gap: 2px; }
+
+/* Ervo Stats keeps its sky (like the Weather app), with white glass on top */
+#stats .stats-header { position: absolute; }
+#stats .stats-header .back { color: #fff; background: rgba(255, 255, 255, 0.18); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.35); }
+#stats .nav-title { color: #fff; }
+#stats .stats-header::before { background: linear-gradient(var(--sky-1) 40%, transparent); }
+#stats .card { border-radius: 24px; }
+#stats .row + .row { background-image: linear-gradient(var(--sep), var(--sep)); }
+.sky-chip { background: rgba(255, 255, 255, 0.2); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.3); }
+
+/* Segmented controls (Personal / Business, Photos / Links / Chats) */
+.seg, .lib-tabs { display: grid; gap: 0; padding: 3px; border-radius: 999px; background: var(--fill); }
+[data-theme="dark"] .lib-tabs { background: var(--fill); }
+.seg span, .lib-tabs button { min-height: 36px; height: auto; border-radius: 999px; color: var(--text); font-size: var(--fs-sub); font-weight: 500; transition: background 0.25s var(--ease-ios), box-shadow 0.25s; }
+.seg input:checked + span, .lib-tabs button[aria-selected="true"] { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04); }
+[data-theme="dark"] .seg input:checked + span, [data-theme="dark"] .lib-tabs button[aria-selected="true"] { background: #636366; }
+.seg input:focus-visible + span { outline: 2.5px solid var(--tint); outline-offset: 1px; }
+
+/* Buttons: capsules. Filled tint for the main action, gray for the rest. */
+.btn { min-height: 50px; border-radius: 999px; font-size: var(--fs-body); font-weight: 600; }
+.btn.primary { background: var(--tint-fill); color: var(--on-tint); }
+.btn.link { color: var(--tint); text-decoration: none; font-weight: 400; }
+.pill { min-height: 50px; border-radius: 999px; background: var(--tint-fill); color: var(--on-tint); font-size: var(--fs-body); font-weight: 600; }
+.pill.ghost { background: var(--fill); color: var(--text); }
+.pill.danger { background: var(--red); color: #fff; }
+.pill:disabled { background: var(--fill); color: var(--text-3); }
+.card .pill { min-height: 46px; }
+.ideas-refresh { color: var(--tint) !important; }
+
+/* Text fields: white on the gray background, rounded like iOS */
+.field { height: 52px; border-radius: 14px; background: var(--card); color: var(--text); box-shadow: inset 0 0 0 0.5px var(--sep); padding: 0 16px; }
+.field::placeholder { color: var(--text-3); }
+.field:focus { box-shadow: inset 0 0 0 2px var(--tint); }
+.field.soft { background: var(--card); border: 0; }
+.error { color: var(--red); font-size: var(--fs-foot); }
+[data-theme="dark"] .error { color: var(--red); }
+
+/* Welcome: an iOS onboarding screen */
+/* The sign-in screen scrolls, so nothing falls off at large text sizes */
+#welcome { background: var(--group); overflow-y: auto; }
+.welcome-top h1 { font-size: var(--fs-large); font-weight: 700; letter-spacing: 0.01em; }
+.welcome-top .muted { font-size: var(--fs-body); color: var(--text-2); }
+.hint { font-size: var(--fs-foot); margin: 8px 6px 12px; }
+.demo { font-size: var(--fs-foot); }
+
+/* Switches (iOS 26 shape: a wide track and a capsule knob) */
+.toggles { border-radius: 24px; background: var(--card); }
+.toggle { min-height: 52px; padding: 0 16px; }
+.toggle + .toggle { border-top: 0; box-shadow: inset 0 0.5px 0 var(--sep); }
+.toggle span { font-weight: 400; font-size: var(--fs-body); }
+.toggle small { font-size: var(--fs-foot); }
+.toggle i { width: 62px; height: 28px; background: var(--fill-2); }
+[data-theme="dark"] .toggle i { background: var(--fill-2); }
+.toggle i::after { top: 2px; left: 2px; width: 38px; height: 24px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.04); transition: transform 0.3s var(--ease-ios); }
+.toggle input:checked + i { background: var(--green); }
+.toggle input:checked + i::after { transform: translateX(20px); }
+.toggle:active i::after { width: 44px; }
+.toggle:active input:checked + i::after { transform: translateX(14px); }
+.toggle.mini i { width: 54px; height: 26px; }
+.toggle.mini i::after { width: 32px; height: 22px; }
+.toggle.mini input:checked + i::after { transform: translateX(18px); }
+.toggle input:focus-visible + i { box-shadow: 0 0 0 3px var(--tint-soft), 0 0 0 1.5px var(--tint); }
+
+/* Sheets float above the bottom edge with big round corners (iOS 26), glass-like */
+.sheet-wrap { background: rgba(0, 0, 0, 0.3); padding: 0 8px calc(8px + env(safe-area-inset-bottom)); }
+.sheet { max-width: 500px; border-radius: 34px; padding: 26px 20px 20px; background: var(--glass-solid); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25); animation: sheet-up 0.42s var(--ease-ios) backwards; }
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .sheet { background: color-mix(in srgb, var(--glass-solid) 90%, transparent); -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8); }
+}
+@keyframes sheet-up { from { transform: translateY(105%); } to { transform: none; } }
+.sheet::before { top: 7px; width: 36px; height: 5px; margin-left: -18px; background: var(--fill-2); }
+.sheet h2 { font-size: var(--fs-title3); font-weight: 700; margin: 4px 0 6px; }
+.sheet > .muted { font-size: var(--fs-sub); color: var(--text-2); }
+.sheet-actions { gap: 10px; margin-top: 18px; }
+.perm-list li { font-size: var(--fs-body); border-top: 0; box-shadow: inset 0 0.5px 0 var(--sep); }
+.perm-note { font-size: var(--fs-foot); }
+.choice { border-radius: 20px; border: 0; background: var(--card); box-shadow: inset 0 0 0 0.5px var(--sep); }
+.choice.current { box-shadow: inset 0 0 0 2px var(--tint); border: 0; }
+.field-label { font-size: var(--fs-foot); font-weight: 600; color: var(--text-2); margin: 6px 6px 6px; }
+.progress i { background: var(--tint-fill); }
+/* Confirm sign-out: an iOS confirmation dialog, red button first */
+.sheet-wrap.action .sheet { text-align: center; }
+.sheet-wrap.action .sheet-actions { flex-direction: column; }
+.sheet-wrap.action .pill { flex: none; width: 100%; }
+@media (min-width: 700px) { .sheet { border-radius: 34px; } .sheet-wrap { padding-bottom: 8px; } }
+
+/* Chats list: a sidebar with a large title and inset grouped rows */
+.chats-drawer { background: var(--group); padding: calc(14px + env(safe-area-inset-top)) 16px 20px; width: min(320px, 86vw); }
+.chats-title { margin: 6px 4px 14px; font-size: var(--fs-large); font-weight: 700; }
+.chat-item { background: var(--card); border-radius: 0; }
+#chats-list > .chat-item:first-child { border-radius: 16px; }
+.chats-head + .chat-item { border-top-left-radius: 16px; border-top-right-radius: 16px; }
+.chats-head ~ .chat-item:last-child { border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; }
+.chat-item + .chat-item { box-shadow: inset 0 0.5px 0 var(--sep); }
+.chat-item.current { background: var(--card); }
+.chat-item.current .chat-go b { color: var(--tint); font-weight: 600; }
+.chat-go { min-height: 52px; padding: 9px 16px; }
+.chat-go b { font-size: var(--fs-body); font-weight: 400; }
+.chat-go small { font-size: var(--fs-foot); }
+.chats-head { margin: 24px 4px 8px; font-size: var(--fs-title3); font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
+.chats-plus { color: var(--tint); border-radius: 50%; }
+.chat-x { color: var(--text-3); }
+.chat-x.sure { background: var(--red); border-radius: 999px; }
+.chats-empty { margin: 4px 6px; font-size: var(--fs-foot); }
+html.docked .chats-drawer { border-right: 0.5px solid var(--sep); background: var(--group); }
+
+/* Talking to Ervo */
+.voice-bar { background: var(--glass-bg); }
+.voice-mic { background: var(--tint-fill); }
+.voice.listening .voice-mic { background: var(--red); }
+.voice-x { background: var(--fill); }
+
+/* Full-screen photo: a Close button */
+.photo-x { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 16px; width: 44px; height: 44px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; background: rgba(120, 120, 128, 0.36); }
+.photo-x svg { width: 20px; height: 20px; }
+
+/* Small notice */
+.toast { background: var(--glass-bg); color: var(--text); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-edge), var(--glass-shadow); font-size: var(--fs-sub); }
+
+/* Focus ring in the tint color */
+:focus-visible { outline-color: var(--tint); }
+
+/* ---------- Moving between screens: push in from the right, pop back (iOS navigation) ---------- */
+.screen.active { animation: none; }
+.screen.push-in { animation: push-in 0.42s var(--ease-ios) both; z-index: 2; box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1); }
+.screen.pop-out { display: flex; animation: pop-out 0.38s var(--ease-ios) both; z-index: 2; box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1); pointer-events: none; }
+.screen.under { display: flex; animation: under-in 0.42s var(--ease-ios) both; z-index: 1; }
+.screen.under:not(.active) { animation-name: under-out; pointer-events: none; }
+@keyframes push-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes pop-out { from { transform: none; } to { transform: translateX(100%); } }
+@keyframes under-in { from { transform: translateX(-28%); filter: brightness(0.92); } to { transform: none; filter: none; } }
+@keyframes under-out { from { transform: none; } to { transform: translateX(-28%); filter: brightness(0.92); } }
+
+/* ---------- Accessibility settings ---------- */
+/* Reduce Transparency: solid bars instead of glass */
+@media (prefers-reduced-transparency: reduce) {
+  .chat-header .icon-btn, .who-pill, .round.plus, .bar, .chip, .to-latest, .menu, .msg-menu, .stats-header .back, .voice-bar, .toast, .attach-sheet button, .sheet {
+    background: var(--glass-solid) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  #chat::after { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(0, 0, 0, 0.4); }
+}
+/* Increase Contrast: solid controls with a visible edge */
+@media (prefers-contrast: more) {
+  :root { --text-2: #3a3a3c; --sep: rgba(60, 60, 67, 0.6); --glass-bg: #ffffff; }
+  [data-theme="dark"] { --text-2: #e5e5ea; --sep: rgba(235, 235, 245, 0.45); --glass-bg: #1c1c1e; }
+  .chat-header .icon-btn, .who-pill, .round.plus, .bar, .chip, .to-latest, .menu, .msg-menu, .stats-header .back { box-shadow: 0 0 0 1px var(--text-2); }
+}
+/* Reduce Motion: screens swap with a quick fade instead of sliding */
+@media (prefers-reduced-motion: reduce) {
+  .screen.push-in, .screen.pop-out, .screen.under { animation: none !important; }
+  .screen.pop-out, .screen.under:not(.active) { display: none; }
+}
+/* Menus hold a lot of text, so their glass is denser (Apple: larger glass is more opaque) */
+.menu, .msg-menu, [data-theme="dark"] .msg-menu { background: color-mix(in srgb, var(--glass-solid) 84%, transparent); -webkit-backdrop-filter: blur(28px) saturate(1.8); backdrop-filter: blur(28px) saturate(1.8); }

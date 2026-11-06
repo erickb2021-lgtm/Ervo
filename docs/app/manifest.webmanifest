@@ -2,13 +2,13 @@
   "name": "Ervo",
   "short_name": "Ervo",
   "description": "Your AI helper, for your life and your business.",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f2f2f3",
-  "theme_color": "#f2f2f3",
+  "background_color": "#f2f2f7",
+  "theme_color": "#f2f2f7",
   "icons": [
     {
       "src": "img/icon-192.png",

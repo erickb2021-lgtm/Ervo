@@ -68,9 +68,40 @@ Size classes (Samsung, Android): compact under 600dp, medium 600–839dp, expand
 
 ### Android system features
 - App shortcuts: touch and hold the Ervo icon for Talk to Ervo, New side chat, Ideas and Psyche (Apple calls these quick actions; Android calls them app shortcuts).
-- Themed icon: on Android 13 and later, Ervo's icon can follow the wallpaper colors when themed icons are on.
+- No themed icon: Ervo's icon always stays the purple owl on white, even when Android's themed icons are on.
+
+## 0.3.0: designed like an iPhone app (and the same on Android)
+
+Built from Apple's Human Interface Guidelines: design principles, foundations (color, typography, materials, layout, icons, dark mode, accessibility), patterns, components and inputs. The same design runs on Android; Android keeps its own back gesture and haptics.
+
+| HIG rule | What Ervo does |
+|---|---|
+| One tint color for everything you can tap (Color) | Ervo purple everywhere. The old mix of blue and purple is gone. A lighter purple is used for text in Dark Mode so it stays readable. |
+| System colors: grouped backgrounds, label and separator colors (Color) | Light: gray #F2F2F7 background with white cards. Dark: black background with dark gray cards. Secondary text, hairline separators and fills follow iOS. |
+| Text styles (Typography) | Large Title 34, Title 3 20, Body 17, Subhead 15, Footnote 13, Caption 12, never under 11. All scale with the phone's text size. |
+| Liquid Glass only for floating controls, never content (Materials) | Glass on the header buttons, Ervo's name capsule, the + button, the message bar, suggestions, menus and sheets. Messages and cards stay solid. A soft scroll edge keeps the glass readable. Menus use denser glass because they hold more text. |
+| Standard Back and Close buttons, no "Back" text (Toolbars) | Round glass chevron to go back; photos open with a round Close button. |
+| Large titles that shrink into the bar as you scroll (Toolbars) | Stats, Psyche, Ideas, Chats & Media and All activity. |
+| Navigation is a stack (Navigation) | Screens push in from the right and slide back out when you go back. With Reduce Motion they just switch. |
+| Inset grouped lists, separators, chevrons (Lists and tables) | Rounded cards, hairlines that start where the text starts, a chevron only on rows that open another screen. |
+| Menus: groups, title-style labels, icons for all or none, ellipsis when more is needed (Menus) | The ••• menu has three groups with one-color icons. "Greeting…" and "Sign Out…" end in an ellipsis because they ask something first. |
+| Context menus: lift the item, blur the rest (Context menus) | Touch and hold Ervo's reply. |
+| Confirm destructive actions (Pull-down buttons, Alerts) | Sign Out asks first, because it clears your chats, Psyche and activity from the phone. The red button is the destructive one. |
+| Switches, segmented controls, capsule buttons (Components) | iOS-shaped switches, capsule segmented controls (Personal/Business, Photos/Links/Chats), a filled purple button for the main action and gray for the rest. |
+| Sheets with a grabber, floating with round corners (Sheets) | All sheets. Swipe down or tap outside to close. |
+| Reduce Transparency, Increase Contrast (Accessibility) | Glass turns solid; controls get a visible edge. |
+| Keyboards (Inputs) | Escape closes whatever is open, like the back button. |
+
+Message bubbles group like iMessage: back-to-back messages sit close together and only the last one in a run has a tail.
+
+### The app icon (Icon Composer style)
+Apple's Icon Composer (Xcode 26, on a Mac) builds an icon from layers: a background and foreground layers, with the system adding highlights and shadows. Ervo's icon is now built the same way:
+- `brand/app-icon/layers/1-background.png`: plain white, 1024 × 1024.
+- `brand/app-icon/layers/2-ervo.png`: Classic Ervo cut out, centered, 1024 × 1024.
+
+The purple shadow that was painted under Ervo's feet is gone (Apple: let the system add shadows). Ervo himself is unchanged. Every icon size (Android, Play Store, iPhone home screen, web app) is drawn from these two layers. On a Mac, drag the two files into Icon Composer to make the `.icon` file for a future native iPhone app.
 
 ## Not done yet (needs a native iPhone app)
 - Siri, App Shortcuts, widgets, Live Activities and Home Screen quick actions on iPhone all need a native iOS app. The iPhone version is a home-screen web app, so it can't offer them yet.
-- Liquid Glass is a native iOS material. Ervo's floating header and composer fade over the chat instead.
+- Real Liquid Glass (light bending, reacting to touch) is native-only. Ervo uses a blur-and-highlight version of it on the web.
 - iPhone haptics: home-screen web apps can't play haptics on iPhone.

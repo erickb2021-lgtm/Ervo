@@ -80,10 +80,23 @@
   }
 
   // ---------- screens ----------
+  // How deep each screen sits, so moving in slides from the right and going back slides away
+  // to the right, like every iPhone app (Apple: navigation is a stack you push and pop)
+  const DEPTH = { splash: 0, welcome: 0, chat: 0, stats: 1, psyche: 1, ideas: 1, library: 1, activity: 2 };
   function show(id) {
     const chatWas = $("chat").classList.contains("active");
     if (chatWas && id !== "chat") savedScroll = $("thread").scrollTop;
+    const from = document.querySelector(".screen.active");
+    const to = $(id);
+    if (from && from !== to && !root.classList.contains("first")) {
+      const d = (DEPTH[id] || 0) - (DEPTH[from.id] || 0);
+      document.querySelectorAll(".screen.push-in, .screen.pop-out, .screen.under").forEach((s) => s.classList.remove("push-in", "pop-out", "under"));
+      if (d > 0) { to.classList.add("push-in"); from.classList.add("under"); }
+      else if (d < 0) { from.classList.add("pop-out"); to.classList.add("under"); }
+      if (d) setTimeout(() => { from.classList.remove("pop-out", "under"); to.classList.remove("push-in", "under"); }, 420);
+    }
     document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("active", s.id === id));
+    if (to && to.classList.contains("stats")) syncTitle(to);
     if (id === "chat" && !chatWas && savedScroll !== null) { const keep = savedScroll; savedScroll = null; requestAnimationFrame(() => { if (!stuck) $("thread").scrollTop = keep; else $("thread").scrollTop = $("thread").scrollHeight; }); }
     syncBars();
     syncDock();
@@ -2818,8 +2831,17 @@
     s.textContent = sub;
     txt.append(b, s);
     el.append(i, txt);
-    if (side) { const sd = document.createElement("span"); sd.className = "side"; sd.textContent = side; el.append(sd); }
+    if (side === "›") el.append(chevron());
+    else if (side) { const sd = document.createElement("span"); sd.className = "side"; sd.textContent = side; el.append(sd); }
     return el;
+  }
+  // The disclosure chevron on rows that open another screen (Apple lists)
+  function chevron() {
+    const c = document.createElement("span");
+    c.className = "chev";
+    c.setAttribute("aria-hidden", "true");
+    c.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
+    return c;
   }
   const icoClass = (ico) => (ico === "food" ? "calendar" : ico);
   function empty(text) { const p = document.createElement("p"); p.className = "empty"; p.textContent = text; return p; }
@@ -2869,7 +2891,8 @@
       const all = document.createElement("button");
       all.type = "button";
       all.className = "row see-all";
-      all.innerHTML = `<span class="txt"><b>See all activity</b><small>${items.length} things Ervo has done for you</small></span><span class="side">›</span>`;
+      all.innerHTML = `<span class="txt"><b>See all activity</b><small>${items.length} things Ervo has done for you</small></span>`;
+      all.append(chevron());
       all.addEventListener("click", openActivity);
       $("recent").append(all);
     }
@@ -3145,10 +3168,7 @@
       // Android's own switches (calendar, contacts, microphone...) live in Settings
       const r = row("open", "Phone permissions", "Android's settings for Ervo");
       r.classList.add("compact", "tap");
-      const go = document.createElement("span");
-      go.className = "side";
-      go.textContent = "›";
-      r.append(go);
+      r.append(chevron());
       r.addEventListener("click", () => native.openAppSettings());
       box.append(r);
     }
@@ -3264,7 +3284,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.2.9"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.3.0"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -3630,8 +3650,17 @@
     const img = document.createElement("img");
     img.src = src;
     img.alt = "Photo";
-    w.append(img);
+    // The standard Close button, so it's clear how to get out (Apple: going full screen)
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "photo-x";
+    x.setAttribute("aria-label", "Close");
+    x.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+    w.setAttribute("role", "dialog");
+    w.setAttribute("aria-label", "Photo");
+    w.append(img, x);
     w.addEventListener("click", () => w.remove());
+    setTimeout(() => x.focus(), 50);
     document.body.append(w);
   }
   document.querySelectorAll("#lib-tabs button").forEach((b) => b.addEventListener("click", () => { libTab = b.dataset.tab; renderLibrary(); }));
@@ -3763,8 +3792,16 @@
   $("ideas-refresh").addEventListener("click", () => renderIdeas(true));
   $("psyche-tell").addEventListener("click", () => { show("chat"); setTimeout(() => $("message").focus(), 100); });
   $("open-library").addEventListener("click", () => openLibrary());
+  // Signing out clears everything on this phone, so ask first (Apple: confirm destructive actions)
   $("sign-out").addEventListener("click", () => {
     toggleMenu(false);
+    $("confirm").hidden = false;
+    setTimeout(() => $("confirm-cancel").focus(), 50);
+  });
+  $("confirm-cancel").addEventListener("click", () => { $("confirm").hidden = true; });
+  $("confirm-ok").addEventListener("click", () => {
+    $("confirm").hidden = true;
+    buzz("reject");
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
     [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY].forEach(drop);
     account = null;
@@ -3778,6 +3815,7 @@
   window.ervoBack = function () {
     if (OVERLAY) { closeVoice(); return true; }
     if (document.querySelector(".msg-menu")) { closeMsgMenu(); return true; }
+    if (!$("confirm").hidden) { $("confirm").hidden = true; return true; }
     if (!$("perm").hidden) { answerPermission(false); return true; }
     if (!$("update").hidden) { $("update").hidden = true; return true; }
     if (!$("greet").hidden) { $("greet").hidden = true; return true; }
@@ -3826,12 +3864,14 @@
   function closeMsgMenu() {
     const m = document.querySelector(".msg-menu");
     if (m) m.remove();
+    $("chat").classList.remove("ctx");
     thread.querySelectorAll(".msg.held").forEach((x) => x.classList.remove("held"));
   }
   function msgMenu(el) {
     closeMsgMenu();
     buzz("long");
     el.classList.add("held");
+    $("chat").classList.add("ctx"); // the rest of the chat blurs behind the menu (Apple context menus)
     const menu = document.createElement("div");
     menu.className = "msg-menu";
     menu.setAttribute("role", "menu");
@@ -3880,7 +3920,7 @@
   }
 
   // ---------- sheets: a grabber, swipe down or tap outside to close (Apple sheets) ----------
-  const SHEET_CLOSE = { perm: "perm-deny", calpick: "cal-cancel", update: "update-later", greet: "greet-cancel" };
+  const SHEET_CLOSE = { perm: "perm-deny", calpick: "cal-cancel", update: "update-later", greet: "greet-cancel", confirm: "confirm-cancel" };
   document.querySelectorAll(".sheet-wrap").forEach((wrap) => {
     const sheet = wrap.querySelector(".sheet");
     const close = () => { const b = $(SHEET_CLOSE[wrap.id]); if (b && !b.disabled) b.click(); };
@@ -3922,6 +3962,27 @@
       sx = null;
     }, { passive: true });
   }
+
+  // ---------- large titles (Apple): the big title scrolls away and a small one fades into the bar ----------
+  function syncTitle(screen) {
+    const body = screen.querySelector(".stats-body");
+    const h1 = screen.querySelector(".stats-body h1");
+    const head = screen.querySelector(".stats-header");
+    if (!body || !h1 || !head) return;
+    head.querySelector(".nav-title").textContent = h1.textContent;
+    head.classList.toggle("scrolled", body.scrollTop > h1.offsetTop + h1.offsetHeight - head.offsetHeight);
+    head.classList.toggle("edge", body.scrollTop > 4);
+  }
+  document.querySelectorAll(".screen.stats").forEach((s) => {
+    const body = s.querySelector(".stats-body");
+    if (body) body.addEventListener("scroll", () => syncTitle(s), { passive: true });
+  });
+
+  // ---------- keyboard: Escape closes whatever is open, like the back button ----------
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || e.defaultPrevented) return;
+    if (window.ervoBack && window.ervoBack()) e.preventDefault();
+  });
 
   // ---------- app shortcuts: touch and hold Ervo's icon (Android) ----------
   function ervoShortcut(what) {
