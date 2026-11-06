@@ -1627,7 +1627,7 @@
     if (opts.acts && opts.acts.length) showActs(opts.acts);
     const choosing = opts.choices && opts.choices.length;
     if (choosing) showChoices(opts.choices);
-    setChips(choosing ? [] : opts.chips || PLAN[account.plan].chips);
+    setChips(choosing ? [] : opts.chips || null);
     toBottom();
     if (speakIt) speak(said);
     if (OVERLAY && !voice.hidden && !listening) { voice.classList.remove("thinking"); $("voice-status").textContent = "Tap the mic or type to ask more"; }
@@ -1649,18 +1649,118 @@
     else if ("speechSynthesis" in window) speechSynthesis.cancel();
   }
 
+  // ---------- quick suggestions: picked for you from your Psyche, not a fixed list ----------
+  // Apple: suggestions should be relevant to the person and the moment, and few. Ervo mixes
+  // your goals, what it knows about you (Psyche), today's ideas from Ervo's AI, what's coming
+  // up on your calendar and the time of day. Things you just asked are left out. A new user
+  // with an empty Psyche gets simple starters until Ervo learns more.
+  const SPARK = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z" opacity=".7"/></svg>';
+  const short = (s, n) => { s = String(s).replace(/\s+/g, " ").trim().replace(/[.!]$/, ""); return s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, "") + "…" : s; };
+  function suggestChips() {
+    const biz = account && account.plan === "business";
+    const p = psyche();
+    const out = [];
+    const seen = new Set();
+    // What you've asked lately: don't suggest it again right away
+    const asked = [...thread.querySelectorAll(".msg.me")].slice(-8).map((m) => m.textContent.toLowerCase());
+    const add = (label, prompt, mine) => {
+      const k = String(prompt || label).toLowerCase();
+      if (!label || seen.has(k) || asked.some((a) => a === k || (a.length > 12 && (a.includes(k) || k.includes(a))))) return;
+      seen.add(k);
+      out.push({ label, prompt: prompt || label, mine: !!mine });
+    };
+    const now = new Date(), h = now.getHours(), day = now.getDay();
+    // Steady for the hour, so the bar doesn't reshuffle after every reply
+    const seed = Math.floor(now.getTime() / 3600000);
+    const pick = (arr) => arr.slice().sort((a, b) => ((seed * 31 + a.length) % 7) - ((seed * 31 + b.length) % 7));
+
+    // 1. Coming up in the next day
+    const soon = activity().filter((a) => a.when && new Date(a.when) > now && new Date(a.when) - now < 26 * 3600000).sort((a, b) => new Date(a.when) - new Date(b.when))[0];
+    if (soon) add(`Remind me about ${short(soon.title, 22)}`, `Remind me about ${soon.title} an hour before`, true);
+    // 2. Your goals
+    // "Wants to run a 5K by spring" -> "Next step: run a 5K by spring"
+    const goalText = (t) => String(t).trim().replace(/^(my goal( is)?( to)?|goal:|i('d| would)? (really )?(want|like|hope|plan) to|wants? to|would like to|hopes? to|plans? to|trying to|is trying to)\s+/i, "").replace(/^./, (c) => c.toLowerCase());
+    pick(p.facts.filter((f) => f.kind === "goal")).slice(0, 1).forEach((f) => add(`Next step: ${short(goalText(f.text), 26)}`, `Help me with my goal: ${f.text}`, true));
+    // 3. Today's ideas from Ervo's AI (made from your Psyche)
+    const cached = load(IDEAS_KEY);
+    const ideaList = cached && cached.data && Array.isArray(cached.data.groups) ? cached.data.groups.flatMap((g) => (g && Array.isArray(g.ideas) ? g.ideas : [])) : [];
+    pick(ideaList.filter((it) => it && it.prompt && it.prompt.length <= 48)).slice(0, 2).forEach((it) => add(short(it.prompt, 34), it.prompt, true));
+    // 4. What Ervo knows about you
+    const kinds = {};
+    p.facts.forEach((f) => { kinds[f.kind] = f; });
+    if (kinds.health) add("Plan a workout for me", "Plan a workout that fits my health and schedule", true);
+    if (kinds.food) add("Dinner ideas for me", "Give me dinner ideas that fit what I eat", true);
+    if (kinds.routine) add("Plan my day", "Plan my day around my routine", true);
+    if (kinds.places) add("What's on near me?", "What's happening near me this week?", true);
+    if (kinds.money) add("Check my budget plan", "Help me stay on my budget this week", true);
+    if (kinds.people) add("Plan time with friends", "Help me plan something with the people I care about", true);
+    // 5. The moment: morning, evening, the weekend
+    if (biz) {
+      if (h < 12) add("Summarize today's tickets"); else add("What's left today?", "What's still open today?");
+    } else if (h >= 5 && h < 11) add("What's on today?", "What's coming up today?");
+    else if (h >= 17 && h < 23) add("Plan tomorrow", "Help me plan tomorrow");
+    if (!biz && (day === 5 || day === 6)) add("Weekend plans near me", "What's happening near me this weekend?");
+    // 6. Starters, only to fill the bar until Ervo knows more
+    pick(PLAN[biz ? "business" : "personal"].chips).forEach((c) => add(c));
+    return out.slice(0, 5);
+  }
+  // Ideas from Ervo's AI, fetched quietly once a day once Ervo knows a few things about you
+  let ideasFetching = null;
+  function fetchIdeas() {
+    if (!AI_URL) return Promise.resolve(null);
+    if (ideasFetching) return ideasFetching;
+    const learned = psyche().learned || 0;
+    ideasFetching = askServer({ task: "ideas", messages: [] }).then((j) => {
+      if (j && j.ideas && Array.isArray(j.ideas.groups) && j.ideas.groups.length) {
+        save(IDEAS_KEY, { day: new Date().toDateString(), learned, data: j.ideas });
+        return j.ideas;
+      }
+      return null;
+    }).catch(() => null).finally(() => { ideasFetching = null; });
+    return ideasFetching;
+  }
+  function freshenSuggestions() {
+    const cached = load(IDEAS_KEY);
+    const p = psyche();
+    if (OVERLAY || !AI_URL || p.facts.length < 3) return;
+    if (cached && cached.day === new Date().toDateString() && (p.learned || 0) - (cached.learned || 0) < 5) return;
+    fetchIdeas().then((d) => {
+      // Only swap the bar if it's still showing suggestions (not an answer's own options)
+      if (d && $("chips").dataset.kind === "suggest") setChips(null);
+    });
+  }
+
+  // list: an answer's own options (strings), or null for suggestions picked for you.
+  // Old ones fade away, new ones rise in one after another (Apple: motion that explains change).
+  let chipsTimer = 0;
   function setChips(list) {
     const box = $("chips");
-    box.innerHTML = "";
-    box.scrollLeft = 0;
-    list.forEach((label) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "chip";
-      b.textContent = label;
-      b.addEventListener("click", () => send(label));
-      box.append(b);
-    });
+    const items = list ? list.map((label) => ({ label, prompt: label })) : (account ? suggestChips() : []);
+    const same = box.dataset.sig === JSON.stringify(items.map((i) => i.label));
+    if (same) return;
+    box.dataset.sig = JSON.stringify(items.map((i) => i.label));
+    box.dataset.kind = list ? "answer" : "suggest";
+    clearTimeout(chipsTimer);
+    const fill = () => {
+      box.innerHTML = "";
+      box.classList.remove("leaving");
+      box.scrollLeft = 0;
+      items.forEach((it, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip" + (it.mine ? " mine" : "");
+        b.style.setProperty("--i", i);
+        if (it.mine) { b.innerHTML = SPARK; b.title = "Suggested from your Psyche"; }
+        b.append(it.label);
+        b.addEventListener("click", () => { buzz("tick"); send(it.prompt); });
+        box.append(b);
+      });
+      box.setAttribute("aria-label", list ? "Answers" : "Suggestions for you");
+    };
+    if (box.children.length && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      box.classList.add("leaving");
+      chipsTimer = setTimeout(fill, 160);
+    } else fill();
   }
 
   function openChat(acc, fresh) {
@@ -1682,18 +1782,19 @@
     history = saved ? historyFrom(saved) : [];
     show("chat");
     syncChatName(id, saved);
-    if (OVERLAY) { setChips(p.chips); return; } // the pop-up starts clean, but still knows the conversation
+    if (OVERLAY) { setChips(null); return; } // the pop-up starts clean, but still knows the conversation
     if (id !== "main") sideBanner(saved);
     if (saved && saved.items.length) drawChat(saved);
     requestAnimationFrame(() => { thread.scrollTop = thread.scrollHeight; });
-    if (id !== "main") { setChips(p.chips); return; }
+    setTimeout(freshenSuggestions, 4000);
+    if (id !== "main") { setChips(null); return; }
     // One greeting a day in the main chat: the first time Ervo opens that day
     const today = new Date().toDateString();
     if (fresh || load(GREETED_KEY) !== today) {
       save(GREETED_KEY, today);
       setTimeout(() => greet(fresh), fresh ? 250 : 0);
     } else {
-      setChips(p.chips);
+      setChips(null);
     }
   }
 
@@ -2768,7 +2869,7 @@
     buzz("tap");
     toBottom(true);
     history.push({ role: "user", text: v });
-    $("chips").innerHTML = "";
+    $("chips").innerHTML = ""; $("chips").dataset.sig = "";
     lastWasVoice = !!byVoice;
     reply(v);
   }
@@ -3055,13 +3156,9 @@
     if (!AI_URL || (fresh && !force)) return;
     $("ideas-sub").textContent = "Finding ideas for you…";
     $("ideas-refresh").disabled = true;
-    try {
-      const j = await askServer({ task: "ideas", messages: [] });
-      if (j && j.ideas && Array.isArray(j.ideas.groups) && j.ideas.groups.length) {
-        save(IDEAS_KEY, { day: new Date().toDateString(), learned, data: j.ideas });
-        if ($("ideas").classList.contains("active")) drawIdeas(j.ideas);
-      }
-    } catch (e) { /* the starter ideas stay */ }
+    const d = await fetchIdeas(); // the starter ideas stay if this fails
+    if (d && $("ideas").classList.contains("active")) drawIdeas(d);
+    if (d && $("chips").dataset.kind === "suggest") setChips(null); // the suggestions follow the new ideas
     $("ideas-sub").textContent = "Picked for you. Tap one and Ervo starts on it.";
     $("ideas-refresh").disabled = false;
   }
@@ -3465,7 +3562,7 @@
       photoBubble(src);
       record({ t: "photo", src });
       if (caption) bubble(caption, "me");
-      $("chips").innerHTML = "";
+      $("chips").innerHTML = ""; $("chips").dataset.sig = "";
       thread.querySelectorAll(".choices button:not(:disabled)").forEach((b) => { b.disabled = true; });
       history.push({ role: "user", text: caption ? `(sent a photo) ${caption}` : "(sent a photo)" });
       // Ervo looks at it: a meal (calories), a receipt, a label, a flyer, a product...
@@ -3497,7 +3594,7 @@
     dayMark();
     const host = linkBubble(url.href);
     record({ t: "link", url: url.href });
-    $("chips").innerHTML = "";
+    $("chips").innerHTML = ""; $("chips").dataset.sig = "";
     history.push({ role: "user", text: `(shared a link: ${url.href})` });
     if (/amazon\./i.test(url.hostname) && account.plan === "personal") {
       return ervoSays(`That's an Amazon link. Want me to keep it in your plans so you remember it?`, { acts: [{ label: "Save it", icon: "shop", onClick: () => { logActivity({ kind: "link", ico: "shop", title: "Saved an Amazon link", detail: host, link: url.href }); ervoSays("Saved ✅ It's in Ervo Stats under Most recent events."); } }] });

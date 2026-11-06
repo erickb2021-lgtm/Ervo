@@ -92,6 +92,10 @@ Built from Apple's Human Interface Guidelines: design principles, foundations (c
 | Reduce Transparency, Increase Contrast (Accessibility) | Glass turns solid; controls get a visible edge. |
 | Keyboards (Inputs) | Escape closes whatever is open, like the back button. |
 
+Suggestions above the message box are not a fixed list. Ervo picks up to five, in this order: something coming up in the next day, your goals, today's ideas from Ervo's AI (made from your Psyche), what Psyche knows (health, food, routine, places, money, people), then the moment (morning, evening, weekend). Simple starters only fill the gaps for someone Ervo doesn't know yet. Things you just asked are left out, and the set stays steady within the hour. Suggestions Ervo picked for you carry a small sparkle (Apple: show where intelligence is used). When they change, the old ones fade down and the new ones rise in one after another.
+
+Icons in lists (Ideas, Stats, Connected apps) are layered like iOS app icons: the colored tile, a soft light from above and a darker base, a fine texture, a glossy top edge, and a white symbol with a small shadow. Increase Contrast turns the effects off.
+
 Message bubbles group like iMessage: back-to-back messages sit close together and only the last one in a run has a tail.
 
 ### The app icon (Icon Composer style)

@@ -1092,3 +1092,35 @@ html.docked .chats-drawer { border-right: 0.5px solid var(--sep); background: va
 }
 /* Menus hold a lot of text, so their glass is denser (Apple: larger glass is more opaque) */
 .menu, .msg-menu, [data-theme="dark"] .msg-menu { background: color-mix(in srgb, var(--glass-solid) 84%, transparent); -webkit-backdrop-filter: blur(28px) saturate(1.8); backdrop-filter: blur(28px) saturate(1.8); }
+
+/* ---------- Suggestions picked from your Psyche ----------
+   New ones rise in one after another with a spring; old ones fade down first.
+   A small sparkle marks the ones Ervo picked for you (Apple: show where intelligence is used). */
+.chip { display: inline-flex; align-items: center; gap: 6px; animation: chip-in 0.46s var(--ease-ios) both; animation-delay: calc(var(--i, 0) * 45ms); }
+.chip svg { width: 14px; height: 14px; flex: none; color: var(--tint); }
+.chip.mine { background: color-mix(in srgb, var(--tint) 9%, var(--glass-bg)); }
+.chips.leaving .chip { animation: chip-out 0.16s ease-in both; }
+@keyframes chip-in { from { opacity: 0; transform: translateY(10px) scale(0.92); } to { opacity: 1; transform: none; } }
+@keyframes chip-out { to { opacity: 0; transform: translateY(6px) scale(0.96); } }
+
+/* ---------- Icons with depth: layered like iOS app icons ----------
+   Each icon is a colored tile with a soft light from above, a darker base, a fine
+   texture, a glossy top edge, and a white symbol that casts a small shadow. */
+.app-ico { position: relative; isolation: isolate; overflow: hidden;
+  box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.55), inset 0 -1.5px 2px rgba(0, 0, 0, 0.16), 0 2px 6px -1px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.1); }
+.app-ico::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(130% 90% at 50% -10%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 58%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.16)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='64' height='64' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.app-ico::after { content: ""; position: absolute; left: 8%; right: 8%; top: 4%; height: 42%; z-index: -1; pointer-events: none; border-radius: 50% 50% 45% 45% / 70% 70% 30% 30%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0)); }
+.app-ico svg { position: relative; filter: drop-shadow(0 1.5px 1px rgba(0, 0, 0, 0.3)); stroke-width: 2.2; }
+[data-theme="dark"] .app-ico { box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.4), inset 0 -1.5px 2px rgba(0, 0, 0, 0.3), 0 2px 8px -1px rgba(0, 0, 0, 0.6); }
+/* Ideas get bigger tiles, like a home screen */
+.row.idea { gap: 14px; }
+.row.idea .app-ico { width: 44px; height: 44px; border-radius: 11px; }
+.row.idea .app-ico svg { width: 24px; height: 24px; }
+.row.idea + .row.idea { background-size: calc(100% - 74px) 0.5px; }
+.app-ico.big { border-radius: 16px; }
+@media (prefers-contrast: more) { .app-ico::before, .app-ico::after { display: none; } }
