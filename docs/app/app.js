@@ -4439,7 +4439,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.4.4"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.4.5"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -5862,11 +5862,48 @@
   root.classList.add("first"); // the first screen appears without fading in
   setTimeout(() => root.classList.remove("first"), 600);
   {
+    // From the website's QR code: #signin=<email>&plan=personal|business (the hash is dropped right away)
+    const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
+    const hintEmail = (hash.get("signin") || "").trim().toLowerCase();
+    const hintPlan = PLAN[hash.get("plan")] ? hash.get("plan") : "personal";
+    if (hintEmail) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* fine */ } }
     const saved = load(ACCOUNT_KEY);
     if (saved && saved.plan && saved.name && realAuth && !session()) { drop(ACCOUNT_KEY); show("welcome"); }
     else if (saved && saved.plan && saved.name) openChat(saved, false);
     else if (OVERLAY && native && native.openFullApp) native.openFullApp(); // sign in first, in the full app
     else show("welcome");
+    if (native) $("same-email").hidden = false; // Android can't carry the email through the APK install
+    if (hintEmail && !account && realAuth && !OVERLAY) startFromHint(hintEmail, hintPlan);
+  }
+  // Signed up on the website: same sign-in if the browser already has it, else send the code to that email
+  async function startFromHint(email, plan) {
+    setPlan(plan);
+    if (session() && (await resumeFromSession(plan, email))) return;
+    if (!isEmail(email)) return;
+    $("contact").value = email;
+    const form = document.querySelector('[data-step="contact"]');
+    if (form.requestSubmit) form.requestSubmit(); else form.dispatchEvent(new Event("submit", { cancelable: true }));
+  }
+  async function resumeFromSession(plan, email) {
+    try {
+      const token = await freshToken();
+      if (!token) return false;
+      const u = await auth("user", null, "GET", token);
+      if (!u || !u.id || (email && u.email && u.email.toLowerCase() !== email)) return false;
+      userMeta = u.user_metadata || {};
+      contact = u.email || email || "";
+      const prof = userMeta.profiles && userMeta.profiles[plan];
+      if (prof && prof.name) {
+        const acc = { plan, name: prof.name, contact, id: u.id, createdAt: u.created_at };
+        setNS(plan);
+        save(ACCOUNT_KEY, acc);
+        openChat(acc, false);
+        return true;
+      }
+      show("welcome");
+      step("name"); // Business continues to Company or Employee from here, as usual
+      return true;
+    } catch (e) { return false; }
   }
   setTimeout(() => checkForUpdate(false), 3000);
   // iPhone / web: check again when Ervo comes back to the screen
