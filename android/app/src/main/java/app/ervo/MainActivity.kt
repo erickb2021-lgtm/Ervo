@@ -150,6 +150,11 @@ open class MainActivity : AppCompatActivity() {
         placeCall(number, granted)
     }
 
+    // Weather heads-up: Android 13+ asks before an app may send notifications
+    private val notifyLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        callJs("ervoWeatherAlert", WeatherAlert.status(this).put("asked", true).put("granted", granted).toString())
+    }
+
     private var recognizer: SpeechRecognizer? = null
     private var pendingWake: String? = null
     private var pendingShortcut: String? = null
@@ -575,6 +580,35 @@ open class MainActivity : AppCompatActivity() {
                 }
                 callJs("ervoEventRestored", JSONObject().put("token", token).put("ok", ok).toString())
             }
+        }
+
+        /** Weather heads-up before you leave: {on, hour, minute, days, lat, lon, city, fahrenheit} */
+        @JavascriptInterface
+        fun setWeatherAlert(settings: String) = runOnUiThread {
+            val s = try { JSONObject(settings) } catch (e: Exception) { JSONObject() }
+            WeatherAlert.save(this@MainActivity, s)
+            if ((s.optBoolean("on") || s.optBoolean("ask")) && Build.VERSION.SDK_INT >= 33 && !hasPermission(Manifest.permission.POST_NOTIFICATIONS)) {
+                notifyLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                callJs("ervoWeatherAlert", WeatherAlert.status(this@MainActivity).toString())
+            }
+        }
+
+        @JavascriptInterface
+        fun weatherAlertStatus(): String = WeatherAlert.status(this@MainActivity).toString()
+
+        /** "Send a sample": shows what today's heads-up looks like, even on a calm day */
+        @JavascriptInterface
+        fun testWeatherAlert() { Thread { WeatherAlert.check(applicationContext, true) }.start() }
+
+        /** Share text with any app (Notes, Keep, Messages, email...) through Android's share sheet */
+        @JavascriptInterface
+        fun shareText(title: String, text: String) = runOnUiThread {
+            val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                .putExtra(Intent.EXTRA_SUBJECT, title)
+                .putExtra(Intent.EXTRA_TITLE, title)
+                .putExtra(Intent.EXTRA_TEXT, text)
+            try { startActivity(Intent.createChooser(send, title.ifEmpty { "Share" })) } catch (e: Exception) { /* nothing can share */ }
         }
 
         /** This app's version, like "0.2.1", so the screens can check for updates. */

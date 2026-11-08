@@ -1,17 +1,17 @@
 {
-  "version": "0.3.4",
+  "version": "0.3.5",
   "notes": [
+    "Change how Ervo looks: tap Ervo's picture at the top (or the menu) and pick from 10 looks, like Gamer, Space, Winter or Business",
+    "Weather before you leave (Android): pick when you usually head out, and about 20 minutes before, Ervo sends one heads-up only if there's rain, snow, storms, wind, heat or cold",
+    "Calorie questions like \"how many calories in a spicy wrap and large fries\" get real numbers for each item and a total, instead of your steps",
+    "Product picks always show a picture now, even when the store doesn't share one",
+    "Share long answers like meal plans straight to Notes, email or messages. Ervo no longer says it saved a file it can't make",
+    "Thumbs up or down on Ervo's answers. Tell it \"Too long\" or \"Wrong info\" and it learns from that",
+    "When Ervo learns something about you, it says so with an Undo button, and you can turn learning off in Psyche",
+    "\"A few things to know\" explains what Ervo can do and that it can make mistakes, and the menu has How Ervo Works",
+    "Touch and hold an answer for Share and Why This Answer?, or hold a suggestion to stop seeing it",
+    "After an update, Ervo tells you what's new in the chat",
     "Faster answers: Ervo's reply now appears word by word as it's written, so you see it start in a second or two instead of waiting for the whole thing",
-    "Everyday questions get a quicker, lighter answer; research, shopping and plans still get the full deep look",
-    "Quick replies show with less waiting",
-    "Ask for something \"near me\" and Ervo uses your location (it asks once) instead of asking for your city or zip",
-    "What Ervo is doing shows the same at the top and in its message, with an emoji, like \"🥗 Making your meal plan\" or \"📍 Looking near you\"",
-    "Ervo's full answer always shows now. Before, if it also showed buttons or links, only its last sentence came through",
-    "Introduce yourself (\"I'm a night shift nurse, my son is 6\") and Ervo learns it instead of searching your calendar",
-    "Questions about time zones, quoted messages and \"what does this mean\" go to Ervo's AI and never start a meeting or a removal",
-    "Alarms keep their reason, like \"to water the plants\" or \"to join the zoom\", and understand \"quarter past 7\", \"half past six\", \"630\" and \"6 y media\"",
-    "Two requests in one message, like an alarm and a timer, or an event and a timer, both get done",
-    "Personal and Business tell apart better: a concert ticket, your mom's customer service job or a staff badge are personal",
-    "Emergency words like \"call nine one one\" or the suicide hotline show the dialer right away (911 or 988); Ervo still never calls for you"
+    "Everyday questions get a quicker, lighter answer; research, shopping and plans still get the full deep look"
   ]
 }

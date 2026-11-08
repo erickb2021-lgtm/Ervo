@@ -678,10 +678,12 @@
     const explainQuote = quoted && /\b(mean|meaning|translate|sent me|says?|said|is this|is that|what'?s this|real|scam|legit)\b/.test(outside);
     // Telling Ervo about yourself ("quick intro: I'm a night shift nurse...") is for learning, not a calendar search
     const aboutMe = /^(hey!?,? |hi!?,? |hello!?,? |so,? |ok,? )?(quick intro|intro|about me|fyi|a bit about me|some things about me|let me introduce|i'?m a |i am a |i work (as|at|in|nights|days)|i'?m an? )/.test(t)
-      && !/(remind|set|add|schedule|book|remove|delete|cancel|move|change)/.test(t.replace(/^.*?(and )?(can you|could you|please)/, ""));
+      && !/\b(remind|set|add|schedule|book|remove|delete|cancel|move|change)\b/.test(t.replace(/^.*?\b(and )?(can you|could you|please)\b/, ""));
     d.settings = explainQuote || aboutMe ? null : parseSettings(raw, t);
     if (explainQuote || aboutMe) d.intent = "unknown";
     else if (d.settings) d.intent = "settings";
+    else if (is(/\b(change|switch|pick|choose|edit|customi[sz]e|new|different)\b.*\b(your|ervo'?s|the owl'?s|his)\b.*\b(look|looks|avatar|outfit|costume|picture|pic)\b|\bwhat (other )?(looks|outfits|avatars)\b/)) d.intent = "look";
+    else if (is(/\b(warn|alert|notify|tell|ping|text|let) me( know)?\b.*\b(weather|rain|snow|storms?|umbrella|jacket|cold|heat)\b|\b(weather|rain|storm)\b.*\b(before i (leave|head out|go)|when i leave|heads.?up|alerts?|notifications?)\b/)) d.intent = "leaveAlert";
     else if (is(/^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|sounds good|please do|book it|add it|confirm|let'?s do it|correct|perfect)\b/)) d.intent = "yes";
     else if (is(/^(no|nope|nah|not now|skip|stop|never ?mind|don'?t)\b|^cancel( it| that| this)?[.!]?$/) && !is(/\b(alarms?|timers?|music|reminders?|calls?|calendar)\b/)) d.intent = "no";
     else if (is(/\bhey ervo\b.*\b(on|off|settings?|set ?up|work)\b|\b(turn on|turn off|enable|disable|set up|setup)\b.*\b(hey ervo|wake word|hands.?free|voice activation)\b/)) { d.intent = "wake"; d.wakeTurn = /\b(off|disable)\b/.test(t) ? false : /\b(on|enable)\b/.test(t) ? true : undefined; }
@@ -705,7 +707,7 @@
     else if (is(/\bweather\b|temperature|forecast|\brain(ing)?\b|\bsnow|umbrella|how (hot|cold)|\b(cold|hot|warm|chilly|nice|windy) (out|outside)\b|like outside|\bwear an? (jacket|coat|sweater|hoodie)\b|\bneed an? (jacket|coat|sweater)\b/)) d.intent = "weather";
     else if (is(/\bnews\b|headlines|what'?s happening/)) d.intent = "news";
     else if (is(/ervo stats|what (have|did) you (done|do)|recent (activity|events)|upcoming|coming up|what'?s (on )?my (schedule|calendar|plans|week)|my plans/)) d.intent = "stats";
-    else if (!biz && is(/\bsteps\b|walked|how much .*walk|calories|\bhealth\b|fitness|activity/)) d.intent = "steps";
+    else if (!biz && is(/\bsteps\b|walked|how much .*walk|calories (have i|i'?ve|did i) burn|calories burned|\bmy (health|fitness|activity)\b|activity rings?/) && !is(/\bcalories (is|are|in)\b|\bhow many calories\b(?!.*\b(burn|burned)\b)/)) d.intent = "steps";
     else if (biz) {
       if (is(/refund|charged|order #?\d+|\breturn|chargeback/)) d.intent = "refund";
       else if (is(/ticket|summar|inbox|queue|support (load|volume)/)) d.intent = "tickets";
@@ -1464,7 +1466,9 @@
   // A picture for each pick: the one Ervo found, else Amazon's picture for that product number
   const amazonPic = (asin) => `https://images-na.ssl-images-amazon.com/images/P/${asin}.01._SCLZZZZZZZ_SX400_.jpg`;
   function productPic(p, asin, open) {
-    const tries = [p.image, asin && amazonPic(asin)].filter((u) => u && /^https:\/\//.test(u));
+    // Last try: a picture search for the product's name, so a card never shows just a bag icon
+    const bing = p.name ? `https://tse1.mm.bing.net/th?q=${encodeURIComponent(String(p.name).slice(0, 90))}&w=400&h=400&c=7&rs=1&p=0` : null;
+    const tries = [p.image, asin && amazonPic(asin), bing].filter((u) => u && /^https:\/\//.test(u));
     const box = document.createElement("button");
     box.type = "button";
     box.className = "product-pic";
@@ -1993,7 +1997,7 @@
       liveTyping = document.createElement("div");
       liveTyping.className = "typing";
       liveTyping.setAttribute("role", "status");
-      liveTyping.innerHTML = '<img src="img/ervo-classic.png" alt=""><span class="typing-body"><b>Ervo</b><small><span class="spin"></span><span class="dots"><i></i><i></i><i></i></span><em></em></small></span>';
+      liveTyping.innerHTML = '<img src="' + lookSrc() + '" alt=""><span class="typing-body"><b>Ervo</b><small><span class="spin"></span><span class="dots"><i></i><i></i><i></i></span><em></em></small></span>';
     }
     if (words) {
       const w = capFirst(String(words).replace(/[….]+$/, ""));
@@ -2034,6 +2038,7 @@
     idleStatus();
     if (opts.replace) opts.replace.remove();
     bubble(said, "them");
+    thread.querySelectorAll(".fb").forEach((x) => x.remove());
     // A done or failed action gets the matching haptic (Android); plain answers get none
     if (/^(Done|Undone|All set)\b/.test(String(said))) buzz("confirm");
     else if (/^I couldn't\b/.test(String(said))) buzz("reject");
@@ -2047,6 +2052,7 @@
     const choosing = opts.choices && opts.choices.length;
     if (choosing) showChoices(opts.choices);
     setChips(choosing ? [] : opts.chips || null);
+    if (opts.ai && said) feedbackRow(opts.asked || "", said);
     toBottom();
     if (speakIt) speak(said);
     if (OVERLAY && !voice.hidden && !listening) { voice.classList.remove("thinking"); $("voice-status").textContent = "Tap the mic or type to ask more"; }
@@ -2099,7 +2105,7 @@
     // 2. Your goals
     // "Wants to run a 5K by spring" -> "Next step: run a 5K by spring"
     const goalText = (t) => String(t).trim().replace(/^(my goal( is)?( to)?|goal:|i('d| would)? (really )?(want|like|hope|plan) to|wants? to|would like to|hopes? to|plans? to|trying to|is trying to)\s+/i, "").replace(/^./, (c) => c.toLowerCase());
-    pick(p.facts.filter((f) => f.kind === "goal")).slice(0, 1).forEach((f) => add(`Next step: ${short(goalText(f.text), 26)}`, `Help me with my goal: ${f.text}`, true));
+    pick(p.facts.filter((f) => f.kind === "goal")).slice(0, 1).forEach((f) => add(`Next step: ${short(goalText(f.text), 26)}`, `Help me with my goal to ${goalText(f.text).replace(/[.!]+$/, "")}`, true));
     // 3. Today's ideas from Ervo's AI (made from your Psyche)
     const cached = load(IDEAS_KEY);
     const ideaList = cached && cached.data && Array.isArray(cached.data.groups) ? cached.data.groups.flatMap((g) => (g && Array.isArray(g.ideas) ? g.ideas : [])) : [];
@@ -2209,9 +2215,11 @@
   // list: an answer's own options (strings), or null for suggestions picked for you.
   // Old ones fade away, new ones rise in one after another (Apple: motion that explains change).
   let chipsTimer = 0;
+  const HIDDEN_CHIPS_KEY = "ervo-chips-hidden";
   function setChips(list) {
     const box = $("chips");
-    const items = list ? list.map((label) => ({ label, prompt: label })) : (account ? suggestChips() : []);
+    const hidden = load(HIDDEN_CHIPS_KEY) || [];
+    const items = list ? list.map((label) => ({ label, prompt: label })) : (account ? suggestChips().filter((x) => !hidden.includes(x.label)) : []);
     const same = box.dataset.sig === JSON.stringify(items.map((i) => i.label));
     if (same) return;
     box.dataset.sig = JSON.stringify(items.map((i) => i.label));
@@ -2229,6 +2237,15 @@
         if (it.mine) { b.innerHTML = SPARK; b.title = "Suggested from your Psyche"; }
         b.append(it.label);
         b.addEventListener("click", () => { buzz("tick"); send(it.prompt); });
+        // Touch and hold a suggestion to stop seeing it (Microsoft AI guideline 8: easy to dismiss)
+        if (!list) b.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          buzz("long");
+          const h = load(HIDDEN_CHIPS_KEY) || [];
+          if (!h.includes(it.label)) save(HIDDEN_CHIPS_KEY, h.concat(it.label).slice(-100));
+          b.remove();
+          toast(`I won't suggest "${it.label}" again`);
+        });
         box.append(b);
       });
       box.setAttribute("aria-label", list ? "Answers" : "Suggestions for you");
@@ -2242,7 +2259,7 @@
   function openChat(acc, fresh) {
     account = acc;
     const p = PLAN[acc.plan];
-    $("chat-avatar").src = p.avatar;
+    $("chat-avatar").src = lookSrc();
     $("menu-who").textContent = `${acc.name} · Ervo ${acc.plan === "business" ? "for Business" : "Personal"}`;
     thread.innerHTML = "";
     lastDay = "";
@@ -2292,6 +2309,7 @@
 
   const biz = () => account && account.plan === "business";
   async function greet(firstTime) {
+    if (!load(INTRO_KEY)) showIntro();
     const g = greetingText(firstTime);
     const build = (async () => {
       const lines = g.lines.slice();
@@ -2313,6 +2331,7 @@
     })();
     await ervoSays(build);
     if (g.p.news && allowed("location")) newsBubble();
+    whatsNew(firstTime);
   }
 
   // ---------- side chats: branches off the main chat ----------
@@ -2730,11 +2749,16 @@
     };
     const result = askServer(extra, extra ? null : onText).then((j) => {
       // Learn first, so "use emojis" already shows in this reply
-      if (Array.isArray(j.psyche) && j.psyche.length) j.psyche.forEach(learn);
-      else if (j.memories && j.memories.length) remember(j.memories);
+      // Learning can be turned off in Psyche (guideline 17); asked-for style changes ("use emojis") still apply
+      const learning = prefs().learn !== false;
+      const before = new Set(psyche().facts.map((f) => f.id));
+      if (Array.isArray(j.psyche) && j.psyche.length) j.psyche.forEach((u) => learn(learning ? u : { style: u && u.style }));
+      else if (learning && j.memories && j.memories.length) remember(j.memories);
+      const learnedNow = psyche().facts.filter((f) => !before.has(f.id));
       const said = plainText(j.reply);
       const out = { text: said, products: [], chips: null };
       const afters = [];
+      out.learned = learnedNow;
       out.quiet = (j.actions || []).some((a) => SELF_REPORTING.has(a.type));
       (j.actions || []).forEach((a) => {
         if (a.type === "make_list") {
@@ -2807,6 +2831,12 @@
         out.text = out.after ? "Done." : out.products.length || out.list || out.acts || out.choices ? "Here you go."
           : "Sorry, I didn't get an answer that time. Could you ask me again?";
       }
+      // Long answers (meal plans, packing lists, how-tos) get a Share button: Notes, Keep, Messages, email...
+      if (out.text.length > 380 || out.list) {
+        const title = out.list ? out.list.title : (d.raw || "From Ervo").slice(0, 60);
+        const body = out.list ? `${out.text}\n\n${listText(out.list)}` : out.text;
+        out.acts = (out.acts || []).concat({ label: "Share", icon: "open", onClick: () => shareText(title, body) });
+      }
       return out;
     }).catch(() => d.intent === "plan"
       ? { text: "I can't reach my AI right now, so here's a simple plan to start from. Tap what you want, then add it to your calendar.", list: localPlan(planDay(d)) }
@@ -2822,7 +2852,8 @@
     }
     // The streamed words become the real message (same text, no extra wait)
     if (live && (typeof r === "string" || !r || !r.text)) { live.remove(); live = null; }
-    await ervoSays(r, { status, instant: !!live, replace: live });
+    await ervoSays(r, { status, instant: !!live, replace: live, ai: typeof r === "object" && !!r, asked: d && d.raw });
+    if (r && r.learned && r.learned.length) showLearned(r.learned);
     if (r && r.after) return r.after();
   }
 
@@ -3350,6 +3381,8 @@
     if (d.intent === "call") { task = null; confirming = false; return doCall(d.callee); }
     if (d.intent === "emergency") return emergencyReply(d.crisis);
     if (d.intent === "wake") return heyErvo(d.wakeTurn);
+    if (d.intent === "look") return openLook();
+    if (d.intent === "leaveAlert") return openLeave(d.when.time);
     // Ervo asked "when is it?": a day or "this week" answers it
     if (removeAsk) {
       const q = removeAsk;
@@ -3988,7 +4021,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.3.4"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.3.5"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -4393,7 +4426,7 @@
     stopSpeaking();
     voice.hidden = false;
     voice.classList.remove("thinking");
-    $("voice-owl").src = PLAN[(account || { plan: "personal" }).plan].avatar;
+    $("voice-owl").src = lookSrc();
   }
   function setListening(on) {
     listening = on;
@@ -4529,7 +4562,7 @@
   });
   function resetErvo() {
     buzz("reject");
-    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt"].forEach(drop);
+    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version"].forEach(drop);
     history = [];
     closeChats();
     openChat(account, true);
@@ -4538,7 +4571,7 @@
   function signOut() {
     buzz("reject");
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
-    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt"].forEach(drop);
+    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version"].forEach(drop);
     account = null;
     ["contact", "code", "name"].forEach((id) => { $(id).value = ""; });
     setPlan("personal");
@@ -4594,6 +4627,241 @@
     }
   }
 
+  // ---------- Ervo's look: tap Ervo at the top to pick an outfit ----------
+  const LOOKS = [["classic", "Classic"], ["business", "Business"], ["scholar", "Scholar"], ["gamer", "Gamer"], ["space", "Space"],
+    ["explorer", "Explorer"], ["tech", "Tech"], ["builder", "Builder"], ["winter", "Winter"], ["creative", "Creative"]];
+  function lookSrc() {
+    const l = prefs().look;
+    if (l && LOOKS.some((x) => x[0] === l)) return `img/ervo-${l}.png`;
+    return PLAN[(account || { plan: "personal" }).plan].avatar;
+  }
+  function applyLook() {
+    const src = lookSrc();
+    $("chat-avatar").src = src;
+    $("voice-owl").src = src;
+    if ($("intro-owl")) $("intro-owl").src = src;
+    if (liveTyping) liveTyping.querySelector("img").src = src;
+  }
+  function openLook() {
+    toggleMenu(false);
+    const grid = $("look-grid");
+    grid.innerHTML = "";
+    const now = lookSrc();
+    LOOKS.forEach(([id, name]) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", String(now === `img/ervo-${id}.png`));
+      b.innerHTML = `<img src="img/ervo-${id}.png" alt="">`;
+      b.append(`${name}`);
+      b.setAttribute("aria-label", `${name} Ervo`);
+      b.addEventListener("click", () => {
+        const p = prefs();
+        p.look = id;
+        save(PREFS_KEY, p);
+        grid.querySelectorAll("button").forEach((x) => x.setAttribute("aria-checked", String(x === b)));
+        applyLook();
+        buzz("tick");
+        logActivity({ kind: "settings", ico: "star", title: `Changed Ervo's look to ${name} Ervo` });
+      });
+      grid.append(b);
+    });
+    $("look").hidden = false;
+    setTimeout(() => { const c = grid.querySelector('[aria-checked="true"]'); if (c) c.focus(); }, 50);
+  }
+  $("avatar-btn").addEventListener("click", () => { if (account) openLook(); });
+  $("avatar-btn").addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && account) { e.preventDefault(); openLook(); } });
+  $("look-done").addEventListener("click", () => { $("look").hidden = true; });
+  $("look").addEventListener("click", (e) => { if (e.target === $("look")) $("look").hidden = true; });
+  $("open-look").addEventListener("click", openLook);
+
+  // ---------- weather before you leave (Android): one heads-up, only when it matters ----------
+  const DAY_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
+  const DAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  let leaveAsk = false;
+  function leaveDaysText(days) {
+    const d = String(days);
+    if (d === "23456") return "weekdays";
+    if (d.length === 7) return "every day";
+    if (d === "17") return "weekends";
+    return listJoin(d.split("").map((x) => DAY_FULL[+x - 1] + "s"));
+  }
+  function openLeave(time) {
+    toggleMenu(false);
+    if (!(native && native.setWeatherAlert)) return ervoSays("Weather heads-ups before you leave work in the Ervo Android app. On iPhone, the Weather app can send rain alerts.");
+    let st = {};
+    try { st = JSON.parse(native.weatherAlertStatus()); } catch (e) { /* first time */ }
+    const h = time ? time.h : st.hour ?? 8, m = time ? time.m : st.minute ?? 0;
+    $("leave-on").checked = time ? true : !!st.on;
+    $("leave-time").value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const days = String(st.days || "23456");
+    const box = $("leave-days");
+    box.innerHTML = "";
+    DAY_SHORT.forEach((x, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = x;
+      b.dataset.d = String(i + 1);
+      b.setAttribute("aria-label", DAY_FULL[i]);
+      b.setAttribute("aria-pressed", String(days.includes(String(i + 1))));
+      b.addEventListener("click", () => { b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")); buzz("tick"); });
+      box.append(b);
+    });
+    $("leave").hidden = false;
+    if (time) ervoSays(`I can check the weather before you leave at ${fmtTime(time)} and tell you only if you'll need an umbrella, a jacket or extra time. Pick your days, then tap Save.`);
+  }
+  async function leaveSettings(on) {
+    const [hh, mm] = ($("leave-time").value || "08:00").split(":").map(Number);
+    const days = [...$("leave-days").querySelectorAll("button")].filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.dataset.d).join("") || "23456";
+    const s = { on, hour: hh || 0, minute: mm || 0, days };
+    if (on) {
+      if (!(await ensure("location", "Check the weather where you live before you leave"))) return null;
+      let place = null;
+      try { place = await getPlace(); } catch (e) { /* no location */ }
+      if (!place) { ervoSays("I couldn't get your location, so I can't check your weather yet. Make sure Location is on for Ervo, then try again."); return null; }
+      Object.assign(s, { lat: place.lat, lon: place.lon, city: place.city || "", fahrenheit: place.country ? ["US", "LR", "MM", "BS", "BZ", "KY", "PW"].includes(place.country) : /-US$/.test(navigator.language || "") });
+    }
+    return s;
+  }
+  $("leave-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("leave").hidden = true;
+    const on = $("leave-on").checked;
+    const s = await leaveSettings(on);
+    if (!s) return;
+    const p = prefs();
+    p.leave = { on, hour: s.hour, minute: s.minute, days: s.days };
+    save(PREFS_KEY, p);
+    leaveAsk = true;
+    native.setWeatherAlert(JSON.stringify(s));
+  });
+  $("leave-test").addEventListener("click", async () => {
+    const s = await leaveSettings(true);
+    if (!s) return;
+    s.on = $("leave-on").checked; // a sample doesn't turn it on by itself
+    s.ask = true; // but it does ask for notifications, so the sample can show
+    native.setWeatherAlert(JSON.stringify(s));
+    native.testWeatherAlert();
+    toast("Sample sent. Check your notifications.");
+  });
+  $("leave-cancel").addEventListener("click", () => { $("leave").hidden = true; });
+  $("leave").addEventListener("click", (e) => { if (e.target === $("leave")) $("leave").hidden = true; });
+  $("open-leave").addEventListener("click", () => openLeave(null));
+  window.ervoWeatherAlert = (json) => {
+    if (!leaveAsk) return;
+    leaveAsk = false;
+    let st = {};
+    try { st = JSON.parse(json); } catch (e) { return; }
+    const at = fmtTime({ h: st.hour, m: st.minute });
+    if (st.on && !st.notify) {
+      return ervoSays("Notifications are off for Ervo, so the heads-up can't show. Turn them on in Settings, then you're all set.", { acts: [{ label: "Open Settings", icon: "open", onClick: () => native.openAppSettings() }] });
+    }
+    if (!st.on) { logActivity({ kind: "settings", ico: "sun", title: "Turned off weather before you leave" }); return ervoSays("Okay, weather heads-ups are off."); }
+    logActivity({ kind: "settings", ico: "sun", title: `Weather heads-up before ${at}`, detail: leaveDaysText(st.days) });
+    return ervoSays(`Done ✅ About 20 minutes before ${at} on ${leaveDaysText(st.days)}, I'll check the weather${st.city ? ` in ${st.city}` : ""} and send a heads-up only if you'll need an umbrella, a jacket or extra time.`, {
+      acts: [{ label: "Send a Sample", icon: "sun", onClick: () => { native.testWeatherAlert(); toast("Sample sent. Check your notifications."); } }],
+    });
+  };
+
+  // ---------- share text with any app (Notes, Keep, Messages, email) ----------
+  async function shareText(title, text) {
+    if (native && native.shareText) return native.shareText(String(title || ""), String(text || ""));
+    if (navigator.share) { try { await navigator.share({ title, text }); return; } catch (e) { if (e && e.name === "AbortError") return; } }
+    const ok = await copyText(text);
+    toast(ok ? "Copied. Paste it into Notes or any app." : "Couldn't share that. Try again.");
+  }
+
+  // ---------- a few things to know (guidelines 1, 2 and 17) ----------
+  const INTRO_KEY = "ervo-intro";
+  function showIntro() {
+    toggleMenu(false);
+    if ($("intro-owl")) $("intro-owl").src = lookSrc();
+    $("intro").hidden = false;
+    setTimeout(() => $("intro-ok").focus(), 50);
+  }
+  $("intro-ok").addEventListener("click", () => { $("intro").hidden = true; save(INTRO_KEY, 1); });
+  $("open-intro").addEventListener("click", showIntro);
+
+  // ---------- what's new after an update (guideline 18), as a chat message, never a pop-up ----------
+  async function whatsNew(firstTime) {
+    const seen = load("ervo-seen-version");
+    save("ervo-seen-version", APP_VERSION);
+    if (firstTime || seen === APP_VERSION) return;
+    let notes = [];
+    try { const r = await fetch("version.json", { cache: "no-store" }); notes = ((await r.json()).notes || []).slice(0, 4); } catch (e) { /* offline */ }
+    if (!notes.length) return;
+    await ervoSays(`I was just updated to version ${APP_VERSION}. What's new:\n${notes.map((n) => `• ${n}`).join("\n")}`);
+  }
+
+  // ---------- was that helpful? (guidelines 15 and 16) ----------
+  function feedbackRow(asked, said) {
+    const row = document.createElement("div");
+    row.className = "fb";
+    row.setAttribute("role", "group");
+    row.setAttribute("aria-label", "Was this helpful?");
+    const btn = (txt, label, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = txt; b.setAttribute("aria-label", label); b.addEventListener("click", fn); return b; };
+    const thanks = (msg) => { row.innerHTML = ""; row.append(msg); setTimeout(() => row.remove(), 4000); };
+    const up = btn("👍", "Good answer", () => { buzz("tick"); thanks("Thanks! Glad that helped."); });
+    const down = btn("👎", "Not helpful", () => {
+      buzz("tick");
+      row.innerHTML = "";
+      const why = document.createElement("div");
+      why.className = "fb-why";
+      const topic = String(asked).slice(0, 80);
+      [
+        ["Wrong info", () => { learn({ lesson: `Double-check facts carefully; an answer about "${topic}" had wrong info` }); return ["Thanks for telling me. I'll double-check facts like that more carefully.", true]; }],
+        ["Not what I asked", () => { learn({ lesson: `Read the question closely; "${topic}" was misunderstood` }); return ["Sorry about that. I'll read questions more carefully.", true]; }],
+        ["Too long", () => { learn({ style: { length: "short and to the point" } }); return ["Got it. I'll keep my answers shorter from now on. You'll see it in Psyche.", false]; }],
+        ["Too short", () => { learn({ style: { length: "more detail when it helps" } }); return ["Got it. I'll give more detail from now on. You'll see it in Psyche.", false]; }],
+      ].forEach(([label, fn]) => why.append(btn(label, label, () => {
+        const [msg, retry] = fn();
+        row.remove();
+        ervoSays(msg, { acts: retry && asked ? [{ label: "Try Again", icon: "undo", onClick: () => send(asked) }] : null });
+      })));
+      row.append(why);
+    });
+    row.append(up, down);
+    thread.append(row);
+  }
+
+  // ---------- "Added to your Psyche: ..." with Undo (guideline 16) ----------
+  function showLearned(facts) {
+    const row = document.createElement("div");
+    row.className = "learned";
+    row.setAttribute("role", "status");
+    const txt = document.createElement("span");
+    txt.append("🧠 Added to your Psyche: ");
+    const b = document.createElement("b");
+    b.textContent = listJoin(facts.slice(0, 3).map((f) => f.text)) + (facts.length > 3 ? ` and ${facts.length - 3} more` : "");
+    txt.append(b);
+    const undo = document.createElement("button");
+    undo.type = "button";
+    undo.textContent = "Undo";
+    undo.addEventListener("click", () => {
+      learn({ remove: facts.map((f) => f.id) });
+      row.innerHTML = "";
+      row.append("Removed. I won't use that.");
+      setTimeout(() => row.remove(), 3000);
+    });
+    const see = document.createElement("button");
+    see.type = "button";
+    see.textContent = "See Psyche";
+    see.addEventListener("click", () => $("open-psyche").click());
+    row.append(txt, undo, see);
+    thread.append(row);
+    toBottom();
+  }
+
+  // ---------- learning on or off (guideline 17) ----------
+  $("learn-on").checked = prefs().learn !== false;
+  $("learn-on").addEventListener("change", () => {
+    const p = prefs();
+    p.learn = $("learn-on").checked;
+    save(PREFS_KEY, p);
+    toast(p.learn ? "Ervo will keep learning from your chats" : "Learning is off. Ervo won't add anything new.");
+    logActivity({ kind: "settings", ico: "brain", title: p.learn ? "Turned learning on" : "Turned learning off" });
+  });
+
   // ---------- touch and hold one of Ervo's replies: Copy, Ask again ----------
   // (Apple: let people copy and retry AI results; One UI: touch and hold opens a menu)
   function closeMsgMenu() {
@@ -4628,6 +4896,12 @@
       const tag = q.querySelector(".voice-tag");
       const asked = (tag ? q.innerText.replace(tag.innerText, "") : q.innerText).trim();
       if (asked) item("Ask again", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>', () => send(asked));
+      if (asked && AI_URL) item("Why This Answer?", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.6-.8 1.1v.5M12 16.8v.1"/></svg>',
+        () => send("Why did you answer that way? Briefly tell me what you based it on, like what you know about me, my location or the time."));
+    }
+    {
+      item("Share", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>',
+        () => shareText("From Ervo", el.innerText));
     }
     document.body.append(menu);
     const r = el.getBoundingClientRect();

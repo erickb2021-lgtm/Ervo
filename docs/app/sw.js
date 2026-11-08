@@ -1,6 +1,6 @@
 // Keeps Ervo working offline once it's added to the home screen.
 // Bump VERSION with every release so phones pick up the new files.
-const VERSION = "ervo-0.3.4";
+const VERSION = "ervo-0.3.5";
 const FILES = [
   "./",
   "index.html",
@@ -16,6 +16,14 @@ const FILES = [
   "img/ervo-wordmark-white.svg",
   "img/ervo-classic.png",
   "img/ervo-business.png",
+  "img/ervo-scholar.png",
+  "img/ervo-gamer.png",
+  "img/ervo-space.png",
+  "img/ervo-explorer.png",
+  "img/ervo-tech.png",
+  "img/ervo-builder.png",
+  "img/ervo-winter.png",
+  "img/ervo-creative.png",
   "img/apple-touch-icon.png",
   "img/icon-192.png",
   "img/icon-512.png",

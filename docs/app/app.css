@@ -1183,3 +1183,34 @@ html.docked .chats-drawer { border-right: 0.5px solid var(--sep); background: va
 .msg.them.streaming::after { content: "▍"; margin-left: 2px; opacity: .45; animation: ervo-caret 1s steps(2, start) infinite; }
 @keyframes ervo-caret { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .msg.them.streaming::after { animation: none; } }
+
+/* ===== 0.3.5: Ervo's look, weather before you leave, intro, feedback and "learned" notes ===== */
+#avatar-btn { cursor: pointer; border-radius: 50%; }
+#avatar-btn:focus-visible { outline: 3px solid var(--tint); outline-offset: 3px; }
+.look-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; margin: 6px 0 4px; max-height: 52vh; overflow-y: auto; padding: 4px; }
+.look-grid button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px 10px; border-radius: 18px; border: 2px solid transparent; background: var(--surface-2); color: var(--text); font: inherit; font-size: 0.8rem; font-weight: 600; min-height: 44px; cursor: pointer; }
+.look-grid button img { width: 64px; height: 64px; object-fit: contain; }
+.look-grid button[aria-checked="true"] { border-color: var(--tint); background: color-mix(in srgb, var(--tint) 14%, var(--bg)); }
+.day-picks { display: flex; gap: 6px; justify-content: space-between; margin: 0 0 8px; }
+.day-picks button { flex: 1; min-width: 0; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.day-picks button[aria-pressed="true"] { background: var(--tint-fill); border-color: var(--tint-fill); color: var(--on-tint); }
+.text-btn { display: block; margin: 2px auto 8px; padding: 10px 14px; min-height: 44px; border: 0; background: none; color: var(--tint); font: inherit; font-weight: 600; cursor: pointer; }
+.intro-sheet { text-align: left; }
+.intro-owl { display: block; width: 72px; height: 72px; object-fit: contain; margin: 0 auto 4px; }
+.intro-sheet h2 { text-align: center; }
+.intro-list { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 14px; }
+.intro-list li { display: flex; gap: 12px; align-items: flex-start; }
+.intro-ico { font-size: 1.4rem; line-height: 1.2; flex: none; width: 32px; text-align: center; }
+.intro-list b { display: block; }
+.intro-list small { display: block; color: var(--text-2); font-size: 0.85rem; line-height: 1.4; margin-top: 2px; }
+.learn-card { padding: 4px 0; }
+/* Under Ervo's newest answer: was it helpful? (Microsoft AI guideline 15) */
+.fb { display: flex; gap: 4px; align-items: center; margin: -2px 0 6px 6px; color: var(--text-2); font-size: 0.8rem; }
+.fb button { width: 36px; height: 36px; min-width: 36px; border-radius: 50%; border: 0; background: transparent; color: var(--text-2); font-size: 1rem; cursor: pointer; display: grid; place-items: center; }
+.fb button:hover, .fb button:focus-visible { background: var(--surface-2); }
+.fb .fb-why { display: flex; flex-wrap: wrap; gap: 6px; }
+.fb .fb-why button { width: auto; height: auto; min-height: 36px; padding: 6px 12px; border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: 0.8rem; font-weight: 600; }
+/* "Added to your Psyche" (Microsoft AI guideline 16: show what your words change) */
+.learned { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 8px 6px; padding: 8px 12px; border-radius: 14px; background: color-mix(in srgb, var(--tint) 10%, transparent); color: var(--text-2); font-size: 0.82rem; max-width: 86%; }
+.learned b { color: var(--text); font-weight: 600; }
+.learned button { border: 0; background: none; color: var(--tint); font: inherit; font-weight: 700; padding: 6px 4px; min-height: 32px; cursor: pointer; }

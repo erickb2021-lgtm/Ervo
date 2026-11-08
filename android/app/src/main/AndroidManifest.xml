@@ -24,6 +24,8 @@
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <!-- Timers and alarms in your phone's Clock app. -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <!-- Weather heads-up before you leave: plans the next check again after the phone restarts -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Lets Ervo find the phone's speech recognizer, text-to-speech and Health Connect (Android 11+) -->
     <queries>
@@ -95,6 +97,16 @@
             android:name=".WakeService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <!-- Weather heads-up before you leave (only when you turn it on in Ervo) -->
+        <receiver
+            android:name=".WeatherAlertReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Shares a downloaded update with Android's installer -->
         <provider
