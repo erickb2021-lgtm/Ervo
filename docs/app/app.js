@@ -23,7 +23,8 @@
   // activity, settings, usage and team data: Business is stored under a "biz:" prefix. A few things are
   // shared by both (the sign-in itself, the list of profiles, the theme, update checks, your city).
   const PROFILES_KEY = "ervo-profiles";
-  const SHARED_KEYS = new Set([ACCOUNT_KEY, PROFILES_KEY, "ervo-session", THEME_KEY, PLACE_KEY, "ervo-seen-version", "ervo-intro", "ervo-update-checked", "ervo-cal-reset-027"]);
+  const ICON_PROFILE_KEY = "ervo-icon-profile"; // "personal" or "business": whose look is the home-screen icon
+  const SHARED_KEYS = new Set([ACCOUNT_KEY, PROFILES_KEY, ICON_PROFILE_KEY, "ervo-session", THEME_KEY, PLACE_KEY, "ervo-seen-version", "ervo-intro", "ervo-update-checked", "ervo-cal-reset-027"]);
   let NS = (() => { try { const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY)); return a && a.plan === "business" ? "biz:" : ""; } catch (e) { return ""; } })();
   const setNS = (plan) => { NS = plan === "business" ? "biz:" : ""; };
   const nsKey = (k) => (NS && !SHARED_KEYS.has(k) ? NS + k : k);
@@ -267,6 +268,27 @@
 
   // ---------- one email, two Ervos: switching between Personal and Business ----------
   let switching = false;
+  // The curtain: "Switching to Business" with that Ervo's look, quick, then the app reloads behind it
+  function curtain(to, then) {
+    const c = $("switching");
+    $("switching-owl").src = lookFile(lookOf(to)) || PLAN[to].avatar;
+    $("switching-text").textContent = `Switching to ${to === "business" ? "Business" : "Personal"}`;
+    c.classList.remove("out");
+    c.hidden = false;
+    try { sessionStorage.setItem("ervo-switching", to); } catch (e) { /* fine */ }
+    setTimeout(then, 420);
+  }
+  // After the reload: keep the curtain up for a beat, then lift it
+  (function liftCurtain() {
+    let to = null;
+    try { to = sessionStorage.getItem("ervo-switching"); sessionStorage.removeItem("ervo-switching"); } catch (e) { /* fine */ }
+    if (!to) return;
+    const c = $("switching");
+    $("switching-owl").src = PLAN[to] ? PLAN[to].avatar : "img/ervo-classic.png";
+    $("switching-text").textContent = `Switching to ${to === "business" ? "Business" : "Personal"}`;
+    c.hidden = false;
+    setTimeout(() => { c.classList.add("out"); setTimeout(() => { c.hidden = true; }, 320); }, 380);
+  })();
   function switchProfile() {
     toggleMenu(false);
     const to = account.plan === "business" ? "personal" : "business";
@@ -277,7 +299,7 @@
     if (other && other.name) {
       setNS(to);
       save(ACCOUNT_KEY, other);
-      location.reload(); // start clean in the other Ervo's space
+      curtain(to, () => location.reload()); // start clean in the other Ervo's space
       return;
     }
     if (!realAuth || !session()) { ervoSays(`To add Ervo ${to === "business" ? "for Business" : "Personal"} to this email, sign out and sign in again choosing ${to === "business" ? "Business" : "Personal"}.`); return; }
@@ -313,7 +335,7 @@
     const company = $("team-company").value.trim();
     const code = $("team-code").value.trim().toUpperCase();
     if (company.length < 2) { $("team-error").textContent = "Enter the company's name."; return; }
-    if (teamRole === "employee" && !/^ERVO-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) { $("team-error").textContent = "Enter the employee ID your company gave you, like ERVO-7F3K-92QX."; return; }
+    if (teamRole === "employee" && !/^ERVO(-[A-Z0-9]{4}){2,3}$/.test(code)) { $("team-error").textContent = "Enter the employee ID your company gave you, like ERVO-7F3K-92QX-4MNB."; return; }
     const btn = $("team-go");
     btn.disabled = true;
     try {
@@ -472,9 +494,10 @@
   (function buildSettings() {
     const box = $("settings-list");
     SETTINGS.forEach(([name, rows]) => {
-      if (name) { const hd = document.createElement("h2"); hd.textContent = name; box.append(hd); }
+      if (name) { const hd = document.createElement("h2"); hd.textContent = name; hd.dataset.group = name; box.append(hd); }
       const card = document.createElement("div");
       card.className = "card list compact";
+      card.dataset.group = name;
       rows.forEach(([id, ico, color, label, sub, cls]) => {
         const b = document.createElement("button");
         b.type = "button";
@@ -4416,7 +4439,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.4.2"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.4.3"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -5057,9 +5080,10 @@
   }
   function applyLook() {
     const src = lookSrc();
-    // iPhone: the icon used when Ervo is added to the home screen follows the look
+    // iPhone: the icon used when Ervo is added to the home screen follows the owning profile's look
     const touch = document.querySelector('link[rel="apple-touch-icon"]');
-    if (touch) touch.href = prefs().look && lookFile(prefs().look) ? `img/touch-${prefs().look}.png` : "img/apple-touch-icon.png";
+    const own = lookOf(iconOwner());
+    if (touch) touch.href = lookFile(own) ? `img/touch-${own}.png` : "img/apple-touch-icon.png";
     $("chat-avatar").src = src;
     $("voice-owl").src = src;
     $("set-owl").src = src;
@@ -5076,7 +5100,7 @@
       b.type = "button";
       b.setAttribute("role", "radio");
       b.setAttribute("aria-checked", String(now === lookFile(id)));
-      b.innerHTML = `<img src="${lookFile(id)}" alt="">`;
+      b.innerHTML = `<img src="${lookFile(id)}" alt="" loading="lazy" decoding="async">`;
       b.append(`${name}`);
       b.setAttribute("aria-label", `${name} Ervo`);
       b.addEventListener("click", () => {
@@ -5088,13 +5112,38 @@
         applyLook();
         buzz("tick");
         logActivity({ kind: "settings", ico: "star", title: `Changed Ervo's look to ${name} Ervo` });
-        if (native && native.setAppIcon) { native.setAppIcon(id); toast(`${name} Ervo is your home-screen icon too`); }
+        if (iconOwner() === account.plan) { syncAppIcon(); if (native && native.setAppIcon) toast(`${name} Ervo will be your home-screen icon`); }
       });
       grid.append(b);
     });
+    $("look-icon").checked = iconOwner() === account.plan;
+    $("look-icon-sub").textContent = iconOwner() === account.plan
+      ? `Your home screen shows this Ervo's look. Turn off to use your ${account.plan === "business" ? "Personal" : "Business"} Ervo instead.`
+      : `Your ${account.plan === "business" ? "Personal" : "Business"} Ervo is the icon right now. Turn on to use this one.`;
     $("look").hidden = false;
     setTimeout(() => { const c = grid.querySelector('[aria-checked="true"]'); if (c) c.focus(); }, 50);
   }
+  // One home-screen icon for both Ervos: the look of whichever profile owns it
+  const iconOwner = () => load(ICON_PROFILE_KEY) || "personal";
+  function lookOf(plan) {
+    try { const p = JSON.parse(localStorage.getItem(`${plan === "business" ? "biz:" : ""}${PREFS_KEY}`)) || {}; if (p.look && lookFile(p.look)) return p.look; } catch (e) { /* none */ }
+    return plan === "business" ? "business" : "classic";
+  }
+  function syncAppIcon() {
+    const look = lookOf(iconOwner());
+    if (native && native.setAppIcon) native.setAppIcon(look);
+    const touch = document.querySelector('link[rel="apple-touch-icon"]');
+    if (touch) touch.href = lookFile(look) ? `img/touch-${look}.png` : "img/apple-touch-icon.png";
+  }
+  $("look-icon").addEventListener("change", () => {
+    const other = account.plan === "business" ? "personal" : "business";
+    save(ICON_PROFILE_KEY, $("look-icon").checked ? account.plan : other);
+    syncAppIcon();
+    $("look-icon-sub").textContent = $("look-icon").checked
+      ? `Your home screen shows this Ervo's look. Turn off to use your ${other === "business" ? "Business" : "Personal"} Ervo instead.`
+      : `Your ${other === "business" ? "Business" : "Personal"} Ervo is the icon right now. Turn on to use this one.`;
+    toast($("look-icon").checked ? "This Ervo is your home-screen icon" : `Your ${other === "business" ? "Business" : "Personal"} Ervo is the icon`);
+  });
   $("avatar-btn").addEventListener("click", () => { if (account) openLook(); });
   $("avatar-btn").addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && account) { e.preventDefault(); openLook(); } });
   $("look-done").addEventListener("click", () => { $("look").hidden = true; });
@@ -5373,6 +5422,7 @@
     $("open-team").hidden = !owner;
     $("open-hours").hidden = !t;
     $("open-company").hidden = !(t && t.role === "employee");
+    document.querySelectorAll('#settings-list [data-group="Work"]').forEach((el) => { el.hidden = !t; });
     const tab = $("tab-goals");
     tab.querySelector("span").textContent = owner ? "Team" : "Goals";
     tab.querySelector("svg").innerHTML = owner
@@ -5484,7 +5534,7 @@
     cbox.innerHTML = "";
     if (!t.pendingCodes.length) cbox.append(empty("No open IDs. Each ID lets one person join; it stops working once they do."));
     t.pendingCodes.forEach((c) => {
-      const r = row("star", c.code, c.label ? `For ${c.label}` : "Not used yet", "");
+      const r = row("star", c.code, `${c.label ? `For ${c.label}` : "Not used yet"}${c.role === "coowner" ? " · co-owner" : ""}`, "");
       r.querySelector("b").classList.add("mono");
       const b = document.createElement("button");
       b.type = "button";
@@ -5507,17 +5557,26 @@
   });
   // New employee ID
   let newCode = "";
-  $("team-add").addEventListener("click", () => { $("newid-ask").hidden = false; $("newid-show").hidden = true; $("newid-label").value = ""; $("newid").hidden = false; setTimeout(() => $("newid-label").focus(), 60); });
+  $("team-add").addEventListener("click", () => {
+    $("newid-ask").hidden = false; $("newid-show").hidden = true; $("newid-label").value = "";
+    $("newid-roles").hidden = account.team.role !== "owner"; // only the owner can invite co-owners
+    document.querySelector('input[name="newidrole"][value="employee"]').checked = true;
+    $("newid").hidden = false; setTimeout(() => $("newid-label").focus(), 60);
+  });
   $("newid-cancel").addEventListener("click", () => { $("newid").hidden = true; });
   $("newid-done").addEventListener("click", () => { $("newid").hidden = true; });
   $("newid").addEventListener("click", (e) => { if (e.target === $("newid")) $("newid").hidden = true; });
   $("newid-create").addEventListener("click", async () => {
     const label = $("newid-label").value.trim();
+    const role = (document.querySelector('input[name="newidrole"]:checked') || {}).value === "coowner" && account.team.role === "owner" ? "coowner" : "employee";
     $("newid-create").disabled = true;
     try {
-      const r = await teamApi("ids/create", { label });
+      const r = await teamApi("ids/create", { label, role });
       newCode = r.code;
-      $("newid-for").textContent = label ? `For ${label}` : "For your next employee";
+      $("newid-for").textContent = `${label ? `For ${label}` : "For your next teammate"}${role === "coowner" ? " · joins as co-owner" : ""}`;
+      $("newid-note").textContent = role === "coowner"
+        ? "Give it to them in person or by text. They pick Business, then Employee, enter your company name and this ID, and join as a co-owner. It works once and is never reused."
+        : "Give it to them in person or by text. They pick Business, then Employee, and enter your company name and this ID. It works once, it's never reused, and you can revoke it until they join.";
       $("newid-code").textContent = r.code;
       $("newid-ask").hidden = true;
       $("newid-show").hidden = false;
@@ -5722,6 +5781,8 @@
     sheet.addEventListener("touchstart", (e) => {
       // Only when the sheet is scrolled to the top, and not while typing
       if (sheet.scrollTop > 0 || e.target.closest("input, select, textarea")) { y0 = null; return; }
+      const scrolls = sheet.scrollHeight > sheet.clientHeight + 4;
+      if (scrolls && e.touches[0].clientY - sheet.getBoundingClientRect().top > 72) { y0 = null; return; }
       y0 = e.touches[0].clientY; dy = 0;
     }, { passive: true });
     sheet.addEventListener("touchmove", (e) => {

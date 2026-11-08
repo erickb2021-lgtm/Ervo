@@ -1,17 +1,17 @@
 {
-  "version": "0.4.2",
+  "version": "0.4.3",
   "notes": [
+    "Pick which Ervo is your home-screen icon, Personal or Business, with a switch in Ervo's Look. The icon changes quietly once you leave the app, no more getting kicked out",
+    "Ervo's Look scrolls without closing; a quick \"Switching to Business\" curtain when you change Ervos",
+    "Work settings show only for Business; the owner can create co-owner IDs; IDs are longer and never reused",
+    "Smoother: fewer heavy effects while you move around the app",
+    "The website lives at ervo.company",
     "23 looks for Ervo: Royal, Detective, Explorer, Scientist, Wizard, Ninja, Samurai, Pirate, Pilot, Athlete, Soccer, Musician, Chef, Artist, Holiday and more, all cut out clean",
     "Your home-screen icon follows Ervo's look. On iPhone, the icon you add to the home screen uses the look you had picked",
     "Ervo for Business thinks like a business: Ideas are about customers, billing, taxes, suppliers, team and renewals, shaped by what your company does. No dentist appointments here",
     "Business Psyche: what Ervo learns in Business is about the company (products, policies, customers, finance, tools, schedule, team), kept apart from your personal Psyche",
     "Co-owners: the owner can make an employee a co-owner, with everything the owner can do except removing co-owners or the owner",
     "An employee whose access was removed sees why when they open Ervo, and can rejoin with a new ID",
-    "How Ervo Works reads differently in Business; Reset asks twice; the Switch row sits at the top of Settings",
-    "New looks are easy to add: a picture and one line in looks.json (animated ones welcome)",
-    "One email, two Ervos: the same sign-in can have Ervo Personal and Ervo for Business, each with its own chats, Psyche, activity, settings and notifications. Switch between them in Settings",
-    "Real sign-in: Ervo now sends a 6-digit code to your email. Anyone who had a preview account signs in again once",
-    "Ervo for Business teams: pick Company or Employee when you sign up. Owners create employee IDs; employees join with the company name and their ID, and nobody else can",
-    "Owners get a Team tab: every employee, their office hours, and their chats with Ervo"
+    "How Ervo Works reads differently in Business; Reset asks twice; the Switch row sits at the top of Settings"
   ]
 }

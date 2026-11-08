@@ -75,7 +75,7 @@
     <label class="sr" for="team-company">Company name</label>
     <input class="field" id="team-company" type="text" autocomplete="organization" placeholder="Company name">
     <label class="sr" for="team-code">Employee ID</label>
-    <input class="field" id="team-code" type="text" autocomplete="off" autocapitalize="characters" placeholder="Employee ID, like ERVO-7F3K-92QX" hidden>
+    <input class="field" id="team-code" type="text" autocomplete="off" autocapitalize="characters" placeholder="Employee ID, like ERVO-7F3K-92QX-4MNB" hidden>
     <p class="error" id="team-error" role="alert"></p>
     <button class="btn primary" type="submit" id="team-go">Create my company</button>
   </form>
@@ -326,9 +326,12 @@
     </button>
     <div id="settings-list"></div>
     <p class="foot-note menu-ai">Ervo uses AI and can make mistakes. Check important info.</p>
-    <p class="foot-note menu-version" id="menu-version">Ervo version 0.4.2 (preview)</p>
+    <p class="foot-note menu-version" id="menu-version">Ervo version 0.4.3 (preview)</p>
   </div>
 </section>
+
+<!-- Switching between Ervo Personal and Ervo for Business -->
+<div class="switching" id="switching" hidden aria-live="polite"><img id="switching-owl" src="img/ervo-classic.png" alt=""><b id="switching-text">Switching</b></div>
 
 <!-- Bottom tabs: Chat, Ideas, Goals, Files -->
 <nav class="tabbar" id="tabbar" aria-label="Main" hidden>
@@ -384,6 +387,10 @@
       <p class="muted">Who is this ID for? Ervo shows the name next to it until they join.</p>
       <label class="sr" for="newid-label">Their name</label>
       <input class="field soft" id="newid-label" type="text" autocomplete="off" placeholder="Their name (optional)">
+      <div class="seg newid-role" role="radiogroup" aria-label="Role" id="newid-roles">
+        <label><input type="radio" name="newidrole" value="employee" checked><span>Employee</span></label>
+        <label><input type="radio" name="newidrole" value="coowner"><span>Co-owner</span></label>
+      </div>
       <div class="sheet-actions">
         <button class="pill ghost" type="button" id="newid-cancel">Cancel</button>
         <button class="pill" type="button" id="newid-create">Create ID</button>
@@ -392,7 +399,7 @@
     <div id="newid-show" hidden>
       <p class="muted" id="newid-for"></p>
       <p class="id-code" id="newid-code"></p>
-      <p class="perm-note">Give it to them in person or by text. They pick Business, then Employee, and enter your company name and this ID. It works once; you can revoke it until they join.</p>
+      <p class="perm-note" id="newid-note">Give it to them in person or by text. They pick Business, then Employee, and enter your company name and this ID. It works once, it's never reused, and you can revoke it until they join.</p>
       <div class="sheet-actions">
         <button class="pill ghost" type="button" id="newid-copy">Copy</button>
         <button class="pill" type="button" id="newid-share">Share</button>
@@ -519,6 +526,9 @@
     <h2 id="look-title">Ervo's look</h2>
     <p class="muted">Pick how Ervo looks. It changes everywhere in the app.</p>
     <div class="look-grid" id="look-grid" role="radiogroup" aria-labelledby="look-title"></div>
+    <div class="toggles look-icon-row">
+      <label class="toggle"><span>Home-screen icon <small id="look-icon-sub">Only one of your Ervos can be the icon. Turn this on here and it turns off for the other.</small></span><input type="checkbox" id="look-icon"><i></i></label>
+    </div>
     <div class="sheet-actions">
       <button class="pill" type="button" id="look-done">Done</button>
     </div>

@@ -1461,3 +1461,22 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 #teamchat-remove { display: block; margin: 8px auto 0; }
 /* 0.4.2: the Add Employee ID button is a normal filled pill; role tags */
 #team-add { display: block; width: 100%; margin-top: 10px; color: var(--on-tint) !important; }
+
+/* ===== 0.4.3: switching curtain, icon owner toggle, lighter rendering ===== */
+.switching { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: var(--bg); color: var(--text); animation: fade 0.18s ease both; }
+.switching.out { animation: curtain-out 0.3s ease both; }
+.switching img { width: 96px; height: 96px; object-fit: contain; animation: curtain-pop 0.42s var(--ease-ios) both; }
+.switching b { font-family: var(--font-display); font-size: var(--fs-title2, 1.3rem); font-weight: 700; letter-spacing: 0.01em; animation: curtain-text 0.42s var(--ease-ios) both; }
+@keyframes curtain-pop { from { opacity: 0; transform: scale(0.8) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes curtain-text { from { opacity: 0; transform: translateY(10px); letter-spacing: 0.12em; } to { opacity: 1; transform: none; letter-spacing: 0.01em; } }
+@keyframes curtain-out { to { opacity: 0; } }
+.look-icon-row { margin-top: 14px; }
+.newid-role { margin: 10px 0 2px; }
+/* Smoother: no expensive effects where they don't earn their keep */
+.app-ico.e3dico img { filter: none; }
+.e3d { filter: none; }
+.tabbar { -webkit-backdrop-filter: none; backdrop-filter: none; background: color-mix(in srgb, var(--bg) 92%, transparent); }
+.screen:not(.active) .sky-scene * { animation-play-state: paused !important; }
+.screen.push-in, .screen.pop-out { box-shadow: none; }
+.row { content-visibility: auto; contain-intrinsic-size: 56px; }
+.look-grid img { content-visibility: auto; }

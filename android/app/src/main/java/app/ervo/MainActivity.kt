@@ -619,17 +619,12 @@ open class MainActivity : AppCompatActivity() {
             try { startActivity(Intent.createChooser(send, title.ifEmpty { "Share" })) } catch (e: Exception) { /* nothing can share */ }
         }
 
-        /** Home-screen icon = Ervo's look. Enables that look's launcher alias and disables the others. */
+        /** Home-screen icon = Ervo's look. Remembered now, applied once Ervo goes to the background,
+         *  because switching launcher aliases while the app is in front makes Android close it. */
         @JavascriptInterface
-        fun setAppIcon(look: String) = runOnUiThread {
+        fun setAppIcon(look: String) {
             val id = look.lowercase().filter { it.isLetter() }
-            if (id !in LOOK_IDS) return@runOnUiThread
-            val pm = packageManager
-            // Enable the new one first, so there is never a moment with no icon
-            pm.setComponentEnabledSetting(ComponentName(this@MainActivity, "app.ervo.Look_$id"), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
-            LOOK_IDS.filter { it != id }.forEach { l ->
-                pm.setComponentEnabledSetting(ComponentName(this@MainActivity, "app.ervo.Look_$l"), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP)
-            }
+            if (id in LOOK_IDS) pendingIcon = id
         }
 
         /** This app's version, like "0.2.1", so the screens can check for updates. */
@@ -1369,6 +1364,26 @@ open class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         tts?.stop()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        applyPendingIcon()
+    }
+
+    @Volatile private var pendingIcon: String? = null
+    private fun applyPendingIcon() {
+        val id = pendingIcon ?: return
+        pendingIcon = null
+        val pm = packageManager
+        val current = LOOK_IDS.firstOrNull { pm.getComponentEnabledSetting(ComponentName(this, "app.ervo.Look_$it")) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED }
+            ?: "classic"
+        if (current == id) return
+        // Enable the new one first, so there is never a moment with no icon
+        pm.setComponentEnabledSetting(ComponentName(this, "app.ervo.Look_$id"), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
+        LOOK_IDS.filter { it != id }.forEach { l ->
+            pm.setComponentEnabledSetting(ComponentName(this, "app.ervo.Look_$l"), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP)
+        }
     }
 
     override fun onDestroy() {
