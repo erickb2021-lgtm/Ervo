@@ -18,6 +18,7 @@ import android.telephony.PhoneNumberUtils
 import android.telephony.TelephonyManager
 import android.provider.Settings
 import android.view.HapticFeedbackConstants
+import android.widget.Toast
 import android.os.Build
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
@@ -242,12 +243,18 @@ open class MainActivity : AppCompatActivity() {
         }
         takeWakeIntent(intent)
         takeShortcutIntent(intent)
+        // Updates are checked by Android too, so a broken page can never hide a fix
+        UpdateCheck.schedule(this)
+        takeUpdateIntent(intent)
+        askNotificationsOnce()
 
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
         } else {
             webView.loadUrl("https://$APP_HOST/assets/www/index.html" + if (overlay) "?overlay=1" else "")
         }
+        // Safety net: if the page's script crashed, offer to update or reload without it
+        if (!overlay) webView.postDelayed({ checkPageAlive(0) }, 9000)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -758,6 +765,64 @@ open class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ---------- updates without the page (notification tap, or the page failed to start) ----------
+    /** Once, shortly after a start on Android 13+: may Ervo show notifications (updates, the weather heads-up)? */
+    private fun askNotificationsOnce() {
+        if (Build.VERSION.SDK_INT < 33 || hasPermission(Manifest.permission.POST_NOTIFICATIONS)) return
+        val p = getSharedPreferences("ervo_update", MODE_PRIVATE)
+        if (p.getBoolean("asked_notify", false)) return
+        p.edit().putBoolean("asked_notify", true).apply()
+        webView.postDelayed({ if (!isFinishing) notifyLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }, 4000)
+    }
+    private var nativeUpdate = false
+    private var pendingNativeInstall = false
+
+    /** A few seconds after start: is the page's script alive? If not, show a way out. */
+    private fun checkPageAlive(attempt: Int) {
+        if (isFinishing || !::webView.isInitialized) return
+        if (webView.progress < 100 && attempt < 4) { webView.postDelayed({ checkPageAlive(attempt + 1) }, 4000); return }
+        webView.evaluateJavascript(
+            "(function(){try{return (typeof window.ervoBack==='function'&&!!document.querySelector('.screen.active'))?'ok':'bad'}catch(e){return 'bad'}})()"
+        ) { r -> if (r == null || !r.contains("ok")) showRecovery() }
+    }
+
+    private fun showRecovery() {
+        if (isFinishing) return
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Ervo didn't start")
+            .setMessage("Something went wrong loading Ervo. An update usually fixes it, and your chats and settings stay.")
+            .setPositiveButton("Update Ervo") { _, _ -> updateNatively(null) }
+            .setNegativeButton("Try Again") { _, _ -> webView.reload(); webView.postDelayed({ checkPageAlive(0) }, 9000) }
+            .show()
+    }
+
+    /** Downloads the newest release and opens the installer, with no help from the page. */
+    private fun updateNatively(known: UpdateCheck.Latest?) {
+        nativeUpdate = true
+        Toast.makeText(this, "Checking for the newest Ervo…", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            val latest = known ?: withContext(Dispatchers.IO) { try { UpdateCheck.check(this@MainActivity, false) } catch (e: Exception) { null } }
+            if (latest == null) {
+                Toast.makeText(this@MainActivity, "No newer version yet. Try again in a little while.", Toast.LENGTH_LONG).show()
+                nativeUpdate = false
+                return@launch
+            }
+            if (!latest.apkUrl.startsWith(UPDATE_PREFIX)) { nativeUpdate = false; return@launch }
+            Toast.makeText(this@MainActivity, "Downloading Ervo ${latest.version}…", Toast.LENGTH_SHORT).show()
+            val ok = withContext(Dispatchers.IO) { download(latest.apkUrl) }
+            if (ok) installUpdate()
+            else { Toast.makeText(this@MainActivity, "The download didn't finish. Check your connection and try again.", Toast.LENGTH_LONG).show(); nativeUpdate = false }
+        }
+    }
+
+    /** Opened from the "Ervo X is ready" notification: go straight to the update. */
+    private fun takeUpdateIntent(intent: Intent?) {
+        val apk = intent?.getStringExtra(UpdateCheck.EXTRA_APK) ?: return
+        val version = intent.getStringExtra(UpdateCheck.EXTRA_VERSION) ?: ""
+        intent.removeExtra(UpdateCheck.EXTRA_APK)
+        updateNatively(UpdateCheck.Latest(version, apk, emptyList()))
+    }
+
     /** Hands the downloaded APK to Android's installer, which asks the user to confirm. */
     private fun installUpdate() {
         val apk = updateFile()
@@ -767,7 +832,11 @@ open class MainActivity : AppCompatActivity() {
         }
         // The first time, the user has to let Ervo install updates (see openInstallSettings)
         if (!packageManager.canRequestPackageInstalls()) {
-            callJs("ervoUpdate", """{"status":"needs_permission"}""")
+            if (nativeUpdate) {
+                pendingNativeInstall = true
+                Toast.makeText(this, "Allow Ervo to install updates, then come back to Ervo.", Toast.LENGTH_LONG).show()
+                openOutside(Uri.parse("package:$packageName"), Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+            } else callJs("ervoUpdate", """{"status":"needs_permission"}""")
             return
         }
         val uri = FileProvider.getUriForFile(this, "$packageName.files", apk)
@@ -1175,6 +1244,7 @@ open class MainActivity : AppCompatActivity() {
     }
 
     override fun onNewIntent(intent: Intent) {
+        takeUpdateIntent(intent)
         super.onNewIntent(intent)
         if (takeWakeIntent(intent)) {
             val w = pendingWake ?: return
@@ -1276,6 +1346,8 @@ open class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Back from "Install unknown apps" during a native update: finish installing
+        if (pendingNativeInstall && packageManager.canRequestPackageInstalls()) { pendingNativeInstall = false; installUpdate() }
         // Coming back from Health Connect, Calendar or Amazon: let the page refresh
         if (::webView.isInitialized) webView.evaluateJavascript("window.ervoResume && window.ervoResume()", null)
     }
