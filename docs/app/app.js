@@ -307,6 +307,55 @@
     brain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M8.5 4.5A3.5 3.5 0 0 0 5 8a3.5 3.5 0 0 0-1 6.5A3.5 3.5 0 0 0 8.5 20M15.5 4.5A3.5 3.5 0 0 1 19 8a3.5 3.5 0 0 1 1 6.5 3.5 3.5 0 0 1-4.5 5.5"/></svg>',
   };
 
+  // Big emoji show as 3D pictures (Microsoft's Fluent emoji, MIT). Offline, the plain emoji shows instead.
+  const E3D = {
+    "☀️": "Sun", "☁️": "Cloud", "⛅": "Sun behind cloud", "⛈️": "Cloud with lightning and rain", "✅": "Check mark button", "✈️": "Airplane",
+    "✏️": "Pencil", "🌙": "Crescent moon", "🌤️": "Sun behind small cloud", "🌦️": "Sun behind rain cloud", "🌧️": "Cloud with rain",
+    "🌨️": "Cloud with snow", "🌫️": "Fog", "🍳": "Cooking", "🍽️": "Fork and knife with plate", "🎁": "Wrapped gift", "🎵": "Musical note",
+    "💪": "Flexed biceps*", "💭": "Thought balloon", "📅": "Calendar", "📇": "Card index", "📍": "Round pushpin", "📷": "Camera",
+    "🔍": "Magnifying glass tilted left", "🔎": "Magnifying glass tilted right", "🗑️": "Wastebasket", "🗓️": "Spiral calendar", "🛒": "Shopping cart",
+    "🥗": "Green salad", "🧳": "Luggage", "⏰": "Alarm clock", "⏱️": "Stopwatch", "↩️": "Right arrow curving left", "🧠": "Brain",
+    "💡": "Light bulb", "🎯": "Bullseye", "✨": "Sparkles", "🔒": "Locked", "🦉": "Owl", "⚠️": "Warning", "📝": "Memo", "⏳": "Hourglass not done",
+    "🛍️": "Shopping bags", "🫀": "Anatomical heart", "✉️": "Envelope", "🔗": "Link", "📞": "Telephone receiver", "🎙️": "Studio microphone", "📊": "Bar chart",
+    "💬": "Speech balloon", "🗺️": "World map", "❤️": "Red heart", "🏠": "House", "⚽": "Soccer ball", "📚": "Books", "🦷": "Tooth", "🩺": "Stethoscope",
+    "💵": "Dollar banknote", "⭐": "Star", "🚗": "Automobile", "👥": "Busts in silhouette", "🏆": "Trophy", "🎉": "Party popper", "🔥": "Fire", "🌟": "Glowing star",
+    "💯": "Hundred points", "💎": "Gem stone", "🚀": "Rocket", "🏅": "Sports medal", "☔": "Umbrella with rain drops", "❄️": "Snowflake", "🍂": "Fallen leaf",
+  };
+  function e3d(ch) {
+    const key = String(ch || "").trim();
+    const name = E3D[key] || E3D[key.replace(/\uFE0F/g, "")] || E3D[`${key}\uFE0F`];
+    if (!name) return key;
+    const skin = name.endsWith("*");
+    const n = name.replace(/\*$/, "");
+    const file = n.toLowerCase().replace(/ /g, "_");
+    const src = `https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/${encodeURIComponent(n)}/${skin ? "Default/" : ""}3D/${file}_3d${skin ? "_default" : ""}.png`;
+    return `<img class="e3d" src="${src}" alt="${key}" onerror="this.replaceWith(document.createTextNode(this.alt))">`;
+  }
+  const setIco = (el, ch) => { el.innerHTML = ch ? e3d(ch) : ""; };
+  document.querySelectorAll(".intro-ico").forEach((el) => { el.innerHTML = e3d(el.textContent); });
+
+  const ICON_3D = {
+    calendar: "📅", shop: "🛍️", health: "🫀", location: "📍", mail: "✉️", done: "✅", food: "🍽️", undo: "↩️", open: "🔗", phone: "📞", clock: "⏰",
+    mic: "🎙️", stats: "📊", chat: "💬", map: "🗺️", plane: "✈️", heart: "❤️", home: "🏠", ball: "⚽", book: "📚", tooth: "🦷", doctor: "🩺", money: "💵",
+    star: "⭐", camera: "📷", music: "🎵", car: "🚗", sun: "☀️", people: "👥", brain: "🧠",
+  };
+  // A row's icon: the 3D picture when we have one (and it loads), else the flat coloured square
+  function setRowIcon(el, ico) {
+    const i = el.classList && el.classList.contains("app-ico") ? el : el.querySelector(".app-ico");
+    if (!i) return;
+    i.innerHTML = ICON[ico] || ICON.done;
+    i.classList.remove("e3dico");
+    const html = ICON_3D[ico] ? e3d(ICON_3D[ico]) : "";
+    if (!/^<img/.test(html)) return;
+    const w = document.createElement("span");
+    w.innerHTML = html;
+    const img = w.firstChild;
+    img.removeAttribute("onerror");
+    img.onerror = () => { i.classList.remove("e3dico"); i.innerHTML = ICON[ico] || ICON.done; };
+    i.classList.add("e3dico");
+    i.innerHTML = "";
+    i.append(img);
+  }
   // ---------- Settings page: compact rows grouped like the phone's Settings ----------
   const SETTINGS = [
     ["Ervo", [
@@ -2029,33 +2078,6 @@
 
   // ---------- status pill: what Ervo is doing right now ----------
   const capFirst = (w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w);
-  // Big emoji show as 3D pictures (Microsoft's Fluent emoji, MIT). Offline, the plain emoji shows instead.
-  const E3D = {
-    "☀️": "Sun", "☁️": "Cloud", "⛅": "Sun behind cloud", "⛈️": "Cloud with lightning and rain", "✅": "Check mark button", "✈️": "Airplane",
-    "✏️": "Pencil", "🌙": "Crescent moon", "🌤️": "Sun behind small cloud", "🌦️": "Sun behind rain cloud", "🌧️": "Cloud with rain",
-    "🌨️": "Cloud with snow", "🌫️": "Fog", "🍳": "Cooking", "🍽️": "Fork and knife with plate", "🎁": "Wrapped gift", "🎵": "Musical note",
-    "💪": "Flexed biceps*", "💭": "Thought balloon", "📅": "Calendar", "📇": "Card index", "📍": "Round pushpin", "📷": "Camera",
-    "🔍": "Magnifying glass tilted left", "🔎": "Magnifying glass tilted right", "🗑️": "Wastebasket", "🗓️": "Spiral calendar", "🛒": "Shopping cart",
-    "🥗": "Green salad", "🧳": "Luggage", "⏰": "Alarm clock", "⏱️": "Stopwatch", "↩️": "Right arrow curving left", "🧠": "Brain",
-    "💡": "Light bulb", "🎯": "Bullseye", "✨": "Sparkles", "🔒": "Locked", "🦉": "Owl", "⚠️": "Warning", "📝": "Memo", "⏳": "Hourglass not done",
-    "🛍️": "Shopping bags", "🫀": "Anatomical heart", "✉️": "Envelope", "🔗": "Link", "📞": "Telephone receiver", "🎙️": "Studio microphone", "📊": "Bar chart",
-    "💬": "Speech balloon", "🗺️": "World map", "❤️": "Red heart", "🏠": "House", "⚽": "Soccer ball", "📚": "Books", "🦷": "Tooth", "🩺": "Stethoscope",
-    "💵": "Dollar banknote", "⭐": "Star", "🚗": "Automobile", "👥": "Busts in silhouette", "🏆": "Trophy", "🎉": "Party popper", "🔥": "Fire", "🌟": "Glowing star",
-    "💯": "Hundred points", "💎": "Gem stone", "🚀": "Rocket", "🏅": "Sports medal", "☔": "Umbrella with rain drops", "❄️": "Snowflake", "🍂": "Fallen leaf",
-  };
-  function e3d(ch) {
-    const key = String(ch || "").trim();
-    const name = E3D[key] || E3D[key.replace(/\uFE0F/g, "")] || E3D[`${key}\uFE0F`];
-    if (!name) return key;
-    const skin = name.endsWith("*");
-    const n = name.replace(/\*$/, "");
-    const file = n.toLowerCase().replace(/ /g, "_");
-    const src = `https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/${encodeURIComponent(n)}/${skin ? "Default/" : ""}3D/${file}_3d${skin ? "_default" : ""}.png`;
-    return `<img class="e3d" src="${src}" alt="${key}" onerror="this.replaceWith(document.createTextNode(this.alt))">`;
-  }
-  const setIco = (el, ch) => { el.innerHTML = ch ? e3d(ch) : ""; };
-  document.querySelectorAll(".intro-ico").forEach((el) => { el.innerHTML = e3d(el.textContent); });
-
   // An emoji for what Ervo is doing, when the caller didn't pick one
   function statusIcon(w) {
     return /calendar|event|planning it/i.test(w) ? "📅" : /contact/i.test(w) ? "📇" : /remov/i.test(w) ? "🗑️"
@@ -3596,7 +3618,7 @@
       return ervoSays(`You've taken ${s.today.toLocaleString()} steps today. ${left > 0 ? `${left.toLocaleString()} more to reach your ${goal.toLocaleString()} goal 💪` : "You hit your goal! 🎉"}`);
     }
     if (s.status === "web") return ervoSays("Steps work in the Android app right now. On iPhone they'll come with the App Store version, because Apple only shares Health data with installed apps.");
-    const acts = native && native.connectHealth ? [{ label: "Connect Health", icon: "health", onClick: () => native.connectHealth() }] : null;
+    const acts = native && native.requestSteps ? [{ label: "Connect Health", icon: "health", onClick: async () => { if (await ensure("health", "Read your steps from Health Connect")) native.requestSteps(); } }] : null;
     return ervoSays("I need permission to read your steps from Health Connect first.", { acts });
   }
 
@@ -3672,28 +3694,6 @@
     return `${fmtDate(d)}${a.allDay ? "" : ` at ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}`;
   }
 
-  const ICON_3D = {
-    calendar: "📅", shop: "🛍️", health: "🫀", location: "📍", mail: "✉️", done: "✅", food: "🍽️", undo: "↩️", open: "🔗", phone: "📞", clock: "⏰",
-    mic: "🎙️", stats: "📊", chat: "💬", map: "🗺️", plane: "✈️", heart: "❤️", home: "🏠", ball: "⚽", book: "📚", tooth: "🦷", doctor: "🩺", money: "💵",
-    star: "⭐", camera: "📷", music: "🎵", car: "🚗", sun: "☀️", people: "👥", brain: "🧠",
-  };
-  // A row's icon: the 3D picture when we have one (and it loads), else the flat coloured square
-  function setRowIcon(el, ico) {
-    const i = el.classList && el.classList.contains("app-ico") ? el : el.querySelector(".app-ico");
-    if (!i) return;
-    i.innerHTML = ICON[ico] || ICON.done;
-    i.classList.remove("e3dico");
-    const html = ICON_3D[ico] ? e3d(ICON_3D[ico]) : "";
-    if (!/^<img/.test(html)) return;
-    const w = document.createElement("span");
-    w.innerHTML = html;
-    const img = w.firstChild;
-    img.removeAttribute("onerror");
-    img.onerror = () => { i.classList.remove("e3dico"); i.innerHTML = ICON[ico] || ICON.done; };
-    i.classList.add("e3dico");
-    i.innerHTML = "";
-    i.append(img);
-  }
   function row(ico, title, sub, side, href) {
     const el = document.createElement(href ? "a" : "div");
     el.className = "row";
@@ -4256,10 +4256,6 @@
     if (["needs_permission", "denied"].includes(s.status)) { btn.hidden = false; btn.textContent = "Connect Health"; }
     if (s.status === "needs_update") { btn.hidden = false; btn.textContent = "Get Health Connect"; }
   }
-  $("steps-btn").addEventListener("click", async () => {
-    if (!(await ensure("health", "Show your steps in Ervo Stats"))) return;
-    if (native && native.requestSteps) native.requestSteps();
-  });
 
   function openStats(scrollToApps) {
     toggleMenu(false);
@@ -4282,7 +4278,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.3.7"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.3.8"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);

@@ -1,6 +1,7 @@
 {
-  "version": "0.3.7",
+  "version": "0.3.8",
   "notes": [
+    "Fixes the black screen in 0.3.7: the app crashed while starting up",
     "Ervo Stats is new: your usage today with what's left, milestones you've reached, what's coming up with a busy meter for the next 7 days, and your recent activity",
     "The sky behind Ervo Stats is alive now: sun or moon, drifting clouds, rain behind glass, falling snow, autumn leaves and a hill that changes with the season",
     "Milestones: when you reach one, like 10 things done or a 7-day streak, Ervo tells you in the chat",
@@ -11,7 +12,6 @@
     "Ervo plans more: any request becomes a concrete plan, and it drafts emails and texts with a one-tap Send button",
     "Rows use detailed 3D icons on a clear background",
     "Thumbs down has a back arrow and a Tell Ervo option: say what was off and Ervo learns from it and answers again",
-    "The small box under message bubbles is gone",
-    "Four tabs at the bottom: Chat, Ideas, Goals and Files, so the main things are one tap away"
+    "The small box under message bubbles is gone"
   ]
 }
