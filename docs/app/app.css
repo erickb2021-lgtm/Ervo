@@ -1285,3 +1285,102 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 .status-ico .e3d { width: 15px; height: 15px; vertical-align: -3px; }
 .sky-emoji .e3d { width: 50px; height: 50px; vertical-align: middle; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3)); }
 .intro-ico .e3d { width: 30px; height: 30px; }
+
+/* ===== 0.3.7: bubble tails without the box, 3D row icons, feedback, Ervo Stats with a living sky ===== */
+/* Bubble tails are one masked shape now. The old version cut the tail with a box the colour of the
+   background, which showed as a small square once the background stopped being flat black. */
+.msg.me:not(.photo):not(.link):not(:has(+ .msg.me))::after,
+.msg.them:not(.photo):not(.link):not(:has(+ .msg.them))::after { display: none; }
+.msg.them:not(.photo):not(.link):not(:has(+ .msg.them))::before { left: -6px; width: 20px; height: 18px; border-radius: 0; background: var(--them);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 18'%3E%3Cpath d='M20 0H6.5C6.5 9 4.5 14 0 18C8 18 14 18 20 17Z'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 18'%3E%3Cpath d='M20 0H6.5C6.5 9 4.5 14 0 18C8 18 14 18 20 17Z'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%; }
+.msg.me:not(.photo):not(.link):not(:has(+ .msg.me))::before { right: -6px; width: 20px; height: 18px; border-radius: 0; background: var(--me);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 18'%3E%3Cpath d='M0 0H13.5C13.5 9 15.5 14 20 18C12 18 6 18 0 17Z'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 18'%3E%3Cpath d='M0 0H13.5C13.5 9 15.5 14 20 18C12 18 6 18 0 17Z'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%; }
+
+/* Row icons: a 3D picture on a clear background. The coloured square only shows if the picture can't load. */
+.app-ico.e3dico { background: transparent !important; box-shadow: none !important; }
+.app-ico.e3dico::before, .app-ico.e3dico::after { display: none !important; }
+.app-ico.e3dico img { width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)); }
+.row.compact .app-ico.e3dico img { width: 28px; height: 28px; }
+#settings .row.compact .app-ico { background: var(--ico-bg, var(--brand)); }
+#settings .row.compact .app-ico.e3dico img { width: 26px; height: 26px; }
+
+/* Feedback: a back arrow and "Tell Ervo…" beside the reasons */
+.fb .fb-why .fb-back { width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; background: transparent; color: var(--text-2); font-size: 1.3rem; font-weight: 600; line-height: 1; }
+.fb .fb-why .fb-tell { background: var(--tint-soft); color: var(--tint); }
+
+/* Ervo Stats: usage ring, milestone badges, busy meter */
+.dot.usage { color: var(--tint); }
+.usage-ring .ring-bg { stroke: color-mix(in srgb, var(--tint) 22%, transparent); }
+.usage-ring .ring-fg { stroke: var(--tint); }
+.badges { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 6px; margin: 0 -4px; scrollbar-width: none; scroll-snap-type: x proximity; }
+.badges::-webkit-scrollbar { display: none; }
+.badge { flex: none; width: 108px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 12px 8px 10px; border-radius: 18px; background: color-mix(in srgb, var(--surface-2) 70%, transparent); position: relative; overflow: hidden; }
+.badge .badge-ico { display: block; width: 44px; height: 44px; font-size: 1.9rem; line-height: 44px; }
+.badge .badge-ico .e3d { width: 44px; height: 44px; vertical-align: top; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.3)); }
+.badge b { font-size: var(--fs-cap2); font-weight: 600; line-height: 1.2; }
+.badge small { font-size: var(--fs-cap2); color: var(--text-2); }
+.badge:not(.got) .badge-ico { filter: grayscale(1); opacity: 0.45; }
+.badge:not(.got)::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 5px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--tint) calc(var(--p, 0) * 100%), color-mix(in srgb, var(--text) 12%, transparent) 0); }
+.badge.got { background: color-mix(in srgb, var(--tint) 16%, transparent); box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--tint) 40%, transparent); }
+.busy-title { margin: 0 2px 2px; font-size: var(--fs-sub); font-weight: 600; }
+.busy-card { padding-bottom: 12px; margin-bottom: 10px; }
+.busy .bar-col i { background: color-mix(in srgb, var(--tint) 35%, transparent); }
+.busy .bar-col.today i { background: var(--tint); }
+.busy .bar-col.full i { background: color-mix(in srgb, var(--red) 70%, var(--tint)); }
+.busy .bar-col span { white-space: nowrap; }
+
+/* The living sky behind Ervo Stats: sun or moon, drifting clouds, rain, snow, falling leaves and the ground.
+   Follows the time of day, the weather and the season. Apple HIG: it stays behind the content, text keeps its
+   contrast, and every animation stops when the phone asks for reduced motion. */
+.sky-scene { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+#stats .stats-header, #stats .stats-body { z-index: 1; }
+.sky-scene > div { position: absolute; opacity: 0; transition: opacity 0.8s; }
+.sky-scene .sun { top: 9%; right: 10%; width: 92px; height: 92px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #fff8dc, #ffd45e 55%, #ffb627 100%);
+  box-shadow: 0 0 40px 14px rgba(255, 214, 102, 0.55), 0 0 120px 50px rgba(255, 196, 70, 0.25); animation: sun-breathe 6s ease-in-out infinite; }
+#stats[data-sky="day"]:not([data-weather="wet"]):not([data-weather="snow"]) .sun { opacity: 1; }
+#stats[data-sky="day"][data-weather="cloudy"] .sun { opacity: 0.5; }
+#stats[data-sky="dawn"] .sun, #stats[data-sky="dusk"] .sun { opacity: 1; top: 30%; background: radial-gradient(circle at 40% 40%, #ffe1b3, #ff9a4d 60%, #ff6a3d); box-shadow: 0 0 50px 16px rgba(255, 150, 80, 0.5), 0 0 140px 60px rgba(255, 120, 70, 0.25); }
+.sky-scene .moon { top: 10%; right: 14%; width: 70px; height: 70px; border-radius: 50%; background: #f4f1e6; box-shadow: inset -16px 8px 0 4px #c9c4b3, 0 0 30px 8px rgba(255, 255, 255, 0.25); }
+#stats[data-sky="night"] .moon { opacity: 0.95; }
+/* Clouds: a soft body with two bumps */
+.sky-scene .cloud { height: 34px; width: 110px; border-radius: 40px; background: rgba(255, 255, 255, 0.92); filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.12)); }
+.sky-scene .cloud::before, .sky-scene .cloud::after { content: ""; position: absolute; bottom: 8px; border-radius: 50%; background: inherit; }
+.sky-scene .cloud::before { left: 18px; width: 48px; height: 48px; }
+.sky-scene .cloud::after { left: 52px; width: 36px; height: 36px; }
+.sky-scene .c1 { top: 15%; left: -130px; animation: drift 70s linear infinite; }
+.sky-scene .c2 { top: 26%; left: -130px; transform: scale(0.75); animation: drift 95s linear 20s infinite; }
+.sky-scene .c3 { top: 8%; left: -130px; transform: scale(1.2); animation: drift 120s linear 45s infinite; }
+#stats[data-weather="cloudy"] .cloud, #stats[data-weather="wet"] .cloud, #stats[data-weather="snow"] .cloud { opacity: 1; }
+#stats[data-sky="day"][data-weather=""] .c1, #stats[data-sky="day"]:not([data-weather]) .c1, #stats[data-sky="dawn"] .c1, #stats[data-sky="dusk"] .c1 { opacity: 0.9; }
+#stats[data-weather="cloudy"] .cloud { background: rgba(214, 220, 228, 0.95); }
+#stats[data-weather="wet"] .cloud { background: rgba(120, 130, 145, 0.95); }
+#stats[data-weather="snow"] .cloud { background: rgba(200, 206, 214, 0.95); }
+#stats[data-sky="night"] .cloud { background: rgba(60, 66, 84, 0.9); }
+@keyframes drift { from { transform: translateX(0) scale(var(--s, 1)); } to { transform: translateX(calc(100vw + 260px)) scale(var(--s, 1)); } }
+.sky-scene .c2 { --s: 0.75; } .sky-scene .c3 { --s: 1.2; }
+/* Rain: fine streaks falling behind glass, with drops that run down slowly */
+.sky-scene .rain { inset: 0; background-image: repeating-linear-gradient(100deg, transparent 0 11px, rgba(255, 255, 255, 0.18) 11px 12px, transparent 12px 23px); background-size: 100% 60px; animation: rain-fall 0.6s linear infinite; }
+.sky-scene .drops { inset: 0; background-image: radial-gradient(3px 5px at 20% 30%, rgba(255, 255, 255, 0.35) 60%, transparent 62%), radial-gradient(2px 4px at 65% 15%, rgba(255, 255, 255, 0.3) 60%, transparent 62%), radial-gradient(3px 6px at 85% 55%, rgba(255, 255, 255, 0.32) 60%, transparent 62%), radial-gradient(2px 4px at 40% 70%, rgba(255, 255, 255, 0.3) 60%, transparent 62%), radial-gradient(3px 5px at 10% 80%, rgba(255, 255, 255, 0.3) 60%, transparent 62%); background-size: 220px 260px; animation: drops-run 9s linear infinite; -webkit-backdrop-filter: blur(0.6px); backdrop-filter: blur(0.6px); }
+#stats[data-weather="wet"] .rain, #stats[data-weather="wet"] .drops { opacity: 1; }
+@keyframes rain-fall { to { background-position: -14px 60px; } }
+@keyframes drops-run { to { background-position: 0 260px; } }
+/* Snow: soft flakes drifting down */
+.sky-scene .snow { inset: 0; background-image: radial-gradient(3px 3px at 15% 20%, #fff 60%, transparent 62%), radial-gradient(2px 2px at 45% 60%, #fff 60%, transparent 62%), radial-gradient(3px 3px at 75% 35%, #fff 60%, transparent 62%), radial-gradient(2px 2px at 90% 80%, #fff 60%, transparent 62%), radial-gradient(2.5px 2.5px at 30% 85%, #fff 60%, transparent 62%), radial-gradient(2px 2px at 60% 10%, #fff 60%, transparent 62%); background-size: 240px 240px; animation: snow-fall 12s linear infinite; }
+#stats[data-weather="snow"] .snow { opacity: 0.9; }
+@keyframes snow-fall { to { background-position: 40px 240px; } }
+/* Fall: a few leaves tumbling down on dry days */
+.sky-scene .leaves { inset: 0; background-image: radial-gradient(6px 4px at 20% 10%, #e0812f 60%, transparent 62%), radial-gradient(5px 4px at 60% 30%, #c8452a 60%, transparent 62%), radial-gradient(6px 4px at 85% 5%, #e9a23b 60%, transparent 62%), radial-gradient(5px 3px at 40% 60%, #b8542b 60%, transparent 62%); background-size: 300px 320px; animation: leaves-fall 16s ease-in-out infinite; }
+#stats[data-season="fall"]:not([data-weather="wet"]):not([data-weather="snow"]) .leaves { opacity: 0.9; }
+@keyframes leaves-fall { 0% { background-position: 0 0; } 50% { background-position: 40px 160px; } 100% { background-position: -10px 320px; } }
+/* The ground: a soft hill whose colour follows the season */
+.sky-scene .ground { left: -20%; right: -20%; bottom: -22vh; height: 34vh; border-radius: 50% 50% 0 0 / 100% 100% 0 0; opacity: 0.55; background: linear-gradient(#3f9a4a, #2f7a3a); }
+#stats[data-season="fall"] .ground { background: linear-gradient(#c58a3a, #8a5a26); }
+#stats[data-season="winter"] .ground, #stats[data-weather="snow"] .ground { background: linear-gradient(#eef2f6, #c9d3de); opacity: 0.7; }
+#stats[data-season="spring"] .ground { background: linear-gradient(#5db65f, #3b8e45); }
+#stats[data-sky="night"] .ground { filter: brightness(0.45); }
+#stats[data-weather="wet"] .ground { filter: brightness(0.75) saturate(0.8); }
+#stats .sky-hero { position: relative; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35); }
+@keyframes sun-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .sky-scene * { animation: none !important; } .sky-scene .cloud { left: 10%; } .sky-scene .c2 { left: 55%; } .sky-scene .c3 { left: 30%; } }

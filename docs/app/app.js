@@ -270,6 +270,7 @@
     const list = activity();
     list.unshift(Object.assign({ id: Date.now().toString(36), at: new Date().toISOString() }, item));
     save(ACTIVITY_KEY, list.slice(0, 100));
+    if (item.kind !== "milestone") { const c = counts(); c.done += 1; save(COUNT_KEY, c); setTimeout(() => checkMilestones(false), 1800); }
   }
 
   // ---------- icons (plain shapes, not real brand logos) ----------
@@ -342,8 +343,8 @@
         b.className = `row compact${cls ? ` ${cls}` : ""}`;
         const i = document.createElement("span");
         i.className = `app-ico ${ico}`;
-        i.style.background = color;
-        i.innerHTML = ICON[ico] || ICON.done;
+        i.style.setProperty("--ico-bg", color);
+        setRowIcon(i, ico);
         const t = document.createElement("span");
         t.className = "txt";
         const bb = document.createElement("b");
@@ -479,11 +480,24 @@
   $("perm").addEventListener("click", (e) => { if (e.target === $("perm")) answerPermission(false); });
 
   // Asks once; remembers Allow. Returns true if Ervo may use the app.
-  async function ensure(key, reason) {
+  async function ensure(key, reason, quiet) {
     if (allowed(key)) return true;
     const ok = await askPermission(key, reason);
     setConnection(key, ok ? "allowed" : "denied");
     if (ok) logActivity({ kind: "connect", ico: CONNECTORS[key].ico, title: `Connected ${CONNECTORS[key].name}` });
+    else if (!quiet) {
+      const c = CONNECTORS[key];
+      hideTyping();
+      idleStatus();
+      ervoSays(`No problem, I won't use ${c.name}. If you change your mind, tap Allow, or turn it on later in Settings under Connected Apps.`, {
+        instant: true,
+        acts: [{ label: `Allow ${c.name}`, icon: c.ico, onClick: async () => {
+          const yes = await askPermission(key, reason);
+          setConnection(key, yes ? "allowed" : "denied");
+          if (yes) { logActivity({ kind: "connect", ico: c.ico, title: `Connected ${c.name}` }); ervoSays(`${c.name} is connected ✅ Ask me again and I'll use it.`); }
+        } }],
+      });
+    }
     return ok;
   }
 
@@ -767,7 +781,7 @@
     else if (is(/\bweather\b|temperature|forecast|\brain(ing)?\b|\bsnow|umbrella|how (hot|cold)|\b(cold|hot|warm|chilly|nice|windy) (out|outside)\b|like outside|\bwear an? (jacket|coat|sweater|hoodie)\b|\bneed an? (jacket|coat|sweater)\b/)) d.intent = "weather";
     else if (is(/\bnews\b|headlines|what'?s happening/)) d.intent = "news";
     else if (is(/ervo stats|what (have|did) you (done|do)|recent (activity|events)|upcoming|coming up|what'?s (on )?my (schedule|calendar|plans|week)|my plans/)) d.intent = "stats";
-    else if (!biz && is(/\bsteps\b|walked|how much .*walk|calories (have i|i'?ve|did i) burn|calories burned|\bmy (health|fitness|activity)\b|activity rings?/) && !is(/\bcalories (is|are|in)\b|\bhow many calories\b(?!.*\b(burn|burned)\b)/)) d.intent = "steps";
+    else if (!biz && is(/^(how many |how much |what('s| are) my |show (me )?my |check my )?steps\b|\bsteps (today|so far|count)\b|\bmy steps\b|how (far|much) (have i|did i) walk|how many steps|calories (have i|i'?ve|did i) burn|calories burned|activity rings?/) && !is(/\b(plan|workout|routine|goal weight|meal|diet|schedule)\b/)) d.intent = "steps";
     else if (biz) {
       if (is(/refund|charged|order #?\d+|\breturn|chargeback/)) d.intent = "refund";
       else if (is(/ticket|summar|inbox|queue|support (load|volume)/)) d.intent = "tickets";
@@ -2024,6 +2038,10 @@
     "🔍": "Magnifying glass tilted left", "🔎": "Magnifying glass tilted right", "🗑️": "Wastebasket", "🗓️": "Spiral calendar", "🛒": "Shopping cart",
     "🥗": "Green salad", "🧳": "Luggage", "⏰": "Alarm clock", "⏱️": "Stopwatch", "↩️": "Right arrow curving left", "🧠": "Brain",
     "💡": "Light bulb", "🎯": "Bullseye", "✨": "Sparkles", "🔒": "Locked", "🦉": "Owl", "⚠️": "Warning", "📝": "Memo", "⏳": "Hourglass not done",
+    "🛍️": "Shopping bags", "🫀": "Anatomical heart", "✉️": "Envelope", "🔗": "Link", "📞": "Telephone receiver", "🎙️": "Studio microphone", "📊": "Bar chart",
+    "💬": "Speech balloon", "🗺️": "World map", "❤️": "Red heart", "🏠": "House", "⚽": "Soccer ball", "📚": "Books", "🦷": "Tooth", "🩺": "Stethoscope",
+    "💵": "Dollar banknote", "⭐": "Star", "🚗": "Automobile", "👥": "Busts in silhouette", "🏆": "Trophy", "🎉": "Party popper", "🔥": "Fire", "🌟": "Glowing star",
+    "💯": "Hundred points", "💎": "Gem stone", "🚀": "Rocket", "🏅": "Sports medal", "☔": "Umbrella with rain drops", "❄️": "Snowflake", "🍂": "Fallen leaf",
   };
   function e3d(ch) {
     const key = String(ch || "").trim();
@@ -2071,8 +2089,14 @@
   }
   if (window.visualViewport) window.visualViewport.addEventListener("resize", keepPlace);
   // Typing: show the newest messages above the keyboard
-  $("message").addEventListener("focus", () => { document.body.classList.add("kbd"); setTimeout(() => toBottom(true), 50); setTimeout(() => toBottom(true), 350); });
-  $("message").addEventListener("blur", () => setTimeout(() => document.body.classList.remove("kbd"), 120));
+  $("message").addEventListener("focus", () => { setTimeout(() => toBottom(true), 50); setTimeout(() => toBottom(true), 350); });
+  function syncKeyboard() {
+    const vv = window.visualViewport;
+    const phone = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    const up = vv && phone ? vv.height < window.screen.height * 0.72 && window.screen.height - vv.height > 180 : false;
+    document.body.classList.toggle("kbd", up);
+  }
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", syncKeyboard);
 
   // While Ervo works: its picture, name and what it's doing ("checking your calendar")
   let liveTyping = null;
@@ -2416,6 +2440,7 @@
     await ervoSays(build);
     if (g.p.news && allowed("location")) newsBubble();
     whatsNew(firstTime);
+    checkMilestones(true);
   }
 
   // ---------- side chats: branches off the main chat ----------
@@ -2937,7 +2962,6 @@
     // The streamed words become the real message (same text, no extra wait)
     if (live && (typeof r === "string" || !r || !r.text)) { live.remove(); live = null; }
     await ervoSays(r, { status, instant: !!live, replace: live, ai: typeof r === "object" && !!r, asked: d && d.raw });
-    if (r && r.learned && r.learned.length) showLearned(r.learned);
     if (r && r.after) return r.after();
   }
 
@@ -3565,15 +3589,15 @@
     });
   }
   async function stepsReply() {
-    const open = { label: "Open Ervo Stats", icon: "stats", onClick: () => openStats() };
     const s = await readSteps();
     if (s.status === "ready") {
       const goal = prefs().stepsGoal;
       const left = goal - s.today;
-      return ervoSays(`You've taken ${s.today.toLocaleString()} steps today. ${left > 0 ? `${left.toLocaleString()} more to reach your ${goal.toLocaleString()} goal 💪` : "You hit your goal! 🎉"}`, { acts: [open] });
+      return ervoSays(`You've taken ${s.today.toLocaleString()} steps today. ${left > 0 ? `${left.toLocaleString()} more to reach your ${goal.toLocaleString()} goal 💪` : "You hit your goal! 🎉"}`);
     }
-    if (s.status === "web") return ervoSays("Steps work in the Android app right now. On iPhone they'll come with the App Store version, because Apple only shares Health data with installed apps.", { acts: [open] });
-    return ervoSays("I need permission to read your steps first. Open Ervo Stats and tap Connect Health.", { acts: [open] });
+    if (s.status === "web") return ervoSays("Steps work in the Android app right now. On iPhone they'll come with the App Store version, because Apple only shares Health data with installed apps.");
+    const acts = native && native.connectHealth ? [{ label: "Connect Health", icon: "health", onClick: () => native.connectHealth() }] : null;
+    return ervoSays("I need permission to read your steps from Health Connect first.", { acts });
   }
 
   // The day a plan request is about: today, tomorrow (the default) or this weekend
@@ -3595,8 +3619,18 @@
     history.push({ role: "user", text: v });
     $("chips").innerHTML = ""; $("chips").dataset.sig = "";
     lastWasVoice = !!byVoice;
+    bumpUsage();
+    setTimeout(() => checkMilestones(false), 2500);
+    // Feedback on the last answer goes to the AI as a lesson, then a corrected answer
+    if (feedbackFor !== null) {
+      const about = feedbackFor;
+      feedbackFor = null;
+      $("message").placeholder = "Message Ervo";
+      return askAI(understand(`Feedback on your last answer${about ? ` to "${about.slice(0, 120)}"` : ""}: ${v}. Save a short lesson with update_psyche so it doesn't happen again, say in one sentence what you'll do differently, then give the corrected answer.`));
+    }
     reply(v);
   }
+  let feedbackFor = null;
 
   // Composer: mic when empty, blue send arrow once you type (like text messages)
   const message = $("message");
@@ -3638,6 +3672,28 @@
     return `${fmtDate(d)}${a.allDay ? "" : ` at ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}`;
   }
 
+  const ICON_3D = {
+    calendar: "📅", shop: "🛍️", health: "🫀", location: "📍", mail: "✉️", done: "✅", food: "🍽️", undo: "↩️", open: "🔗", phone: "📞", clock: "⏰",
+    mic: "🎙️", stats: "📊", chat: "💬", map: "🗺️", plane: "✈️", heart: "❤️", home: "🏠", ball: "⚽", book: "📚", tooth: "🦷", doctor: "🩺", money: "💵",
+    star: "⭐", camera: "📷", music: "🎵", car: "🚗", sun: "☀️", people: "👥", brain: "🧠",
+  };
+  // A row's icon: the 3D picture when we have one (and it loads), else the flat coloured square
+  function setRowIcon(el, ico) {
+    const i = el.classList && el.classList.contains("app-ico") ? el : el.querySelector(".app-ico");
+    if (!i) return;
+    i.innerHTML = ICON[ico] || ICON.done;
+    i.classList.remove("e3dico");
+    const html = ICON_3D[ico] ? e3d(ICON_3D[ico]) : "";
+    if (!/^<img/.test(html)) return;
+    const w = document.createElement("span");
+    w.innerHTML = html;
+    const img = w.firstChild;
+    img.removeAttribute("onerror");
+    img.onerror = () => { i.classList.remove("e3dico"); i.innerHTML = ICON[ico] || ICON.done; };
+    i.classList.add("e3dico");
+    i.innerHTML = "";
+    i.append(img);
+  }
   function row(ico, title, sub, side, href) {
     const el = document.createElement(href ? "a" : "div");
     el.className = "row";
@@ -3647,7 +3703,7 @@
     }
     const i = document.createElement("span");
     i.className = `app-ico ${ico}`;
-    i.innerHTML = ICON[ico] || ICON.done;
+    setRowIcon(i, ico);
     const txt = document.createElement("span");
     txt.className = "txt";
     const b = document.createElement("b");
@@ -3698,6 +3754,8 @@
       .sort((a, b) => (a.allDay ? 1 : 0) - (b.allDay ? 1 : 0))
       .filter((p) => { const k = dayKey(p.title, p.start); if (planKeys.has(k)) return false; planKeys.add(k); return true; });
     drawUpcoming(planned);
+    renderUsage();
+    renderBadges();
     if (native && native.findEvents && native.calendarAllowed && native.calendarAllowed()) {
       readCalendar("", { from: now, to: addDays(startOfDay(now), 15) }).then((r) => {
         if (r.status !== "ready" || !$("stats").classList.contains("active")) return;
@@ -3706,8 +3764,6 @@
         drawUpcoming(mine.concat(r.events.map((e) => ({ title: e.title || "(No title)", start: new Date(e.start), allDay: e.allDay, ico: "calendar", detail: e.calendar }))));
       });
     }
-    renderMemories();
-
     // Most recent events: everything Ervo did, newest first
     $("recent").innerHTML = "";
     if (!items.length) $("recent").append(empty("When Ervo does something for you, it shows up here."));
@@ -3723,14 +3779,124 @@
     }
 
     renderApps();
-    if (native && native.stepsStatus) { $("steps-note").textContent = "Checking Health Connect…"; native.stepsStatus(); }
-    else renderSteps({ status: "web" });
+  }
+
+  // ----- Usage: messages today against the plan's daily allowance (shown here; the server has no hard cap yet) -----
+  const USAGE_KEY = "ervo-usage";
+  const DAILY = { personal: 150, business: 400 };
+  const dayKeyOf = (d) => { const x = d || new Date(); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
+  const usage = () => Object.assign({ total: 0, days: {} }, load(USAGE_KEY) || {});
+  function bumpUsage() {
+    const u = usage();
+    const k = dayKeyOf();
+    u.days[k] = (u.days[k] || 0) + 1;
+    u.total += 1;
+    Object.keys(u.days).sort().slice(0, -90).forEach((d) => delete u.days[d]); // keep about 3 months
+    save(USAGE_KEY, u);
+  }
+  // Days in a row with at least one message (today or yesterday keeps it alive)
+  function streakDays() {
+    const u = usage();
+    let d = new Date(), n = 0;
+    if (!u.days[dayKeyOf(d)]) d = addDays(d, -1);
+    while (u.days[dayKeyOf(d)]) { n++; d = addDays(d, -1); }
+    return n;
+  }
+  function renderUsage() {
+    const u = usage();
+    const limit = DAILY[(account || { plan: "personal" }).plan] || DAILY.personal;
+    const today = u.days[dayKeyOf()] || 0;
+    const left = Math.max(0, limit - today);
+    $("usage-today").textContent = today.toLocaleString();
+    $("usage-of").textContent = `of ${limit.toLocaleString()} messages`;
+    $("usage-ring").style.strokeDashoffset = String(314.16 * (1 - Math.min(today / limit, 1)));
+    const week = Object.entries(u.days).filter(([d]) => new Date(`${d}T12:00`) > addDays(new Date(), -7)).reduce((a, [, n]) => a + n, 0);
+    $("usage-extra").innerHTML = `<div><small>This week</small><b>${week.toLocaleString()}</b></div><div><small>Day streak</small><b>${streakDays()} 🔥</b></div>`;
+    $("usage-note").textContent = left ? `${left.toLocaleString()} left today. Resets at midnight.` : "You've used today's messages. More at midnight.";
+  }
+
+  // ----- Milestones: little wins, and Ervo says so in the chat when you reach one -----
+  const MILESTONE_KEY = "ervo-milestones";
+  const COUNT_KEY = "ervo-counts";
+  const MILESTONES = [
+    { id: "first", e: "🎉", title: "First thing done", need: 1, of: "done" },
+    { id: "ten", e: "⭐", title: "10 things done", need: 10, of: "done" },
+    { id: "fifty", e: "🏆", title: "50 things done", need: 50, of: "done" },
+    { id: "hundred", e: "💯", title: "100 things done", need: 100, of: "done" },
+    { id: "goal1", e: "🎯", title: "First goal set", need: 1, of: "goals" },
+    { id: "goal3", e: "🚀", title: "3 goals going", need: 3, of: "goals" },
+    { id: "streak3", e: "🔥", title: "3 days in a row", need: 3, of: "streak" },
+    { id: "streak7", e: "🏅", title: "A full week", need: 7, of: "streak" },
+    { id: "streak30", e: "💎", title: "30 days in a row", need: 30, of: "streak" },
+    { id: "msgs100", e: "💬", title: "100 messages", need: 100, of: "messages" },
+    { id: "looks3", e: "🦉", title: "Tried 3 looks", need: 3, of: "looks" },
+  ];
+  const counts = () => Object.assign({ done: 0 }, load(COUNT_KEY) || {});
+  function milestoneNumbers() {
+    return { done: Math.max(counts().done, activity().length), goals: goalFacts().length, streak: streakDays(), messages: usage().total, looks: (prefs().looksTried || []).length };
+  }
+  function checkMilestones(silent) {
+    if (!account) return;
+    const got = load(MILESTONE_KEY);
+    const have = got || {};
+    const n = milestoneNumbers();
+    const fresh = [];
+    MILESTONES.forEach((m) => { if (!have[m.id] && n[m.of] >= m.need) { have[m.id] = new Date().toISOString(); fresh.push(m); } });
+    save(MILESTONE_KEY, have);
+    if (!got || silent) return; // first run: what's already done counts quietly
+    fresh.forEach((m) => {
+      logActivity({ kind: "milestone", ico: "star", title: `Milestone: ${m.title}` });
+      ervoSays(`${m.e} Milestone: ${m.title}! ${m.of === "streak" ? "Nice habit." : m.of === "goals" ? "I'll keep you moving on it." : "Thanks for letting me help."}`, { acts: [{ label: "See Milestones", icon: "stats", onClick: () => openStats() }] });
+    });
+  }
+  function renderBadges() {
+    const box = $("badges");
+    box.innerHTML = "";
+    const have = load(MILESTONE_KEY) || {};
+    const n = milestoneNumbers();
+    const order = MILESTONES.slice().sort((a, b) => (have[b.id] ? 1 : 0) - (have[a.id] ? 1 : 0));
+    order.forEach((m) => {
+      const b = document.createElement("div");
+      b.className = `badge${have[m.id] ? " got" : ""}`;
+      b.setAttribute("role", "listitem");
+      const pct = Math.min(1, (n[m.of] || 0) / m.need);
+      b.innerHTML = `<span class="badge-ico">${e3d(m.e)}</span><b>${m.title}</b><small>${have[m.id] ? new Date(have[m.id]).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : `${Math.min(n[m.of] || 0, m.need)} of ${m.need}`}</small>`;
+      if (!have[m.id]) b.style.setProperty("--p", String(pct));
+      box.append(b);
+    });
+    const got = MILESTONES.filter((m) => have[m.id]).length;
+    const next = order.find((m) => !have[m.id]);
+    $("badge-next").textContent = `${got} of ${MILESTONES.length} reached.${next ? ` Next: ${next.title}, ${Math.max(0, next.need - (n[next.of] || 0))} to go.` : " You've got them all!"}`;
+  }
+
+  // ----- Busy meter: how full each of the next 7 days is -----
+  function drawBusy(list) {
+    const box = $("busy");
+    box.innerHTML = "";
+    const today = startOfDay(new Date());
+    const per = Array.from({ length: 7 }, () => 0);
+    list.forEach((a) => { const d = Math.round((startOfDay(a.start) - today) / 86400000); if (d >= 0 && d < 7) per[d] += a.allDay ? 1 : 1.5; });
+    const max = Math.max(4, ...per);
+    const busyDays = per.filter((x) => x > 0).length;
+    per.forEach((v, i) => {
+      const day = addDays(today, i);
+      const col = document.createElement("div");
+      col.className = `bar-col${i === 0 ? " today" : ""}${v >= 3 ? " full" : ""}`;
+      const bar = document.createElement("i");
+      bar.style.height = `${Math.max(6, (v / max) * 60)}px`;
+      const lbl = document.createElement("span");
+      lbl.textContent = i === 0 ? "Today" : day.toLocaleDateString(undefined, { weekday: "narrow" });
+      col.append(bar, lbl);
+      box.append(col);
+    });
+    $("busy-title").textContent = busyDays === 0 ? "The next 7 days are wide open" : busyDays >= 6 ? "A full week ahead" : `${busyDays} of the next 7 days have plans`;
   }
 
   function drawUpcoming(list) {
     const box = $("upcoming");
     box.innerHTML = "";
     list.sort((a, b) => a.start - b.start);
+    drawBusy(list);
     const next = list[0];
     $("sky-next").hidden = !next;
     if (next) $("sky-next").textContent = `📅 ${next.title} · ${untilText(next.start)}`;
@@ -3738,7 +3904,7 @@
     list.slice(0, 8).forEach((a) => {
       const when = `${fmtDate(a.start)}${a.allDay ? "" : ` at ${a.start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}`;
       const r = row(icoClass(a.ico), a.title, `${when}${a.detail ? " · " + a.detail : ""}`, untilText(a.start), a.link);
-      r.querySelector(".app-ico").innerHTML = ICON[a.ico] || ICON.calendar;
+      setRowIcon(r, ICON[a.ico] ? a.ico : "calendar");
       box.append(r);
     });
   }
@@ -3866,8 +4032,10 @@
     });
   }
   // Goals tab: what you're working toward, from your Psyche
+  const GOAL_RE = /^(wants? to|is trying to|trying to|is working on|working on|aims? to|hopes? to|plans? to|goal:)/i;
+  const goalFacts = () => psyche().facts.filter((f) => f.kind === "goal" || GOAL_RE.test(f.text));
   function renderGoals() {
-    const goals = psyche().facts.filter((f) => f.kind === "goal");
+    const goals = goalFacts();
     const gbox = $("goals");
     gbox.innerHTML = "";
     if (!goals.length) gbox.append(empty("Tell Ervo a goal, like \"I want to run a 5K by spring\" or \"save $500 this month\", and it shows up here."));
@@ -3901,17 +4069,23 @@
       part = h < 5 || h >= 20 ? "night" : h < 8 ? "dawn" : h >= 17 ? "dusk" : "day";
     }
     const kind = w ? w.kind : "";
-    const weather = /rain|drizz|storm|snow/.test(kind) ? "wet" : /cloudy|fog/.test(kind) && kind !== "partly cloudy" ? "cloudy" : "";
+    const weather = /snow|sleet|flurr/.test(kind) ? "snow" : /rain|drizz|storm|shower/.test(kind) ? "wet" : /cloudy|fog|overcast/.test(kind) && kind !== "partly cloudy" ? "cloudy" : "";
     const s = $("stats");
     s.dataset.sky = part;
     s.dataset.weather = weather;
+    // Season from the month (southern hemisphere flips when we know where you are)
+    const south = ((load(PLACE_KEY) || {}).lat || 0) < 0;
+    let mo = now.getMonth() + (south ? 6 : 0);
+    mo %= 12;
+    s.dataset.season = mo >= 2 && mo <= 4 ? "spring" : mo >= 5 && mo <= 7 ? "summer" : mo >= 8 && mo <= 10 ? "fall" : "winter";
+    if (w && w.temp !== undefined && ((w.unit === "F" && w.temp <= 36) || (w.unit === "C" && w.temp <= 2))) s.dataset.season = "winter";
     syncBars();
   }
 
   function activityRow(a) {
     const sub = a.when ? `For ${whenText(a)}` : a.detail || "Done by Ervo";
     const r = row(icoClass(a.ico), a.title, sub, ago(a.at), a.link);
-    r.querySelector(".app-ico").innerHTML = ICON[a.ico] || ICON.done;
+    setRowIcon(r, ICON[a.ico] ? a.ico : "done");
     return r;
   }
 
@@ -4037,6 +4211,7 @@
   }
 
   function renderSteps(s) {
+    if (!$("steps-card")) return; // steps left Ervo Stats in 0.3.7; the chat still answers step questions
     const goal = prefs().stepsGoal;
     const btn = $("steps-btn");
     const ring = $("ring-fg");
@@ -4107,7 +4282,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.3.6"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.3.7"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -4656,7 +4831,7 @@
   });
   function resetErvo() {
     buzz("reject");
-    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version"].forEach(drop);
+    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY].forEach(drop);
     history = [];
     closeChats();
     openChat(account, true);
@@ -4665,7 +4840,7 @@
   function signOut() {
     buzz("reject");
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
-    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version"].forEach(drop);
+    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY].forEach(drop);
     account = null;
     ["contact", "code", "name"].forEach((id) => { $(id).value = ""; });
     setPlan("personal");
@@ -4754,6 +4929,7 @@
       b.addEventListener("click", () => {
         const p = prefs();
         p.look = id;
+        p.looksTried = Array.from(new Set((p.looksTried || []).concat(id)));
         save(PREFS_KEY, p);
         grid.querySelectorAll("button").forEach((x) => x.setAttribute("aria-checked", String(x === b)));
         applyLook();
@@ -4903,6 +5079,9 @@
       row.innerHTML = "";
       const why = document.createElement("div");
       why.className = "fb-why";
+      const back = btn("‹", "Back", () => { row.innerHTML = ""; row.append(up, down); });
+      back.className = "fb-back";
+      why.append(back);
       const topic = String(asked).slice(0, 80);
       [
         ["Wrong info", () => { learn({ lesson: `Double-check facts carefully; an answer about "${topic}" had wrong info` }); return ["Thanks for telling me. I'll double-check facts like that more carefully.", true]; }],
@@ -4914,6 +5093,15 @@
         row.remove();
         ervoSays(msg, { acts: retry && asked ? [{ label: "Try Again", icon: "undo", onClick: () => send(asked) }] : null });
       })));
+      // Say it in your own words: Ervo learns from it and answers again
+      const tell = btn("Tell Ervo…", "Tell Ervo what was off", () => {
+        row.remove();
+        feedbackFor = asked || "";
+        $("message").placeholder = "What was off? I'll learn from it";
+        $("message").focus();
+      });
+      tell.className = "fb-tell";
+      why.append(tell);
       row.append(why);
     });
     row.append(up, down);

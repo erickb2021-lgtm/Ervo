@@ -1,17 +1,17 @@
 {
-  "version": "0.3.6",
+  "version": "0.3.7",
   "notes": [
-    "Four tabs at the bottom: Chat, Ideas, Goals and Files, so the main things are one tap away",
-    "Settings is its own page now, with a Back button and compact grouped rows, instead of a long drop-down",
-    "Goals have their own tab, with an Add a goal button",
-    "A new modern black background in dark mode: a deep slate with a soft glow and a little texture instead of flat black",
-    "Big emoji, like the weather on Ervo Stats and the status icons, show as 3D pictures",
-    "While Ervo writes, you see its picture and name with three bouncing dots, like someone typing. What it's doing still shows at the top",
-    "Change how Ervo looks: tap Ervo's picture at the top (or the menu) and pick from 10 looks, like Gamer, Space, Winter or Business",
-    "Weather before you leave (Android): pick when you usually head out, and about 20 minutes before, Ervo sends one heads-up only if there's rain, snow, storms, wind, heat or cold",
-    "Calorie questions like \"how many calories in a spicy wrap and large fries\" get real numbers for each item and a total, instead of your steps",
-    "Product picks always show a picture now, even when the store doesn't share one",
-    "Share long answers like meal plans straight to Notes, email or messages. Ervo no longer says it saved a file it can't make",
-    "Thumbs up or down on Ervo's answers. Tell it \"Too long\" or \"Wrong info\" and it learns from that"
+    "Ervo Stats is new: your usage today with what's left, milestones you've reached, what's coming up with a busy meter for the next 7 days, and your recent activity",
+    "The sky behind Ervo Stats is alive now: sun or moon, drifting clouds, rain behind glass, falling snow, autumn leaves and a hill that changes with the season",
+    "Milestones: when you reach one, like 10 things done or a 7-day streak, Ervo tells you in the chat",
+    "Tap Not Now on a permission and Ervo says no problem and offers an Allow button, instead of going quiet",
+    "The bottom tabs come back after the keyboard closes, every time",
+    "The Goals tab shows your goals, including ones Ervo saved as \"Wants to…\"",
+    "\"Plan a workout that fits my health\" goes to Ervo's AI now, instead of your step count",
+    "Ervo plans more: any request becomes a concrete plan, and it drafts emails and texts with a one-tap Send button",
+    "Rows use detailed 3D icons on a clear background",
+    "Thumbs down has a back arrow and a Tell Ervo option: say what was off and Ervo learns from it and answers again",
+    "The small box under message bubbles is gone",
+    "Four tabs at the bottom: Chat, Ideas, Goals and Files, so the main things are one tap away"
   ]
 }
