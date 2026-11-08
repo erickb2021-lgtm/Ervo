@@ -63,6 +63,22 @@
     <p class="error" id="name-error" role="alert"></p>
     <button class="btn primary" type="submit">Meet my Ervo</button>
   </form>
+
+  <!-- step: team (Business only): run a company, or join one with an employee ID -->
+  <form class="step" data-step="team" novalidate>
+    <p class="muted">How will you use Ervo for Business?</p>
+    <div class="seg" role="radiogroup" aria-label="Company or employee">
+      <label><input type="radio" name="teamrole" value="owner" checked><span>Company</span></label>
+      <label><input type="radio" name="teamrole" value="employee"><span>Employee</span></label>
+    </div>
+    <p class="hint" id="team-hint">You run the company. You'll create employee IDs so your team can join, and you can see their chats with Ervo.</p>
+    <label class="sr" for="team-company">Company name</label>
+    <input class="field" id="team-company" type="text" autocomplete="organization" placeholder="Company name">
+    <label class="sr" for="team-code">Employee ID</label>
+    <input class="field" id="team-code" type="text" autocomplete="off" autocapitalize="characters" placeholder="Employee ID, like ERVO-7F3K-92QX" hidden>
+    <p class="error" id="team-error" role="alert"></p>
+    <button class="btn primary" type="submit" id="team-go">Create my company</button>
+  </form>
 </section>
 
 <!-- 3. Chat with Ervo -->
@@ -310,7 +326,7 @@
     </button>
     <div id="settings-list"></div>
     <p class="foot-note menu-ai">Ervo uses AI and can make mistakes. Check important info.</p>
-    <p class="foot-note menu-version" id="menu-version">Ervo version 0.3.10 (preview)</p>
+    <p class="foot-note menu-version" id="menu-version">Ervo version 0.4.0 (preview)</p>
   </div>
 </section>
 
@@ -321,6 +337,102 @@
   <button type="button" id="tab-goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg><span>Goals</span></button>
   <button type="button" id="open-library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h4l2 2.5h7A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg><span>Files</span></button>
 </nav>
+
+<!-- 11. Team (Business owner): employees, their chats, employee IDs -->
+<section class="screen stats" id="team" aria-labelledby="team-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="team-back" aria-label="Back to chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span class="nav-title" aria-hidden="true"></span>
+  </header>
+  <div class="stats-body">
+    <h1 id="team-title">Team</h1>
+    <p class="stats-weather" id="team-sub"></p>
+    <h2>Employees</h2>
+    <div class="card list" id="team-members"></div>
+    <h2>Employee IDs</h2>
+    <div class="card list" id="team-codes"></div>
+    <button class="pill ideas-refresh" type="button" id="team-add">Add Employee ID</button>
+    <h2>Settings</h2>
+    <div class="card learn-card">
+      <label class="toggle"><span>Employees can message each other <small>Off: employees can only send things to you. On: they can also send to each other through Ervo.</small></span><input type="checkbox" id="team-peer"><i></i></label>
+    </div>
+    <p class="foot-note">Employees' chats with Ervo are saved for your company so you can read them here. Your own chat stays private.</p>
+  </div>
+</section>
+
+<!-- 12. One employee's chat with Ervo (owner, read-only) -->
+<section class="screen stats" id="teamchat" aria-labelledby="teamchat-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="teamchat-back" aria-label="Back to Team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span class="nav-title" aria-hidden="true"></span>
+  </header>
+  <div class="stats-body">
+    <h1 id="teamchat-title">Employee</h1>
+    <p class="stats-weather" id="teamchat-sub"></p>
+    <div class="tc-thread" id="teamchat-list"></div>
+    <button class="pill ghost ideas-refresh" type="button" id="teamchat-send">Send them a message</button>
+    <button class="text-btn danger-text" type="button" id="teamchat-remove">Remove from company</button>
+  </div>
+</section>
+
+<!-- New employee ID -->
+<div class="sheet-wrap" id="newid" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="newid-title">
+    <h2 id="newid-title">Employee ID</h2>
+    <div id="newid-ask">
+      <p class="muted">Who is this ID for? Ervo shows the name next to it until they join.</p>
+      <label class="sr" for="newid-label">Their name</label>
+      <input class="field soft" id="newid-label" type="text" autocomplete="off" placeholder="Their name (optional)">
+      <div class="sheet-actions">
+        <button class="pill ghost" type="button" id="newid-cancel">Cancel</button>
+        <button class="pill" type="button" id="newid-create">Create ID</button>
+      </div>
+    </div>
+    <div id="newid-show" hidden>
+      <p class="muted" id="newid-for"></p>
+      <p class="id-code" id="newid-code"></p>
+      <p class="perm-note">Give it to them in person or by text. They pick Business, then Employee, and enter your company name and this ID. It works once; you can revoke it until they join.</p>
+      <div class="sheet-actions">
+        <button class="pill ghost" type="button" id="newid-copy">Copy</button>
+        <button class="pill" type="button" id="newid-share">Share</button>
+      </div>
+      <button class="text-btn" type="button" id="newid-done">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Office hours -->
+<div class="sheet-wrap" id="hours" hidden>
+  <form class="sheet" role="dialog" aria-modal="true" aria-labelledby="hours-title" id="hours-form" novalidate>
+    <h2 id="hours-title">Office hours</h2>
+    <p class="muted">Ervo plans your work inside these hours, and your company can see when you're on.</p>
+    <div class="hours-row">
+      <label class="field-label" for="hours-start">From</label>
+      <input class="field soft" id="hours-start" type="time" value="09:00">
+      <label class="field-label" for="hours-end">To</label>
+      <input class="field soft" id="hours-end" type="time" value="17:00">
+    </div>
+    <p class="field-label" id="hours-days-label">On these days</p>
+    <div class="day-picks" id="hours-days" role="group" aria-labelledby="hours-days-label"></div>
+    <div class="sheet-actions">
+      <button class="pill ghost" type="button" id="hours-cancel">Cancel</button>
+      <button class="pill" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- My company (employee) -->
+<div class="sheet-wrap" id="company" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="company-title">
+    <h2 id="company-title">My company</h2>
+    <p class="muted" id="company-info"></p>
+    <p class="perm-note">This Ervo is set up for work at your company. Your chats with Ervo here are visible to the company owner. For personal things, use a Personal account.</p>
+    <div class="sheet-actions">
+      <button class="pill ghost" type="button" id="company-leave">Leave company</button>
+      <button class="pill" type="button" id="company-done">Done</button>
+    </div>
+  </div>
+</div>
 
 <!-- Chats: the main chat, and side chats that branch off it -->
 <div class="chats-wrap" id="chats-panel" hidden>

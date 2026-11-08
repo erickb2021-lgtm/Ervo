@@ -82,9 +82,9 @@
   // ---------- screens ----------
   // How deep each screen sits, so moving in slides from the right and going back slides away
   // to the right, like every iPhone app (Apple: navigation is a stack you push and pop)
-  const DEPTH = { splash: 0, welcome: 0, chat: 0, ideas: 0, goalpage: 0, library: 0, settings: 1, stats: 2, psyche: 2, activity: 3 };
-  // The four tabs at the bottom, and which screen each one shows
-  const TAB_OF = { chat: "tab-chat", ideas: "open-ideas", goalpage: "tab-goals", library: "open-library" };
+  const DEPTH = { splash: 0, welcome: 0, chat: 0, ideas: 0, goalpage: 0, team: 0, library: 0, settings: 1, stats: 2, psyche: 2, teamchat: 2, activity: 3 };
+  // The four tabs at the bottom, and which screen each one shows (Business owners get Team where Goals is)
+  const TAB_OF = { chat: "tab-chat", ideas: "open-ideas", goalpage: "tab-goals", team: "tab-goals", library: "open-library" };
   // Back goes to where you came from: Settings when you opened it there, else the chat
   const openedFrom = {};
   const backTo = (id) => (openedFrom[id] === "settings" ? "settings" : "chat");
@@ -123,7 +123,7 @@
     business: {
       label: "Business", avatar: "img/ervo-business.png",
       hint: "Business use only: customer support, refunds by your policy, scheduling and more.",
-      question: "What's your company called?", nameLabel: "Company name", placeholder: "Acme Coffee Co.", nameError: "Enter your company's name.",
+      question: "What's your name?", nameLabel: "Your name", placeholder: "Alex", nameError: "Enter your name.",
       chips: ["Refund order #5512", "Summarize today's tickets", "Call with Northwind Thursday at 2pm", "Draft a reply to an upset customer"],
       apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "mail", "location"],
     },
@@ -245,6 +245,46 @@
         acc.id = u.id;
       } catch (err) { $("name-error").textContent = friendlyAuthError(err); return; }
     }
+    if (plan === "business" && realAuth) { pendingAcc = acc; setTeamRole("owner"); step("team"); return; }
+    save(ACCOUNT_KEY, acc);
+    openChat(acc, true);
+  });
+
+  // ---------- Business: run a company, or join one with an employee ID ----------
+  let pendingAcc = null;
+  let teamRole = "owner";
+  function setTeamRole(r) {
+    teamRole = r;
+    document.querySelectorAll('input[name="teamrole"]').forEach((x) => { x.checked = x.value === r; });
+    $("team-code").hidden = r !== "employee";
+    $("team-hint").textContent = r === "owner"
+      ? "You run the company. You'll create employee IDs so your team can join, and you can see their chats with Ervo."
+      : "Your company gave you an employee ID. Enter the company's name exactly as they use it on Ervo, and the ID. Your chats with Ervo here are visible to the company owner.";
+    $("team-go").textContent = r === "owner" ? "Create my company" : "Join my company";
+  }
+  document.querySelectorAll('input[name="teamrole"]').forEach((x) => x.addEventListener("change", () => setTeamRole(x.value)));
+  clearOnType($("team-company"), "team-error");
+  clearOnType($("team-code"), "team-error");
+  document.querySelector('[data-step="team"]').addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const acc = pendingAcc || load(ACCOUNT_KEY);
+    if (!acc) { step("contact"); return; }
+    const company = $("team-company").value.trim();
+    const code = $("team-code").value.trim().toUpperCase();
+    if (company.length < 2) { $("team-error").textContent = "Enter the company's name."; return; }
+    if (teamRole === "employee" && !/^ERVO-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) { $("team-error").textContent = "Enter the employee ID your company gave you, like ERVO-7F3K-92QX."; return; }
+    const btn = $("team-go");
+    btn.disabled = true;
+    try {
+      const v = teamRole === "owner" ? await teamApi("company/create", { name: company, ownerName: acc.name }) : await teamApi("join", { company, code, name: acc.name });
+      acc.team = teamFromView(v);
+    } catch (err) {
+      $("team-error").textContent = err.message || "Couldn't reach Ervo. Check your connection and try again.";
+      btn.disabled = false;
+      return;
+    }
+    btn.disabled = false;
+    pendingAcc = null;
     save(ACCOUNT_KEY, acc);
     openChat(acc, true);
   });
@@ -363,6 +403,11 @@
       ["open-greeting", "sun", "#ff9f0a", "Greeting", "What Ervo says first"],
       ["open-wake", "mic", "#30d158", "Hey Ervo", "Hands-free"],
       ["open-leave", "map", "#0a84ff", "Weather Before You Leave", "A heads-up only on bad-weather days"],
+    ]],
+    ["Work", [
+      ["open-team", "people", "#0a84ff", "Team", "Employees, their chats and employee IDs"],
+      ["open-hours", "clock", "#ff9f0a", "Office Hours", "When you're working"],
+      ["open-company", "home", "#30d158", "My Company", ""],
     ]],
     ["You", [
       ["open-psyche", "brain", "#bf5af2", "Psyche", "What Ervo knows about you"],
@@ -1504,8 +1549,10 @@
     // Read it fresh: the "Hey Ervo" pop-up may have added to it
     const id = activeId();
     const c = loadChat(id) || Object.assign(newChatRecord(), id === "main" ? {} : { id });
-    c.items.push(Object.assign({ at: new Date().toISOString() }, item));
+    const stamped = Object.assign({ at: new Date().toISOString() }, item);
+    c.items.push(stamped);
     if (c.items.length > 400) c.items.splice(0, c.items.length - 400);
+    if (item.t === "msg" && account.team && account.team.role === "employee") queueMirror({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`, role: item.who === "me" ? "user" : "assistant", text: String(item.text), at: stamped.at });
     // A side chat is named after the first thing you say in it
     if (id !== "main" && c.auto !== false && item.t === "msg" && item.who === "me" && !c.items.slice(0, -1).some((x) => x.t === "msg" && x.who === "me")) {
       c.title = String(item.text).slice(0, 48);
@@ -2122,6 +2169,7 @@
 
   // While Ervo works: its picture, name and what it's doing ("checking your calendar")
   let liveTyping = null;
+  let lastErvoText = "";
   function showTyping(words, ico) {
     if (!liveTyping) {
       liveTyping = document.createElement("div");
@@ -2168,6 +2216,7 @@
     idleStatus();
     if (opts.replace) opts.replace.remove();
     bubble(said, "them");
+    lastErvoText = said;
     thread.querySelectorAll(".fb").forEach((x) => x.remove());
     // A done or failed action gets the matching haptic (Android); plain answers get none
     if (/^(Done|Undone|All set)\b/.test(String(said))) buzz("confirm");
@@ -2390,7 +2439,9 @@
     account = acc;
     const p = PLAN[acc.plan];
     $("chat-avatar").src = lookSrc();
-    $("menu-who").textContent = `${acc.name} · Ervo ${acc.plan === "business" ? "for Business" : "Personal"}`;
+    $("menu-who").textContent = `${acc.name} · Ervo ${acc.plan === "business" ? "for Business" : "Personal"}${acc.team ? ` · ${acc.team.companyName}` : ""}`;
+    applyTeamUI();
+    if (acc.plan === "business" && realAuth) setTimeout(syncTeam, 800);
     thread.innerHTML = "";
     lastDay = "";
     stuck = true;
@@ -2682,13 +2733,15 @@
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 75000); // research with web search can take a bit
     try {
+      const token = await freshToken();
       const r = await fetch(`${AI_URL}/chat`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: Object.assign({ "content-type": "application/json" }, token ? { Authorization: `Bearer ${token}` } : {}),
         signal: ctrl.signal,
         body: JSON.stringify(Object.assign({
           plan: account.plan,
           name: prefs().nickname || account.name,
+          team: teamForAI(),
           messages: history.slice(-16),
           psyche: psycheForServer(),
           memory: memory(),
@@ -2892,7 +2945,9 @@
       out.learned = learnedNow;
       out.quiet = (j.actions || []).some((a) => SELF_REPORTING.has(a.type));
       (j.actions || []).forEach((a) => {
-        if (a.type === "make_list") {
+        if (a.type === "send_to_teammate" && a.to && a.text) {
+          afters.push(() => teamSend(String(a.to), String(a.text)));
+        } else if (a.type === "make_list") {
           const l = cleanList(a);
           if (l.items.length) out.list = l;
         } else if (a.type === "offer_choices" && Array.isArray(a.options)) {
@@ -3427,8 +3482,12 @@
     }
     const mixed = String(text).match(/^(.{8,}?)\s*,?\s+(?:and|then|also|plus)\s+(?:can you\s+|please\s+)?(?:set|start|make)\s+(?:me\s+)?(?:an?|the|another)\s+(?:\d+\s*\w+\s+)?(?:alarm|timer)\b/i);
     if (mixed && AI_URL && !task && !/\b(alarm|timer|wake me)\b/i.test(mixed[1])) return askAI(understand(text));
+    if (account.team) { const ts = matchTeamSend(text); if (ts) return teamSend(ts.to, ts.text); }
     const d = understand(text);
     const biz = account.plan === "business";
+    if (account.team && account.team.role === "employee" && ["steps", "shop"].includes(d.intent)) {
+      return ervoSays(`This Ervo is set up for work at ${account.team.companyName}, so I keep to work things here. A Personal account can help with that.`);
+    }
 
     // Personal and Business stay strictly separate
     if (!biz && BUSINESS_WORDS.test(d.t) && d.intent !== "event") {
@@ -4280,7 +4339,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.3.10"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.4.0"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -4785,7 +4844,7 @@
   $("set-hero").addEventListener("click", () => openLook());
   // Bottom tabs
   $("tab-chat").addEventListener("click", () => show("chat"));
-  $("tab-goals").addEventListener("click", openGoals);
+  $("tab-goals").addEventListener("click", () => (account && account.team && account.team.role === "owner" ? openTeam() : openGoals()));
   $("goals-back").addEventListener("click", () => show("chat"));
   $("goal-add").addEventListener("click", () => {
     show("chat");
@@ -4829,7 +4888,7 @@
   });
   function resetErvo() {
     buzz("reject");
-    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY].forEach(drop);
+    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY].forEach(drop);
     history = [];
     closeChats();
     openChat(account, true);
@@ -4838,7 +4897,7 @@
   function signOut() {
     buzz("reject");
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
-    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY].forEach(drop);
+    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY].forEach(drop);
     account = null;
     ["contact", "code", "name"].forEach((id) => { $(id).value = ""; });
     setPlan("personal");
@@ -4860,7 +4919,11 @@
     if ($("settings").classList.contains("active")) { show("chat"); return true; }
     if (!$("chats-panel").hidden && !docked()) { closeChats(); return true; }
     if ($("psyche").classList.contains("active")) { show(backTo("psyche")); return true; }
-    if ($("ideas").classList.contains("active") || $("goalpage").classList.contains("active")) { show("chat"); return true; }
+    if ($("teamchat").classList.contains("active")) { show("team"); return true; }
+    if (!$("newid").hidden) { $("newid").hidden = true; return true; }
+    if (!$("hours").hidden) { $("hours").hidden = true; return true; }
+    if (!$("company").hidden) { $("company").hidden = true; return true; }
+    if ($("ideas").classList.contains("active") || $("goalpage").classList.contains("active") || $("team").classList.contains("active")) { show("chat"); return true; }
     if (document.querySelector(".photo-view")) { document.querySelector(".photo-view").remove(); return true; }
     if (!$("calpick").hidden) { answerCalendar(null); return true; }
     if ($("library").classList.contains("active")) { show("chat"); return true; }
@@ -5144,6 +5207,301 @@
     logActivity({ kind: "settings", ico: "brain", title: p.learn ? "Turned learning on" : "Turned learning off" });
   });
 
+  // ---------- Ervo for Business teams ----------
+  // The server (team.ts) is the source of truth; account.team is a copy for the screens.
+  const MIRROR_KEY = "ervo-mirror-queue";
+  async function teamApi(path, body) {
+    const token = await freshToken();
+    if (!AI_URL) throw new Error("Ervo's server isn't set up.");
+    if (!token) { const e = new Error("Please sign in again."); e.status = 401; throw e; }
+    let r;
+    try {
+      r = await fetch(`${AI_URL}/team/${path}`, { method: "POST", headers: { "content-type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body || {}), signal: AbortSignal.timeout(15000) });
+    } catch (e) { throw new Error("Couldn't reach Ervo. Check your connection and try again."); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { const e = new Error(j.error || `Ervo's server said ${r.status}.`); e.status = r.status; e.none = !!j.none; throw e; }
+    return j;
+  }
+  const teamFromView = (v) => ({
+    role: v.member.role, memberId: v.member.id, myName: v.member.name, hours: v.member.hours || null,
+    companyId: v.company.id, companyName: v.company.name, owner: v.company.owner || "", peer: !!v.company.peerMessages,
+    members: v.members || [], pendingCodes: v.pendingCodes || [], unread: v.unread || 0,
+  });
+  function teamForAI() {
+    const t = account && account.team;
+    if (!t) return undefined;
+    return { company: t.companyName, role: t.role, myName: t.myName, hours: t.hours, members: t.members.filter((m) => m.id !== t.memberId).map((m) => m.name), peerMessages: t.peer };
+  }
+  // Fresh team picture from the server (and the first place a returning Business user is sent to pick Company or Employee)
+  async function syncTeam() {
+    if (!account || account.plan !== "business" || !realAuth) return;
+    try {
+      const v = await teamApi("me");
+      account.team = teamFromView(v);
+      save(ACCOUNT_KEY, account);
+      applyTeamUI();
+      pollInbox();
+    } catch (e) {
+      if (e.none) { pendingAcc = account; show("welcome"); setTeamRole("owner"); step("team"); }
+      else if (e.status === 401) { /* signed out elsewhere: the next action asks to sign in */ }
+    }
+  }
+  function applyTeamUI() {
+    const t = account && account.team;
+    const owner = !!(t && t.role === "owner");
+    $("open-team").hidden = !owner;
+    $("open-hours").hidden = !t;
+    $("open-company").hidden = !(t && t.role === "employee");
+    const tab = $("tab-goals");
+    tab.querySelector("span").textContent = owner ? "Team" : "Goals";
+    tab.querySelector("svg").innerHTML = owner
+      ? '<circle cx="9" cy="8" r="3.4"/><path d="M3 19a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 19H21a5 5 0 0 0-3-4.6"/>'
+      : '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>';
+    if (t) startInbox(); else stopInbox();
+  }
+
+  // Employees' chats, mirrored for the owner (queued, sent in small batches)
+  let mirrorTimer = null;
+  function queueMirror(item) {
+    const q = load(MIRROR_KEY) || [];
+    q.push(item);
+    save(MIRROR_KEY, q.slice(-200));
+    clearTimeout(mirrorTimer);
+    mirrorTimer = setTimeout(flushMirror, 2500);
+  }
+  async function flushMirror() {
+    const q = load(MIRROR_KEY) || [];
+    if (!q.length || !account || !account.team) return;
+    const batch = q.slice(0, 60);
+    try {
+      await teamApi("mirror", { items: batch });
+      const left = (load(MIRROR_KEY) || []).filter((x) => !batch.some((b) => b.id === x.id));
+      save(MIRROR_KEY, left);
+      if (left.length) mirrorTimer = setTimeout(flushMirror, 1500);
+    } catch (e) { mirrorTimer = setTimeout(flushMirror, 30000); }
+  }
+
+  // Notes from teammates arrive in the chat
+  let inboxTimer = null;
+  function startInbox() { stopInbox(); inboxTimer = setInterval(() => { if (!document.hidden) pollInbox(); }, 60000); }
+  function stopInbox() { clearInterval(inboxTimer); inboxTimer = null; }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && account && account.team) { pollInbox(); flushMirror(); } });
+  async function pollInbox() {
+    if (!account || !account.team) return;
+    let j;
+    try { j = await teamApi("inbox"); } catch (e) { return; }
+    (j.notes || []).forEach((n) => {
+      ervoSays(`📨 From ${n.from_name}: ${n.text}`, { instant: true, acts: [{ label: `Reply to ${n.from_name}`, icon: "chat", onClick: () => { $("message").value = `Tell ${n.from_name}: `; $("message").focus(); syncComposer(); } }] });
+      logActivity({ kind: "team", ico: "chat", title: `Message from ${n.from_name}`, detail: String(n.text).slice(0, 80) });
+    });
+  }
+  // "Send this to Maria", "forward that to the owner", "tell Sam: the shipment is late"
+  function teamNames() {
+    const t = account && account.team;
+    if (!t) return [];
+    return t.members.filter((m) => m.id !== t.memberId).map((m) => m.name);
+  }
+  function resolveTeammate(raw) {
+    const want = String(raw || "").trim().replace(/^(the |my )?(owner|boss|manager)$/i, "owner").replace(/[.!,]+$/, "").toLowerCase();
+    if (!want) return null;
+    if (want === "owner") return account.team.role === "owner" ? null : "owner";
+    const names = teamNames();
+    return names.find((n) => n.toLowerCase() === want) || names.find((n) => n.toLowerCase().split(" ")[0] === want) || names.find((n) => n.toLowerCase().startsWith(want)) || null;
+  }
+  function matchTeamSend(text) {
+    const t = String(text).trim();
+    let m = t.match(/^(?:send|forward|share|pass) (?:this|that|it|the last (?:message|answer|reply|one))(?: along| over)? to (.+)$/i);
+    if (m) { const to = resolveTeammate(m[1]); return to && lastErvoText ? { to, text: lastErvoText } : null; }
+    m = t.match(/^(?:tell|message|text|send to|send) ([a-z][\w' -]{0,30}?)[:,] (.+)$/i) || t.match(/^tell ([a-z][\w'-]*) (?:that |to )?(.{3,})$/i);
+    if (m) { const to = resolveTeammate(m[1]); return to ? { to, text: m[2].trim() } : null; }
+    return null;
+  }
+  async function teamSend(to, text) {
+    if (!account.team) return ervoSays("Sending to teammates works once you're part of a company on Ervo for Business.");
+    setStatus("📨", "Sending");
+    try {
+      const r = await teamApi("send", { to, text });
+      logActivity({ kind: "team", ico: "chat", title: `Sent a message to ${r.to.name}`, detail: String(text).slice(0, 80) });
+      return ervoSays(`Sent to ${r.to.name} ✅ It'll show up in their Ervo.`, { instant: true });
+    } catch (e) {
+      return ervoSays(e.message || "I couldn't send that right now.", { instant: true });
+    }
+  }
+
+  // ----- Team screen (owner) -----
+  async function openTeam() {
+    toggleMenu(false);
+    if (!account.team) return;
+    renderTeam();
+    show("team");
+    try { account.team = teamFromView(await teamApi("me")); save(ACCOUNT_KEY, account); renderTeam(); } catch (e) { /* show what we have */ }
+  }
+  function hoursText(h) {
+    if (!h || !h.start) return "No office hours set";
+    const t = (s) => fmtTime({ h: +s.split(":")[0], m: +s.split(":")[1] });
+    return `${t(h.start)} to ${t(h.end)}, ${leaveDaysText(h.days || "23456")}`;
+  }
+  function renderTeam() {
+    const t = account.team;
+    $("team-title").textContent = t.companyName;
+    const staff = t.members.filter((m) => m.role === "employee");
+    $("team-sub").textContent = `${staff.length} employee${staff.length === 1 ? "" : "s"} · you're the owner`;
+    const mbox = $("team-members");
+    mbox.innerHTML = "";
+    if (!staff.length) mbox.append(empty("No employees yet. Add an employee ID below and give it to them."));
+    staff.forEach((m) => {
+      const r = row("people", m.name, hoursText(m.hours), m.lastAt ? ago(m.lastAt) : "›");
+      r.classList.add("tap");
+      r.setAttribute("role", "button");
+      r.tabIndex = 0;
+      r.addEventListener("click", () => openTeamChat(m));
+      mbox.append(r);
+    });
+    const cbox = $("team-codes");
+    cbox.innerHTML = "";
+    if (!t.pendingCodes.length) cbox.append(empty("No open IDs. Each ID lets one person join; it stops working once they do."));
+    t.pendingCodes.forEach((c) => {
+      const r = row("star", c.code, c.label ? `For ${c.label}` : "Not used yet", "");
+      r.querySelector("b").classList.add("mono");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "switch on";
+      b.textContent = "Revoke";
+      b.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        try { account.team = teamFromView(await teamApi("ids/revoke", { code: c.code })); save(ACCOUNT_KEY, account); renderTeam(); toast("ID revoked"); } catch (err) { toast(err.message); }
+      });
+      r.append(b);
+      cbox.append(r);
+    });
+    $("team-peer").checked = !!t.peer;
+  }
+  $("team-back").addEventListener("click", () => show("chat"));
+  $("open-team").addEventListener("click", openTeam);
+  $("team-peer").addEventListener("change", async () => {
+    try { account.team = teamFromView(await teamApi("settings", { peerMessages: $("team-peer").checked })); save(ACCOUNT_KEY, account); toast($("team-peer").checked ? "Employees can message each other" : "Employees can message only you"); }
+    catch (e) { $("team-peer").checked = !!account.team.peer; toast(e.message); }
+  });
+  // New employee ID
+  let newCode = "";
+  $("team-add").addEventListener("click", () => { $("newid-ask").hidden = false; $("newid-show").hidden = true; $("newid-label").value = ""; $("newid").hidden = false; setTimeout(() => $("newid-label").focus(), 60); });
+  $("newid-cancel").addEventListener("click", () => { $("newid").hidden = true; });
+  $("newid-done").addEventListener("click", () => { $("newid").hidden = true; });
+  $("newid").addEventListener("click", (e) => { if (e.target === $("newid")) $("newid").hidden = true; });
+  $("newid-create").addEventListener("click", async () => {
+    const label = $("newid-label").value.trim();
+    $("newid-create").disabled = true;
+    try {
+      const r = await teamApi("ids/create", { label });
+      newCode = r.code;
+      $("newid-for").textContent = label ? `For ${label}` : "For your next employee";
+      $("newid-code").textContent = r.code;
+      $("newid-ask").hidden = true;
+      $("newid-show").hidden = false;
+      logActivity({ kind: "team", ico: "people", title: `Created an employee ID${label ? ` for ${label}` : ""}` });
+      account.team = teamFromView(await teamApi("me"));
+      save(ACCOUNT_KEY, account);
+      renderTeam();
+    } catch (e) { toast(e.message); }
+    $("newid-create").disabled = false;
+  });
+  const idMessage = () => `Join ${account.team.companyName} on Ervo for Business:\n1. Get Ervo and sign in\n2. Pick Business, then Employee\n3. Company: ${account.team.companyName}\n4. Employee ID: ${newCode}`;
+  $("newid-copy").addEventListener("click", async () => { toast((await copyText(newCode)) ? "ID copied" : "Couldn't copy"); });
+  $("newid-share").addEventListener("click", () => shareText("Your Ervo employee ID", idMessage()));
+
+  // ----- One employee's chat (owner, read-only) -----
+  let teamChatMember = null;
+  async function openTeamChat(m) {
+    teamChatMember = m;
+    $("teamchat-title").textContent = m.name;
+    $("teamchat-sub").textContent = `${hoursText(m.hours)}${m.lastAt ? ` · last active ${ago(m.lastAt)}` : ""}`;
+    const box = $("teamchat-list");
+    box.innerHTML = "";
+    box.append(empty("Loading…"));
+    show("teamchat");
+    try {
+      const r = await teamApi("chat", { memberId: m.id });
+      box.innerHTML = "";
+      if (!r.messages.length) box.append(empty(`${m.name} hasn't chatted with Ervo yet.`));
+      let day = "";
+      r.messages.forEach((x) => {
+        const d = new Date(x.at);
+        const key = d.toDateString();
+        if (key !== day) { day = key; const h = document.createElement("p"); h.className = "tc-day"; h.textContent = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); box.append(h); }
+        const el = document.createElement("div");
+        el.className = `tc-msg ${x.role === "user" ? "them-user" : "ervo"}`;
+        el.innerHTML = `<small>${x.role === "user" ? m.name : "Ervo"} · ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</small>`;
+        const t = document.createElement("span");
+        t.textContent = x.text;
+        el.append(t);
+        box.append(el);
+      });
+    } catch (e) { box.innerHTML = ""; box.append(empty(e.message)); }
+  }
+  $("teamchat-back").addEventListener("click", () => show("team"));
+  $("teamchat-send").addEventListener("click", () => { if (!teamChatMember) return; show("chat"); $("message").value = `Tell ${teamChatMember.name}: `; setTimeout(() => { $("message").focus(); syncComposer(); }, 300); });
+  $("teamchat-remove").addEventListener("click", () => {
+    if (!teamChatMember) return;
+    const m = teamChatMember;
+    askConfirm(`Remove ${m.name}?`, `${m.name} leaves ${account.team.companyName} on Ervo and can't send or receive team messages. Their past chats stay visible to you.`, "Remove", async () => {
+      try { account.team = teamFromView(await teamApi("member/remove", { memberId: m.id })); save(ACCOUNT_KEY, account); logActivity({ kind: "team", ico: "people", title: `Removed ${m.name} from ${account.team.companyName}` }); openTeam(); }
+      catch (e) { toast(e.message); }
+    });
+  });
+
+  // ----- Office hours (anyone on a team) -----
+  function openHours() {
+    toggleMenu(false);
+    const h = (account.team && account.team.hours) || { start: "09:00", end: "17:00", days: "23456" };
+    $("hours-start").value = h.start || "09:00";
+    $("hours-end").value = h.end || "17:00";
+    const box = $("hours-days");
+    box.innerHTML = "";
+    DAY_SHORT.forEach((x, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = x;
+      b.dataset.d = String(i + 1);
+      b.setAttribute("aria-label", DAY_FULL[i]);
+      b.setAttribute("aria-pressed", String(String(h.days || "23456").includes(String(i + 1))));
+      b.addEventListener("click", () => { b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")); buzz("tick"); });
+      box.append(b);
+    });
+    $("hours").hidden = false;
+  }
+  $("open-hours").addEventListener("click", openHours);
+  $("hours-cancel").addEventListener("click", () => { $("hours").hidden = true; });
+  $("hours").addEventListener("click", (e) => { if (e.target === $("hours")) $("hours").hidden = true; });
+  $("hours-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const days = [...$("hours-days").querySelectorAll("button")].filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.dataset.d).join("") || "23456";
+    const hours = { start: $("hours-start").value || "09:00", end: $("hours-end").value || "17:00", days };
+    $("hours").hidden = true;
+    try {
+      account.team = teamFromView(await teamApi("member/hours", { hours }));
+      save(ACCOUNT_KEY, account);
+      logActivity({ kind: "settings", ico: "clock", title: "Set office hours", detail: hoursText(hours) });
+      ervoSays(`Office hours saved: ${hoursText(hours)}. I'll plan your work inside them.`);
+    } catch (err) { ervoSays(err.message); }
+  });
+
+  // ----- My company (employee) -----
+  $("open-company").addEventListener("click", () => {
+    toggleMenu(false);
+    const t = account.team;
+    $("company-info").textContent = `${t.companyName}${t.owner ? `, run by ${t.owner}` : ""}. You joined as ${t.myName}. Teammates can ${t.peer ? "message each other and the owner" : "message the owner"} through Ervo.`;
+    $("company").hidden = false;
+  });
+  $("company-done").addEventListener("click", () => { $("company").hidden = true; });
+  $("company").addEventListener("click", (e) => { if (e.target === $("company")) $("company").hidden = true; });
+  $("company-leave").addEventListener("click", () => {
+    $("company").hidden = true;
+    askConfirm(`Leave ${account.team.companyName}?`, "You'll be signed out of Ervo for Business on this phone. Your company keeps the chats you had with Ervo here.", "Leave", async () => {
+      try { await teamApi("leave"); } catch (e) { toast(e.message); return; }
+      signOut();
+    });
+  });
+
   // ---------- touch and hold one of Ervo's replies: Copy, Ask again ----------
   // (Apple: let people copy and retry AI results; One UI: touch and hold opens a menu)
   function closeMsgMenu() {
@@ -5300,7 +5658,8 @@
   setTimeout(() => root.classList.remove("first"), 600);
   {
     const saved = load(ACCOUNT_KEY);
-    if (saved && saved.plan && saved.name) openChat(saved, false);
+    if (saved && saved.plan && saved.name && realAuth && !session()) { drop(ACCOUNT_KEY); show("welcome"); }
+    else if (saved && saved.plan && saved.name) openChat(saved, false);
     else if (OVERLAY && native && native.openFullApp) native.openFullApp(); // sign in first, in the full app
     else show("welcome");
   }

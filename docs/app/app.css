@@ -1443,3 +1443,19 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 /* Wet ground shines a little */
 #stats[data-weather="wet"] .ground, #stats[data-weather="storm"] .ground, #stats[data-weather="drizzle"] .ground { background: linear-gradient(#2f6a3a, #1f4a2a); box-shadow: inset 0 14px 30px rgba(255, 255, 255, 0.12); }
 .steps-num .label .dot.usage { color: var(--tint) !important; }
+
+/* ===== 0.4.0: Ervo for Business teams ===== */
+.id-code { margin: 10px 0 8px; padding: 14px; border-radius: 14px; background: var(--surface); text-align: center; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text); user-select: all; -webkit-user-select: all; }
+.row .txt b.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.05em; }
+.hours-row { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center; margin-top: 8px; }
+.hours-row .field-label { margin: 0; }
+.danger-text { color: var(--red) !important; }
+/* An employee's chat, read by the owner */
+.tc-thread { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.tc-day { align-self: center; margin: 10px 0 2px; font-size: var(--fs-cap2); font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.tc-msg { max-width: 86%; padding: 8px 12px 9px; border-radius: 16px; font-size: var(--fs-sub); line-height: 1.35; }
+.tc-msg small { display: block; margin-bottom: 2px; font-size: var(--fs-cap2); color: var(--text-2); }
+.tc-msg.them-user { align-self: flex-end; background: color-mix(in srgb, var(--tint) 18%, var(--card)); border-bottom-right-radius: 5px; }
+.tc-msg.ervo { align-self: flex-start; background: var(--card); border-bottom-left-radius: 5px; }
+.tc-msg span { white-space: pre-wrap; word-break: break-word; }
+#teamchat-remove { display: block; margin: 8px auto 0; }

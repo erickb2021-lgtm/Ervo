@@ -6,6 +6,6 @@ window.ERVO_CONFIG = {
   // Supabase sign-in (setup steps are in the private server repo).
   // Use the Project URL and the publishable (anon) key. NEVER the secret / service_role key.
   // Empty = preview sign-in (any 6 digits work).
-  supabaseUrl: "",
-  supabaseKey: "",
+  supabaseUrl: "https://lgchbobukjovotdehxce.supabase.co",
+  supabaseKey: "sb_publishable_UJnP3gaSnqjv0Z7qto3j8Q_rPQEDiyp",
 };

@@ -1,17 +1,17 @@
 {
-  "version": "0.3.10",
+  "version": "0.4.0",
   "notes": [
+    "Real sign-in: Ervo now sends a 6-digit code to your email. Anyone who had a preview account signs in again once",
+    "Ervo for Business teams: pick Company or Employee when you sign up. Owners create employee IDs; employees join with the company name and their ID, and nobody else can",
+    "Owners get a Team tab: every employee, their office hours, and their chats with Ervo",
+    "Say \"send this to Maria\" or \"tell Sam: the shipment is late\" and Ervo delivers it inside their Ervo",
+    "Employees set office hours in Settings, and their Ervo keeps to work",
     "The sky on Ervo Stats now matches the real weather: rain and drizzle bring gray clouds and slanted rain behind glass, storms flash with lightning, fog rolls in, snow falls, and the sun with its rays only shows when it's actually clear or partly cloudy",
     "Clouds are already in the sky when you open Stats instead of drifting in from the side",
     "Updates can't get stuck anymore: Android checks for a new Ervo a few times a day and shows a notification the moment one is out. Tap it and Ervo updates, even if the app itself won't open",
     "If Ervo ever fails to start, a small dialog offers Update Ervo or Try Again",
     "Fixes the black screen in 0.3.7: the app crashed while starting up",
     "Ervo Stats is new: your usage today with what's left, milestones you've reached, what's coming up with a busy meter for the next 7 days, and your recent activity",
-    "The sky behind Ervo Stats is alive now: sun or moon, drifting clouds, rain behind glass, falling snow, autumn leaves and a hill that changes with the season",
-    "Milestones: when you reach one, like 10 things done or a 7-day streak, Ervo tells you in the chat",
-    "Tap Not Now on a permission and Ervo says no problem and offers an Allow button, instead of going quiet",
-    "The bottom tabs come back after the keyboard closes, every time",
-    "The Goals tab shows your goals, including ones Ervo saved as \"Wants to…\"",
-    "\"Plan a workout that fits my health\" goes to Ervo's AI now, instead of your step count"
+    "The sky behind Ervo Stats is alive now: sun or moon, drifting clouds, rain behind glass, falling snow, autumn leaves and a hill that changes with the season"
   ]
 }
