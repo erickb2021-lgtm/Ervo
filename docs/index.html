@@ -12,8 +12,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=23">
-  <link rel="stylesheet" href="css/how.css?v=4">
+  <link rel="stylesheet" href="css/styles.css?v=24">
+  <link rel="stylesheet" href="css/how.css?v=5">
 </head>
 <body>
 
@@ -49,51 +49,65 @@
   <section class="hero wrap" id="top">
     <img class="hero-mark" src="assets/ervo-symbol.svg" alt="Ervo logo" data-dark="assets/ervo-symbol-white.svg">
     <h1 class="hero-title">
-      <span class="line">Ervo <button class="mark-chip" id="avatar" type="button" aria-label="Show another Ervo"><img src="assets/ervo-classic.png" alt="Classic Ervo"></button>, your AI</span>
+      <span class="line">Ervo <button class="mark-chip" id="avatar" type="button" aria-label="Pick Ervo's look" aria-haspopup="dialog" aria-expanded="false" aria-controls="look-picker"><img src="assets/ervo-classic.png" alt="Classic Ervo"></button>, your AI</span>
       <span class="line"><span class="rot" id="rot"><span class="rot-item">assistant 💬</span></span></span>
     </h1>
 
-    <div class="auth" id="auth">
-      <!-- Step 1: contact -->
+    <!-- Tap Ervo in the headline: pick any of Ervo's 23 looks (the same looks as in the app) -->
+    <div class="look-picker" id="look-picker" role="dialog" aria-label="Pick Ervo's look" hidden>
+      <div class="look-head"><b>Pick Ervo's look</b><span>23 looks, the same ones you get in the app</span></div>
+      <div class="look-grid" id="look-grid"></div>
+    </div>
+
+    <!-- Sign up: looks like the app's own sign-in screen -->
+    <div class="auth app-look" id="auth">
       <form class="auth-step active" data-step="contact" novalidate>
         <p class="auth-title">Log in or create an account</p>
-        <div class="seg" role="radiogroup" aria-label="Account type">
+        <div class="seg" role="radiogroup" aria-label="Which Ervo?">
           <label><input type="radio" name="plan" value="personal" checked><span>Personal</span></label>
           <label><input type="radio" name="plan" value="business"><span>Business</span></label>
         </div>
-        <label for="contact" style="position:absolute;left:-9999px">Mobile number or email</label>
-        <input class="field" id="contact" name="contact" type="text" inputmode="email" autocomplete="username" placeholder="Mobile number or email">
+        <p class="hint" id="plan-hint">Personal use only: planning, shopping, your own returns and more.</p>
+        <label for="contact" class="sr">Your email</label>
+        <input class="field" id="contact" name="contact" type="email" inputmode="email" autocomplete="email" placeholder="Your email">
         <p class="error" id="contact-error" role="alert"></p>
-        <p class="fine">You may get text messages from us if you use your mobile number. Message and data rates may apply. <a href="privacy.html#texts">Learn more</a></p>
         <button class="btn btn-primary btn-block" type="submit">Continue</button>
+        <p class="fine">We'll email you a code. No password and no phone number needed.</p>
       </form>
 
-      <!-- Step 2: verify code -->
       <form class="auth-step" data-step="code" novalidate>
-        <p class="auth-title">Enter the 6-digit code we sent to <strong id="sent-to" style="color:var(--text)"></strong></p>
-        <label for="code" style="position:absolute;left:-9999px">Verification code</label>
-        <input class="field code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
+        <p class="auth-title">Enter the code we sent to <strong id="sent-to"></strong></p>
+        <label for="code" class="sr">Code from the email</label>
+        <input class="field code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="••••••">
         <p class="error" id="code-error" role="alert"></p>
         <button class="btn btn-primary btn-block" type="submit">Verify</button>
-        <button class="link-btn" type="button" data-back>Use a different number or email</button>
-        <div><span class="demo-note">Demo mode: no code is sent, enter any 6 digits</span></div>
+        <button class="link-btn" type="button" data-back>Use a different email</button>
+        <p class="fine" id="code-note">Check your inbox (and spam folder) for a code from Ervo.</p>
       </form>
 
-      <!-- Step 3: name -->
-      <form class="auth-step" data-step="workspace" novalidate>
-        <p class="auth-title" id="name-question">What should Ervo call you?</p>
-        <label for="company" style="position:absolute;left:-9999px" id="name-label">Your name</label>
-        <input class="field" id="company" name="company" type="text" autocomplete="given-name" placeholder="Alex">
-        <p class="error" id="company-error" role="alert"></p>
+      <form class="auth-step" data-step="name" novalidate>
+        <p class="auth-title">What should Ervo call you?</p>
+        <label for="name" class="sr">Your name</label>
+        <input class="field" id="name" name="name" type="text" autocomplete="given-name" placeholder="Alex">
+        <p class="error" id="name-error" role="alert"></p>
         <button class="btn btn-primary btn-block" type="submit">Meet my Ervo</button>
       </form>
 
-      <!-- Step 4: done -->
+      <!-- Signed in: get the app. The app opens already knowing this email. -->
       <div class="auth-step" data-step="done">
-        <img class="welcome-owl" src="assets/ervo-classic.png" alt="">
-        <p class="auth-title" style="color:var(--text);font-size:20px;font-weight:700;margin-bottom:6px">Hi <span id="welcome-name"></span>, I'm Ervo</p>
-        <p class="fine" style="margin-top:0" id="welcome-note">Your personal AI is ready. Tell it what you need.</p>
-        <a class="btn btn-primary btn-block" href="#how">See what I can do</a>
+        <img class="welcome-owl" id="done-owl" src="assets/ervo-classic.png" alt="">
+        <p class="done-title" id="done-title">You're in!</p>
+        <p class="done-who">Signed in as <b id="done-email"></b> <span class="plan-pill" id="done-plan">Personal</span></p>
+        <div class="get-app">
+          <div class="dl-tabs" role="tablist" aria-label="Choose your phone">
+            <button type="button" role="tab" id="get-ios" aria-selected="true">iPhone</button>
+            <button type="button" role="tab" id="get-android" aria-selected="false">Android</button>
+          </div>
+          <div class="qr" id="get-qr"><img src="assets/qr-ios.svg" alt="QR code for Ervo" width="168" height="168"></div>
+          <p class="get-how" id="get-how"></p>
+          <a class="btn btn-primary btn-block" id="get-link" href="app/">Open Ervo</a>
+        </div>
+        <p class="fine" id="done-note">Scan with your phone's camera. Ervo opens with your email already filled in. Confirm it's you, and you're signed in.</p>
         <button class="link-btn" type="button" data-reset>Sign out</button>
       </div>
     </div>
@@ -159,7 +173,7 @@
                 <div class="bubble ai a" style="--d:4.4s">All set. Drop the box off by Friday, and your $89.99 refund will follow.</div>
               </div>
               <div class="card steps a" style="--d:.8s">
-                <div class="steps-head"><span class="emo">🎧</span><div>Wireless headphones<small>Order from last Tuesday · $89.99</small></div></div>
+                <div class="steps-head"><span class="emo gl" style="--c:#ffb38f">🎧</span><div>Wireless headphones<small>Order from last Tuesday · $89.99</small></div></div>
                 <div class="step a" style="--d:1.8s"><i>✓</i>Return requested</div>
                 <div class="step a" style="--d:2.6s"><i>✓</i>Drop-off label sent to your email</div>
                 <div class="step now a" style="--d:3.4s"><i></i>Refund of $89.99 on its way</div>
@@ -217,6 +231,55 @@
             </div>
           </div>
 
+          <div class="scene" data-dur="6400">
+            <span class="scene-tag">Ervo Personal</span>
+            <div class="duo">
+              <div class="col">
+                <div class="voice-line a" style="--d:.2s"><span class="gl big" style="--c:#8b5cf6;--d:0.3s"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3" fill="#fff"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span><span>“Hey Ervo…”</span></div>
+                <div class="bubble me a" style="--d:1.2s">Wake me up in 20 minutes.</div>
+                <div class="bubble ai a" style="--d:3.2s">Done! Your alarm is set for 7:42 AM. ⏰</div>
+              </div>
+              <div class="card alarm a" style="--d:.8s">
+                <div class="alarm-head"><span class="gl a pop" style="--c:#f59e0b;--d:1.0s"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M4.5 5.5l2.5-2M19.5 5.5l-2.5-2"/></svg></span><div>Alarms<small>Clock</small></div></div>
+                <div class="alarm-row a" style="--d:2.4s"><b>7:42 <small>AM</small></b><span>In 20 minutes</span><i class="sw on"></i></div>
+                <div class="alarm-row dim"><b>9:00 <small>AM</small></b><span>Weekends</span><i class="sw"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="scene" data-dur="6800">
+            <span class="scene-tag biz">Ervo for Business</span>
+            <div class="duo flip">
+              <div class="col">
+                <div class="chat-head a" style="--d:.1s">Team · Brightline Software</div>
+                <div class="bubble me a" style="--d:.4s">Add Maria to the team, and make Jordan a co-owner.</div>
+                <div class="chip a" style="--d:1.3s"><img src="assets/ervo-business.png" alt=""><div><b>Ervo</b><small><i class="spinner"></i>updating your team</small></div></div>
+                <div class="bubble ai a" style="--d:4.2s">Done. Maria's employee ID is ready, and Jordan is now a co-owner.</div>
+              </div>
+              <div class="card team a" style="--d:.9s">
+                <div class="team-head">Your team</div>
+                <div class="member"><span class="gl a pop" style="--c:#6b2fd0;--d:1.2s"><svg viewBox="0 0 24 24"><path d="M4 17.5 3 7.5l5 4 4-6.5 4 6.5 5-4-1 10z" fill="#fff"/></svg></span><div>Erick<small>Owner</small></div></div>
+                <div class="member a" style="--d:2.4s"><span class="gl a pop" style="--c:#1d9e75;--d:2.5s"><svg viewBox="0 0 24 24"><path d="M4 17.5 3 7.5l5 4 4-6.5 4 6.5 5-4-1 10z" fill="#fff"/></svg></span><div>Jordan<small>Co-owner</small></div></div>
+                <div class="member a" style="--d:3.2s"><span class="gl a pop" style="--c:#0a7cff;--d:3.3s"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16a3.4 3.4 0 0 1 6.4 0M14.5 10h4M14.5 13.5h3"/></svg></span><div>Maria<small>ID ERVO-7F3K-92QX-4MNB</small></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="scene" data-dur="5200">
+            <div class="kinetic">
+              <span class="a" style="--d:.1s">Works with the apps you use.</span>
+              <div class="gl-row">
+                <span class="gl a pop" style="--c:#f2f0f5;--d:0.6s"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="3" fill="#fff"/><path d="M3.5 8a3.5 3.5 0 0 1 3.5-3.5h10A3.5 3.5 0 0 1 20.5 8v1.5h-17z" fill="#ef4444"/><text x="12" y="18.2" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="700" font-size="8" fill="#1f1235">31</text></svg></span>
+                <span class="gl a pop" style="--c:#7c3aed;--d:0.8s"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3.5 7.5l8.5 6 8.5-6"/></svg></span>
+                <span class="gl a pop" style="--c:#f97316;--d:1.0s"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 8h13l-1 12h-11z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg></span>
+                <span class="gl a pop" style="--c:#f43f5e;--d:1.2s"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="#fff"/></svg></span>
+                <span class="gl a pop" style="--c:#10b981;--d:1.4s"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="12" height="10" rx="2.5"/><path d="M15 10.5l5.5-3v9L15 13.5"/></svg></span>
+                <span class="gl a pop" style="--c:#22c55e;--d:1.6s"><svg viewBox="0 0 24 24"><path d="M6.6 3.5h2.6l1.4 4-2 1.3a11 11 0 0 0 6.6 6.6l1.3-2 4 1.4v2.6a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z" fill="#fff"/></svg></span>
+              </div>
+              <span class="small a" style="--d:2.2s">Ervo only sees what you allow.</span>
+            </div>
+          </div>
+
           <div class="scene finale" data-dur="5200">
             <div class="confetti" aria-hidden="true"></div>
             <div class="kinetic">
@@ -246,7 +309,7 @@
               <svg class="i-vol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
               <svg class="i-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>
             </button>
-            <input type="range" id="vol" min="0" max="100" step="1" value="10" autocomplete="off" aria-label="Volume">
+            <input type="range" id="vol" min="0" max="100" step="1" value="4" autocomplete="off" aria-label="Volume">
           </div>
         </div>
         <!-- Drop your music file at assets/music.mp3 and it plays with the video -->
@@ -270,10 +333,11 @@
           <h3><img src="assets/ervo-symbol.svg" alt="">Ervo Personal</h3>
           <p class="plan-for">Your own AI for everyday life.</p>
           <ul class="does">
-            <li>Shops, tracks orders and handles your returns</li>
-            <li>Plans your week, trips and reservations</li>
-            <li>Builds workout and meal plans</li>
-            <li>Sorts your inbox and reminds you of bills</li>
+            <li>Finds products and handles your returns, and asks before you buy</li>
+            <li>Adds, moves and renames calendar events, with Undo</li>
+            <li>Sets alarms and timers, and calls people in your contacts</li>
+            <li>"Hey Ervo": just say its name, and it listens</li>
+            <li>Psyche: remembers what you like, only for you</li>
           </ul>
           <ul class="wont">
             <li>Won't answer customers or touch business data</li>
@@ -286,9 +350,10 @@
           <h3><img src="assets/ervo-symbol-white.svg" alt="">Ervo for Business</h3>
           <p class="plan-for">An AI support agent for your customers.</p>
           <ul class="does">
-            <li>Answers customer tickets by chat, email and phone</li>
-            <li>Grants refunds and exchanges within your policy</li>
-            <li>Learns your help docs, products and rules</li>
+            <li>Answers customers and grants refunds within your policy</li>
+            <li>Your team joins with employee IDs; trusted people become co-owners</li>
+            <li>Business Ideas: billing, taxes, suppliers and renewals</li>
+            <li>Business Psyche: learns your products, policies and customers</li>
             <li>Hands tricky cases to your team with a summary</li>
           </ul>
           <ul class="wont">
@@ -301,9 +366,10 @@
       <div class="both reveal">
         <span class="both-label">Both can</span>
         <span>📅 Manage calendars</span>
-        <span>📞 Make phone calls</span>
-        <span>🎥 Join video meetings</span>
+        <span>🎥 Plan Google Meet, Zoom and Teams calls</span>
         <span>✉️ Write emails</span>
+        <span>🦉 23 looks for Ervo</span>
+        <span>📱 iPhone and Android</span>
       </div>
 
       <div class="same-ask reveal">
@@ -322,6 +388,75 @@
         </div>
       </div>
 
+    </div>
+  </section>
+
+  <!-- Personal vs Business: example buttons that show how each Ervo answers -->
+  <section class="block" id="compare">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Same Ervo, two different jobs</h2>
+        <p>Tap an example to see how each one answers. Personal and Business never share data.</p>
+      </div>
+      <div class="cmp reveal">
+        <div class="cmp-tabs" role="tablist" aria-label="Personal or Business">
+          <button type="button" role="tab" data-side="personal" aria-selected="true"><img src="assets/ervo-classic.png" alt="">Ervo Personal</button>
+          <button type="button" role="tab" data-side="business" aria-selected="false"><img src="assets/ervo-business.png" alt="">Ervo for Business</button>
+        </div>
+
+        <div class="cmp-panel" data-side="personal">
+          <div class="tries" aria-label="Try asking Ervo Personal">
+            <button class="try" type="button" aria-pressed="false" data-q="Wake me up in 20 minutes" data-doing="setting your alarm" data-a="Done ⏰ Your alarm is set for 7:42 AM, 20 minutes from now. Undo?"><span aria-hidden="true">⏰</span>Wake me up in 20 minutes</button>
+            <button class="try" type="button" aria-pressed="false" data-q="Move my dentist to 4 PM" data-doing="checking your calendar" data-a="Moved “Dentist” to Thursday at 4:00 PM. It's on your Google Calendar. Undo?"><span aria-hidden="true">📅</span>Move my dentist to 4 PM</button>
+            <button class="try" type="button" aria-pressed="false" data-q="Find bright lights for a soccer field" data-doing="comparing options" data-a="Here are 3 bright picks, from $89. Is there power at the field, or do you want battery lights?"><span aria-hidden="true">🛍️</span>Find lights for a soccer field</button>
+            <button class="try" type="button" aria-pressed="false" data-q="Call Mom" data-doing="finding Mom in your contacts" data-a="Calling Mom in 3 seconds… Tap Cancel if you changed your mind."><span aria-hidden="true">📞</span>Call Mom</button>
+            <button class="try" type="button" aria-pressed="false" data-q="Set up a Google Meet with Sam on Friday at 3 PM" data-doing="planning your meeting" data-a="Your Meet for Friday at 3:00 PM is ready with a link. Tap Save in Google Calendar to send it to Sam."><span aria-hidden="true">🎥</span>Google Meet with Sam on Friday</button>
+            <button class="try" type="button" aria-pressed="false" data-q="Help me plan Mom's birthday" data-doing="looking at your week" data-a="Her birthday is in 9 days. Want a gift under $50 and dinner for Saturday at 7?"><span aria-hidden="true">🎂</span>Plan Mom's birthday</button>
+          </div>
+          <div class="cmp-chat" aria-live="polite">
+            <div class="cmp-me">Wake me up in 20 minutes</div>
+            <div class="cmp-typing" hidden><img src="assets/ervo-classic.png" alt=""><div><b>Ervo</b><small><i class="spin"></i><em>thinking</em></small></div></div>
+            <div class="cmp-them">Done ⏰ Your alarm is set for 7:42 AM, 20 minutes from now. Undo?</div>
+          </div>
+          <div class="only">
+            <h3>Only in Personal</h3>
+            <ul>
+              <li>🛒 Product picks with View and Add to cart, and it always asks before you buy</li>
+              <li>⏰ Alarms, timers and calls to your contacts</li>
+              <li>🗣️ “Hey Ervo”: say its name and it listens</li>
+              <li>❤️ Ervo Stats: your steps, the weather and what's coming up</li>
+              <li>🧠 Psyche: what Ervo learns about you, kept only for you</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="cmp-panel" data-side="business" hidden>
+          <div class="tries" aria-label="Try asking Ervo for Business">
+            <button class="try" type="button" aria-pressed="false" data-q="Customer: I was charged twice this month." data-doing="checking billing records" data-a="Found the duplicate $49.00 charge. Your policy allows a refund, so I've refunded it. They'll see it in 3 to 5 days."><span aria-hidden="true">💳</span>A customer was charged twice</button>
+            <button class="try" type="button" aria-pressed="false" data-q="Add Maria to our team" data-doing="creating an employee ID" data-a="Maria's employee ID is ERVO-7F3K-92QX-4MNB. Share it with her, and she can join from the app."><span aria-hidden="true">🪪</span>Add Maria to the team</button>
+            <button class="try" type="button" aria-pressed="false" data-q="Make Jordan a co-owner" data-doing="updating your team" data-a="Jordan is now a co-owner. They can do everything you can, except remove co-owners or you."><span aria-hidden="true">👑</span>Make Jordan a co-owner</button>
+            <button class="try" type="button" aria-pressed="false" data-q="What's due this month?" data-doing="checking your bills" data-a="3 renewals, 1 supplier invoice for $1,240, and quarterly taxes on the 15th. Want reminders for each?"><span aria-hidden="true">🧾</span>What's due this month?</button>
+            <button class="try" type="button" aria-pressed="false" data-q="Learn our return policy from our website" data-doing="reading your help pages" data-a="Got it: 30-day returns with a receipt, store credit after that. I'll follow it for every customer."><span aria-hidden="true">📚</span>Learn our return policy</button>
+            <button class="try" type="button" aria-pressed="false" data-q="This customer needs a person" data-doing="writing a summary" data-a="Sent to Alex with a short summary of the issue, so the customer never has to repeat themselves."><span aria-hidden="true">🤝</span>Hand this to a person</button>
+          </div>
+          <div class="cmp-chat" aria-live="polite">
+            <div class="cmp-me">Customer: I was charged twice this month.</div>
+            <div class="cmp-typing" hidden><img src="assets/ervo-business.png" alt=""><div><b>Ervo</b><small><i class="spin"></i><em>thinking</em></small></div></div>
+            <div class="cmp-them">Found the duplicate $49.00 charge. Your policy allows a refund, so I've refunded it. They'll see it in 3 to 5 days.</div>
+          </div>
+          <div class="only">
+            <h3>Only in Business</h3>
+            <ul>
+              <li>🎧 Customer support that follows your refund policy</li>
+              <li>🪪 Employee IDs for your team, and co-owners you trust</li>
+              <li>👀 The owner can see the team's chats with Ervo</li>
+              <li>🧾 Business Ideas: customers, billing, taxes, suppliers and renewals</li>
+              <li>🏢 Business Psyche: your products, policies and customers</li>
+            </ul>
+          </div>
+        </div>
+        <p class="cmp-note">These examples only show how Ervo answers. Nothing here is sent anywhere.</p>
+      </div>
     </div>
   </section>
 
@@ -355,14 +490,19 @@
     </div>
   </section>
 
-  <!-- Chat with Ervo on a phone -->
+  <!-- Chat with Ervo on a phone: drawn like the real app -->
   <section class="block">
     <div class="wrap split">
       <div class="reveal">
         <h2>Talk to Ervo like you text a friend</h2>
         <p>No menus and nothing new to learn. Send a message, and Ervo handles the steps, then checks in when it needs your OK.</p>
+        <p class="same-phones">This is the real Ervo app. It looks and works the same on every phone, iPhone or Android, small or large.</p>
+        <div class="device-pick" role="group" aria-label="Show the app on">
+          <button type="button" data-device="iphone" aria-pressed="true">iPhone</button>
+          <button type="button" data-device="android" aria-pressed="false">Android</button>
+        </div>
       </div>
-      <div class="phone reveal" role="img" aria-label="Example: chatting with Ervo on an iPhone. You ask Ervo to book a table for 4 tonight, Ervo finds Luna Trattoria at 7:30, you say yes, and Ervo books it and adds it to your calendar.">
+      <div class="phone reveal" id="demo-phone" role="img" aria-label="The Ervo app on an iPhone: you ask Ervo to book a table for 4 tonight, Ervo finds Luna Trattoria at 7:30, you say yes, and Ervo books it and adds it to your calendar.">
         <span class="side action"></span><span class="side vol-up"></span><span class="side vol-down"></span><span class="side power"></span>
         <div class="screen" aria-hidden="true">
           <div class="status">
@@ -374,26 +514,25 @@
               <svg viewBox="0 0 27 12"><rect x="0.6" y="0.6" width="22.8" height="10.8" rx="3.2" fill="none" stroke="currentColor" stroke-opacity=".45"/><rect x="2.2" y="2.2" width="17" height="7.6" rx="1.8"/><path d="M24.8 4.2 Q26.4 6 24.8 7.8" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="1.4" stroke-linecap="round"/></svg>
             </span>
           </div>
-          <div class="chat-top-bar">
-            <span class="back"><svg viewBox="0 0 10 18"><path d="M8.5 1.5 L1.5 9 L8.5 16.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><b>3</b></span>
+          <div class="app-head">
+            <span class="hd-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
             <div class="who">
-              <span class="avatar"><img src="assets/ervo-symbol.svg" alt=""></span>
-              <b>Ervo <svg viewBox="0 0 6 10"><path d="M1 1 L5 5 L1 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></b>
+              <span class="avatar"><img src="assets/ervo-classic.png" alt=""></span>
+              <b>Ervo</b>
+              <span class="pill">Personal</span>
             </div>
-            <span class="facetime"><svg viewBox="0 0 26 16"><rect x="1" y="2" width="16" height="12" rx="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M18.5 6.2 L24 3 V13 L18.5 9.8 Z" fill="currentColor"/></svg></span>
+            <span class="hd-btn dots"><i></i><i></i><i></i></span>
           </div>
           <div class="thread">
-            <div class="stamp"><b>Today</b> 6:12 PM</div>
-            <div class="ios me">Can you book a table for 4 tonight? Somewhere Italian.</div>
-            <div class="ios them">Found one! Luna Trattoria has 7:30 open, 10 minutes from you. Want me to book it?</div>
-            <div class="ios-card">
-              <span class="ios-emoji">🍝</span>
-              <div><b>Luna Trattoria</b><small>Tonight · 7:30 PM · 4 people</small><small class="stars">★★★★★ 4.8 · Italian</small></div>
-            </div>
-            <div class="ios me">Yes please!</div>
-            <div class="receipt">Read 6:13 PM</div>
-            <div class="ios them">Booked ✅ It's on your calendar, and I texted the group.</div>
+            <div class="m them">Hi, Erick! It's Thursday. 72°F and sunny ☀️ What can I do for you?</div>
+            <div class="m me">Can you book a table for 4 tonight? Somewhere Italian.</div>
+            <div class="typing-card"><img src="assets/ervo-classic.png" alt=""><div><b>Ervo</b><small><i class="spin"></i>finding a table</small></div></div>
+            <div class="m them">Found one! Luna Trattoria has 7:30 open, 10 minutes away. Book it?</div>
+            <div class="pcard"><b>🍝 Luna Trattoria</b><small>Tonight · 7:30 PM · 4 people · ★ 4.8</small><span class="pbtns"><span class="pb">View</span><span class="pb main">Book</span></span></div>
+            <div class="m me">Yes please!</div>
+            <div class="m them">Booked ✅ It's on your calendar. <u>Undo</u></div>
           </div>
+          <div class="chips"><span>Gym Friday at 6pm</span><span>Wake me up at 7</span><span>Call Mom</span></div>
           <div class="composer">
             <span class="plus"><svg viewBox="0 0 14 14"><path d="M7 1 V13 M1 7 H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
             <span class="field-ios">Message Ervo<svg viewBox="0 0 12 16"><rect x="3.5" y="1" width="5" height="9" rx="2.5" fill="currentColor"/><path d="M1.5 7.5 A4.5 4.5 0 0 0 10.5 7.5 M6 12 V15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
@@ -527,8 +666,10 @@
   </div>
 </footer>
 
-<script src="js/app.js?v=6"></script>
-<script src="js/how.js?v=4"></script>
+<script src="app/config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="js/app.js?v=7"></script>
+<script src="js/how.js?v=5"></script>
 <script src="js/theme.js?v=2"></script>
 </body>
 </html>

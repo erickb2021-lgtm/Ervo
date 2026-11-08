@@ -336,22 +336,22 @@ section.block, section.cta { min-height: 620px; display: flex; flex-direction: c
    theme.js sets data-theme="dark" or "light" on <html>: it follows the visitor's
    computer or phone setting until they pick one with the header switch. */
 [data-theme="dark"] {
-  --bg: #1f1829; --bg-alt: #2a2136; --bg-2: #30273d; --surface: #382e46; --surface-2: #423751;
-  --line: rgba(255, 255, 255, 0.13); --text: #ffffff; --text-2: #ddd7e3; --text-3: #c2bacb;
-  --brand-soft: #3a2a55; --link: #c9b3ff;
+  --bg: #0d0a14; --bg-alt: #16101f; --bg-2: #1e1729; --surface: #261d35; --surface-2: #30253f;
+  --line: rgba(255, 255, 255, 0.1); --text: #ffffff; --text-2: #dcd4ea; --text-3: #b9afcb;
+  --brand-soft: #2c2045; --link: #c4a8ff; --glow: rgba(140, 92, 255, 0.22);
   color-scheme: dark;
 }
-[data-theme="dark"] .site-header { background: rgba(31, 24, 41, 0.9); }
+[data-theme="dark"] .site-header { background: rgba(13, 10, 20, 0.82); }
 [data-theme="dark"] .alt .feature, [data-theme="dark"] .alt .ask-card, [data-theme="dark"] .alt .both span { background: var(--bg-2); }
 [data-theme="dark"] .plan-tag, [data-theme="dark"] .feature .ico, [data-theme="dark"] .does li::before { color: #dcc9ff; }
 [data-theme="dark"] .btn-dark { background: #fff; color: #000; }
 [data-theme="dark"] .panel { border: 1px solid rgba(255, 255, 255, 0.12); }
 [data-theme="dark"] .toggle span { background: #4a4152; }
-[data-theme="dark"] .app.fade { background: #2c2533 !important; }
-[data-theme="dark"] .alt .app.fade { background: #2a2330 !important; }
+[data-theme="dark"] .app.fade { background: #1e1729 !important; }
+[data-theme="dark"] .alt .app.fade { background: #1b1426 !important; }
 [data-theme="dark"] .demo-note { color: #ffd38a; }
 [data-theme="dark"] .error { color: #ff9b91; }
-[data-theme="dark"] .ideas-card { background: #241e2a; color: #fff; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45); }
+[data-theme="dark"] .ideas-card { background: #221a2f; color: #fff; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45); }
 [data-theme="dark"] .goals label, [data-theme="dark"] .idea { border-top-color: rgba(255, 255, 255, 0.1); }
 [data-theme="dark"] .phone { --ph-bg: #000000; --ph-text: #ffffff; --ph-sub: #a1a1aa; --ph-them: #262629; --ph-head: #121214; --ph-line: #2c2c30; --ph-card: #1c1c1f; box-shadow: 0 0 0 1px #4a4a50, inset 0 0 0 3px #111113, 0 34px 70px rgba(0, 0, 0, 0.6); }
 [data-theme="dark"] .ios-emoji { background: #2e2722; }
@@ -380,11 +380,11 @@ section.block, section.cta { min-height: 620px; display: flex; flex-direction: c
 
 /* Privacy and Terms are always dark, with soft light text that's easy on the eyes */
 .theme-dark {
-  --bg: #1f1829; --bg-alt: #2a2136; --bg-2: #30273d; --surface: #382e46; --surface-2: #423751;
-  --line: rgba(255, 255, 255, 0.13); --text: #ffffff; --text-2: #ddd7e3; --text-3: #c2bacb;
-  --brand-soft: #3a2a55; --link: #c9b3ff;
+  --bg: #0d0a14; --bg-alt: #16101f; --bg-2: #1e1729; --surface: #261d35; --surface-2: #30253f;
+  --line: rgba(255, 255, 255, 0.1); --text: #ffffff; --text-2: #dcd4ea; --text-3: #b9afcb;
+  --brand-soft: #2c2045; --link: #c4a8ff; --glow: rgba(140, 92, 255, 0.22);
 }
-.theme-dark .site-header { background: rgba(31, 24, 41, 0.9); }
+.theme-dark .site-header { background: rgba(13, 10, 20, 0.82); }
 
 /* Light/dark switch in the header */
 .head-actions { display: flex; align-items: center; gap: 10px; }
@@ -451,3 +451,146 @@ section.block, section.cta { min-height: 620px; display: flex; flex-direction: c
 }
 
 [data-theme="dark"] .dl-menu .download { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 24px 60px rgba(0, 0, 0, 0.5); }
+
+
+/* ---------- 2026-11 refresh ---------- */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Dark mode: a soft violet glow behind the hero and the video */
+[data-theme="dark"] .hero { background: radial-gradient(60% 45% at 50% 30%, var(--glow), transparent 70%); }
+[data-theme="dark"] section.how { background: radial-gradient(55% 50% at 50% 55%, rgba(140, 92, 255, 0.14), transparent 70%), var(--bg-alt); }
+[data-theme="dark"] .plan-card.biz { background: linear-gradient(160deg, #2c1858, #1a0f33); box-shadow: 0 0 0 1px rgba(196, 168, 255, 0.18); }
+
+/* Look picker: tap Ervo in the headline */
+.hero { position: relative; }
+.look-picker { position: absolute; z-index: 20; top: 300px; left: 0; right: 0; margin: 0 auto; width: min(560px, calc(100vw - 32px)); background: var(--surface); color: var(--text); border-radius: 26px; padding: 18px; box-shadow: 0 0 0 1px var(--line), 0 30px 70px rgba(20, 10, 40, 0.3); animation: dl-in 0.18s ease both; text-align: left; }
+.look-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin: 0 4px 12px; }
+.look-head b { font-size: 17px; }
+.look-head span { font-size: 13px; color: var(--text-2); }
+.look-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; max-height: min(52vh, 420px); overflow-y: auto; padding: 2px; }
+.look { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 0; background: none; color: var(--text); cursor: pointer; padding: 6px 2px; border-radius: 16px; }
+.look span { width: 62px; height: 62px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px var(--line); transition: transform 0.15s; }
+.look img { width: 86%; height: 86%; object-fit: contain; margin-top: 8%; }
+.look small { font-size: 12px; font-weight: 600; }
+.look:hover span { transform: scale(1.06); }
+.look[aria-pressed="true"] span { box-shadow: 0 0 0 3px var(--brand); }
+.look:focus-visible { outline: 3px solid var(--brand); outline-offset: 1px; }
+@media (max-width: 480px) { .look-picker { top: 240px; } }
+
+/* Sign-up: drawn like the app's own sign-in screen */
+.auth.app-look { text-align: left; }
+.auth.app-look .auth-title { text-align: center; }
+.hint { color: var(--text-2); font-size: 13.5px; margin: 0 6px 12px; min-height: 20px; text-align: center; }
+.fine { text-align: center; }
+.auth .btn-primary:disabled { opacity: 0.6; cursor: progress; }
+.auth .link-btn { display: block; margin: 6px auto 0; }
+.auth-title strong { color: var(--text); }
+.done-title { margin: 0 0 4px; text-align: center; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.done-who { margin: 0 0 16px; text-align: center; color: var(--text-2); font-size: 14px; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
+.done-who b { color: var(--text); }
+.plan-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-weight: 800; font-size: 12px; }
+.plan-pill.biz { background: #2a1650; color: #fff; }
+[data-theme="dark"] .plan-pill { background: #dcc9ff; color: #1a1030; }
+[data-theme="dark"] .plan-pill.biz { background: #ffe6d9; color: #2a1650; }
+.welcome-owl { object-fit: contain; animation: bob 3.6s ease-in-out infinite; }
+.get-app { background: #1c1a21; color: #fff; border-radius: 26px; padding: 16px; text-align: center; }
+.get-app .qr { width: 188px; height: 188px; margin: 0 auto 12px; background: #fff; border-radius: 22px; display: flex; align-items: center; justify-content: center; padding: 10px; }
+.get-app .qr svg, .get-app .qr img { width: 168px; height: 168px; display: block; }
+.get-how { margin: 0 0 12px; color: #d6d2dd; font-size: 13.5px; line-height: 1.5; }
+.get-how b { color: #fff; }
+[data-theme="dark"] .get-app { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12); }
+
+/* Personal vs Business */
+.cmp { max-width: 980px; margin: 0 auto; }
+.cmp-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; padding: 6px; max-width: 520px; margin: 0 auto 22px; }
+.cmp-tabs button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border: 0; border-radius: 999px; background: none; color: var(--text); font-weight: 800; font-size: 15px; cursor: pointer; }
+.cmp-tabs img { width: 30px; height: 30px; border-radius: 50%; background: #fff; object-fit: contain; }
+.cmp-tabs button[aria-selected="true"] { background: var(--brand); color: #fff; }
+#compare.is-biz .cmp-tabs button[aria-selected="true"] { background: #2a1650; }
+[data-theme="dark"] #compare.is-biz .cmp-tabs button[aria-selected="true"] { background: #ffe6d9; color: #2a1650; }
+.cmp-tabs button:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.cmp-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.tries { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.try { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 700; font-size: 14px; cursor: pointer; transition: transform 0.12s, background 0.15s; }
+.try span { font-size: 17px; }
+.try:hover { transform: translateY(-2px); }
+.try[aria-pressed="true"] { background: var(--brand); color: #fff; border-color: transparent; }
+#compare.is-biz .try[aria-pressed="true"] { background: #2a1650; }
+[data-theme="dark"] #compare.is-biz .try[aria-pressed="true"] { background: #ffe6d9; color: #2a1650; }
+.try:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+/* The example chat uses the app's own colors: blue for you, gray for Ervo */
+.cmp-chat { background: #fff; color: #000; border-radius: 26px; padding: 18px; min-height: 210px; display: flex; flex-direction: column; gap: 8px; font-family: system-ui, -apple-system, Roboto, "Segoe UI", sans-serif; box-shadow: 0 0 0 1px var(--line), 0 18px 40px rgba(31, 18, 53, 0.12); }
+[data-theme="dark"] .cmp-chat { background: #000; color: #fff; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12); }
+.cmp-me, .cmp-them { max-width: 82%; padding: 9px 13px; border-radius: 19px; font-size: 15px; line-height: 1.35; }
+.cmp-me { align-self: flex-end; background: #0a7cff; color: #fff; border-bottom-right-radius: 6px; }
+.cmp-them { align-self: flex-start; background: #e9e9eb; color: #000; border-bottom-left-radius: 6px; }
+[data-theme="dark"] .cmp-them { background: #262629; color: #fff; }
+.cmp-typing { align-self: flex-start; display: flex; align-items: center; gap: 10px; padding: 7px 16px 7px 7px; border-radius: 999px; background: #e9e9eb; }
+[data-theme="dark"] .cmp-typing { background: #262629; }
+.cmp-typing img { width: 34px; height: 34px; border-radius: 50%; background: #fff; object-fit: contain; }
+.cmp-typing b { display: block; font-size: 13.5px; }
+.cmp-typing small { display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: 0.75; }
+.cmp-typing em { font-style: normal; }
+.spin { width: 11px; height: 11px; border-radius: 50%; border: 2px solid rgba(10, 124, 255, 0.25); border-top-color: #0a7cff; animation: spin 0.8s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.pop { animation: rise 0.25s ease both; }
+.only { background: var(--bg-2); border: 1px solid var(--line); border-radius: 26px; padding: 20px 22px; }
+.only h3 { margin: 0 0 10px; font-size: 17px; font-weight: 800; }
+.only ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.only li { font-size: 14.5px; color: var(--text-2); }
+.cmp-note { text-align: center; color: var(--text-3); font-size: 13px; margin: 16px 0 0; }
+@media (max-width: 860px) { .cmp-panel { grid-template-columns: minmax(0, 1fr); } .tries { justify-content: flex-start; } }
+@media (max-width: 480px) { .cmp-tabs button { font-size: 13.5px; } .cmp-tabs img { width: 24px; height: 24px; } }
+
+/* Phone: the real app's chat screen, on iPhone or Android */
+.same-phones { margin-top: 14px !important; font-weight: 600; color: var(--text) !important; }
+.device-pick { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 18px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+.device-pick button { min-height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: none; color: var(--text); font-weight: 700; cursor: pointer; }
+.device-pick button[aria-pressed="true"] { background: var(--brand); color: #fff; }
+.device-pick button:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.phone .screen { font-family: system-ui, -apple-system, Roboto, "Segoe UI", sans-serif; }
+.app-head { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; padding: 4px 10px 8px; border-bottom: 1px solid var(--ph-line); }
+.app-head .hd-btn { color: #0a7cff; display: flex; justify-content: center; }
+.app-head .hd-btn svg { width: 20px; height: 20px; }
+.app-head .dots { flex-direction: column; align-items: center; gap: 2.5px; }
+.app-head .dots i { width: 4px; height: 4px; border-radius: 50%; background: #0a7cff; }
+.app-head .who { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.app-head .avatar { width: 44px; height: 44px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px var(--ph-line); }
+.app-head .avatar img { width: 86%; height: 86%; object-fit: contain; margin-top: 8%; }
+.app-head .who b { font-size: 13px; }
+.app-head .pill { font-size: 9.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--ph-them); color: var(--ph-sub); }
+.phone .thread { gap: 5px; padding: 8px 10px; }
+.phone .m { max-width: 80%; padding: 6px 10px; border-radius: 16px; font-size: 11.5px; line-height: 1.33; }
+.phone .m.me { align-self: flex-end; background: #0a7cff; color: #fff; border-bottom-right-radius: 5px; }
+.phone .m.them { align-self: flex-start; background: var(--ph-them); color: var(--ph-text); border-bottom-left-radius: 5px; }
+.phone .m u { color: #0a7cff; text-decoration: none; font-weight: 600; }
+.typing-card { align-self: flex-start; display: flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border-radius: 999px; background: var(--ph-them); font-size: 10.5px; }
+.typing-card img { width: 24px; height: 24px; border-radius: 50%; background: #fff; object-fit: contain; }
+.typing-card b { display: block; font-size: 10.5px; }
+.typing-card small { display: flex; align-items: center; gap: 4px; color: var(--ph-sub); font-size: 9.5px; }
+.typing-card .spin { width: 8px; height: 8px; border-width: 1.5px; }
+.pcard { align-self: flex-start; width: 78%; background: var(--ph-them); border-radius: 14px; padding: 8px 10px; font-size: 11.5px; }
+.pcard b { display: block; }
+.pcard small { display: block; color: var(--ph-sub); font-size: 10px; margin: 2px 0 6px; }
+.pbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pb { text-align: center; padding: 5px 0; border-radius: 999px; background: var(--ph-bg); color: #0a7cff; font-weight: 700; font-size: 10.5px; }
+.pb.main { background: #0a7cff; color: #fff; }
+.phone .chips { display: flex; gap: 5px; overflow: hidden; padding: 4px 10px; }
+.phone .chips span { flex: none; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--ph-line); color: #0a7cff; font-size: 10px; font-weight: 500; }
+.phone .composer { padding: 4px 10px 24px; }
+.phone .composer .field-ios { background: var(--ph-bg); }
+/* Android frame: punch-hole camera, flat sides, Android status icons */
+.phone { transition: border-radius 0.3s ease; }
+.phone.android { border-radius: 40px; background: linear-gradient(145deg, #3a3a3f, #18181b 40%, #2a2a2e); }
+.phone.android .screen { border-radius: 30px; }
+.phone.android .island { width: 12px; height: 12px; padding: 0; border-radius: 50%; justify-content: center; }
+.phone.android .island .cam { width: 7px; height: 7px; }
+.phone.android .status { grid-template-columns: 1fr auto 1fr; }
+.phone.android .time { text-align: left; padding-left: 4px; }
+.phone.android .icons { justify-content: flex-end; }
+.phone.android .action { display: none; }
+.phone.android .vol-up, .phone.android .vol-down { left: auto; right: -3px; top: 120px; }
+.phone.android .vol-down { top: 176px; }
+.phone.android .power { top: 248px; height: 46px; }
+.phone.android .home-bar { width: 96px; height: 4px; bottom: 9px; opacity: 0.85; }
+#compare [hidden] { display: none !important; }

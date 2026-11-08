@@ -44,9 +44,9 @@
   }
 
   // Music: plays in sync with the timeline; silent if assets/music.mp3 is missing
-  // Every visit starts at 10% so nobody gets blasted. Changes last until the
-  // page is closed or reloaded (nothing is saved between visits).
-  const START_VOLUME = 10;
+  // Every visit starts quiet, at 4%, and fades in, so nobody gets blasted. Changes last
+  // until the page is closed or reloaded (nothing is saved between visits).
+  const START_VOLUME = 4;
   const toVolume = (v) => v / 100;
   vol.value = START_VOLUME;
   music.volume = toVolume(START_VOLUME);
@@ -116,7 +116,16 @@
     stage.classList.remove("paused");
     toggle.setAttribute("aria-label", "Pause");
     syncMusic();
+    // Fade the music in over about a second instead of starting at full level
+    const target = toVolume(vol.value);
+    music.volume = 0;
     music.play().catch(() => {});
+    const t0 = performance.now();
+    (function fade(now) {
+      const k = Math.min(1, (now - t0) / 1200);
+      music.volume = target * k;
+      if (k < 1 && playing) requestAnimationFrame(fade);
+    })(t0);
     last = performance.now();
     requestAnimationFrame(tick);
   }

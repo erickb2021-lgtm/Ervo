@@ -182,3 +182,41 @@ section.how .section-head { margin-bottom: 24px; }
   .big-play { width: 64px; height: 64px; }
   .time { min-width: 0; font-size: 12px; }
 }
+
+
+/* Glass icons: tinted glass with a soft highlight on top, like Apple's newer icons */
+.gl { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; width: 4.4cqw; height: 4.4cqw; min-width: 28px; min-height: 28px; border-radius: 28%; overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 50%, #fff) 0%, var(--c) 70%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0.18cqw 0.4cqw rgba(255, 255, 255, 0.75), inset 0 -0.35cqw 0.7cqw rgba(0, 0, 0, 0.16), 0 0.8cqw 2cqw color-mix(in srgb, var(--c) 40%, transparent); }
+.gl::before { content: ""; position: absolute; left: 9%; right: 9%; top: 4%; height: 44%; border-radius: 50% 50% 42% 42% / 64% 64% 36% 36%; background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0)); pointer-events: none; }
+.gl svg { position: relative; width: 58%; height: 58%; filter: drop-shadow(0 0.15cqw 0.25cqw rgba(0, 0, 0, 0.22)); }
+.gl.emo { font-size: 1.3em; }
+.gl.big { width: 6.4cqw; height: 6.4cqw; border-radius: 50%; }
+.gl-row { display: flex; gap: 2.2cqw; margin: 2.6cqw 0 1.4cqw; }
+.gl-row .gl { width: 8.5cqw; height: 8.5cqw; }
+
+/* Hey Ervo + alarm */
+.voice-line { display: flex; align-items: center; gap: 1.4cqw; font-weight: 800; font-size: clamp(14px, 2.6cqw, 26px); color: #2a1650; }
+.voice-line .gl { animation: listen 1.6s ease-in-out infinite; }
+@keyframes listen { 0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.45); } 50% { box-shadow: 0 0 0 1.4cqw rgba(139, 92, 246, 0); } }
+.alarm { display: flex; flex-direction: column; gap: 1cqw; }
+.alarm-head { display: flex; align-items: center; gap: 1.2cqw; font-weight: 800; }
+.alarm-head small { display: block; color: #7d6357; font-weight: 500; font-size: 0.8em; }
+.alarm-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1.2cqw; background: #f5f0ec; border-radius: 1.2cqw; padding: 1cqw 1.4cqw; }
+.alarm-row b { font-size: 1.5em; letter-spacing: -0.03em; }
+.alarm-row b small { font-size: 0.5em; }
+.alarm-row span { color: #7d6357; font-weight: 600; font-size: 0.9em; }
+.alarm-row.dim { opacity: 0.55; }
+.sw { width: 3.6cqw; height: 2.1cqw; min-width: 26px; min-height: 15px; border-radius: 999px; background: #d9cfe8; position: relative; }
+.sw::after { content: ""; position: absolute; top: 12%; left: 7%; width: 42%; height: 76%; border-radius: 50%; background: #fff; }
+.sw.on { background: #34c759; }
+.sw.on::after { left: auto; right: 7%; }
+
+/* Business team */
+.team { display: flex; flex-direction: column; gap: 1cqw; }
+.team-head { font-weight: 800; }
+.member { display: flex; align-items: center; gap: 1.2cqw; background: #f5f0ec; border-radius: 1.2cqw; padding: 0.9cqw 1.3cqw; font-weight: 700; }
+.member small { display: block; color: #7d6357; font-weight: 500; font-size: 0.82em; }
+@media (max-width: 640px) { .gl-row { gap: 3cqw; } .gl-row .gl { width: 11cqw; height: 11cqw; } }
+.steps-head .emo.gl { background: linear-gradient(160deg, color-mix(in srgb, var(--c) 50%, #fff) 0%, var(--c) 70%); border-radius: 28%; }
