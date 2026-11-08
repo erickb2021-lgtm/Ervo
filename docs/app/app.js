@@ -4069,7 +4069,9 @@
       part = h < 5 || h >= 20 ? "night" : h < 8 ? "dawn" : h >= 17 ? "dusk" : "day";
     }
     const kind = w ? w.kind : "";
-    const weather = /snow|sleet|flurr/.test(kind) ? "snow" : /rain|drizz|storm|shower/.test(kind) ? "wet" : /cloudy|fog|overcast/.test(kind) && kind !== "partly cloudy" ? "cloudy" : "";
+    // One word the scene understands: clear, partly, cloudy, fog, drizzle, wet, storm or snow ("" until we know)
+    const weather = !kind ? "" : /storm/.test(kind) ? "storm" : /snow|sleet|flurr/.test(kind) ? "snow" : /drizz/.test(kind) ? "drizzle"
+      : /rain|shower/.test(kind) ? "wet" : /fog|mist|haz/.test(kind) ? "fog" : /partly|mostly cloudy/.test(kind) ? "partly" : /cloud|overcast/.test(kind) ? "cloudy" : "clear";
     const s = $("stats");
     s.dataset.sky = part;
     s.dataset.weather = weather;
@@ -4278,7 +4280,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.3.9"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.3.10"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);

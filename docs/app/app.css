@@ -1384,3 +1384,62 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 #stats .sky-hero { position: relative; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35); }
 @keyframes sun-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
 @media (prefers-reduced-motion: reduce) { .sky-scene * { animation: none !important; } .sky-scene .cloud { left: 10%; } .sky-scene .c2 { left: 55%; } .sky-scene .c3 { left: 30%; } }
+
+/* ===== 0.3.10: the sky scene follows the real weather (rain and clouds were losing to the sun) ===== */
+/* Each weather sets a few knobs; the elements only read the knobs, so nothing can win by accident. */
+#stats { --k-sun: 0; --k-rays: 0; --k-moon: 0; --k-c1: 0.7; --k-c2: 0; --k-c3: 0; --k-c4: 0; --k-dark: 0; --k-fog: 0; --k-rain: 0; --k-rain2: 0; --k-drops: 0; --k-snow: 0;
+  --cloud: rgba(255, 255, 255, 0.92); }
+#stats[data-weather="clear"] { --k-sun: 1; --k-rays: 1; --k-c1: 0.55; }
+#stats[data-weather="partly"] { --k-sun: 1; --k-rays: 0.5; --k-c1: 0.95; --k-c2: 0.9; }
+#stats[data-weather="cloudy"] { --k-c1: 1; --k-c2: 1; --k-c3: 1; --k-c4: 0.9; --k-dark: 0.45; --cloud: rgba(208, 215, 224, 0.96); }
+#stats[data-weather="fog"] { --k-c1: 0.6; --k-fog: 1; --k-sun: 0.25; --cloud: rgba(215, 220, 228, 0.8); }
+#stats[data-weather="drizzle"] { --k-c1: 1; --k-c2: 1; --k-c3: 0.9; --k-dark: 0.5; --k-rain: 0.55; --k-drops: 0.7; --cloud: rgba(170, 180, 194, 0.96); }
+#stats[data-weather="wet"] { --k-c1: 1; --k-c2: 1; --k-c3: 1; --k-c4: 1; --k-dark: 0.75; --k-rain: 1; --k-rain2: 1; --k-drops: 1; --cloud: rgba(120, 130, 146, 0.97); }
+#stats[data-weather="storm"] { --k-c1: 1; --k-c2: 1; --k-c3: 1; --k-c4: 1; --k-dark: 0.9; --k-rain: 1; --k-rain2: 1; --k-drops: 1; --cloud: rgba(78, 86, 102, 0.98); }
+#stats[data-weather="snow"] { --k-c1: 1; --k-c2: 1; --k-c3: 0.9; --k-dark: 0.3; --k-snow: 1; --cloud: rgba(222, 227, 234, 0.96); }
+#stats[data-sky="night"] { --k-sun: 0 !important; --k-rays: 0 !important; --cloud: rgba(62, 68, 88, 0.92); }
+#stats[data-sky="night"][data-weather="clear"], #stats[data-sky="night"][data-weather="partly"], #stats[data-sky="night"][data-weather=""] { --k-moon: 1; }
+/* Sky colours for the new kinds */
+#stats[data-sky="day"][data-weather="partly"] { --sky-1: #3b82cf; --sky-2: #6ea9e3; --sky-3: #a9cdee; }
+#stats[data-sky="day"][data-weather="fog"] { --sky-1: #8c98a6; --sky-2: #a9b3bf; --sky-3: #c9d0d8; }
+#stats[data-sky="day"][data-weather="drizzle"] { --sky-1: #52657c; --sky-2: #7287a0; --sky-3: #9fb0c2; }
+#stats[data-sky="day"][data-weather="storm"] { --sky-1: #242c39; --sky-2: #3a4556; --sky-3: #5b6778; }
+#stats[data-sky="day"][data-weather="snow"] { --sky-1: #7d8da3; --sky-2: #a2b0c2; --sky-3: #d2dbe6; }
+#stats[data-sky="dawn"][data-weather="wet"], #stats[data-sky="dusk"][data-weather="wet"], #stats[data-sky="dawn"][data-weather="storm"], #stats[data-sky="dusk"][data-weather="storm"] { --sky-1: #2a2f45; --sky-2: #4d4f6a; --sky-3: #7a6a78; }
+#stats[data-sky="night"][data-weather="storm"] { --sky-1: #05070d; --sky-2: #121724; --sky-3: #1f2634; }
+/* The elements read the knobs */
+#stats .sky-scene .sun { opacity: var(--k-sun) !important; }
+#stats .sky-scene .moon { opacity: var(--k-moon) !important; }
+#stats .sky-scene .c1 { opacity: var(--k-c1) !important; }
+#stats .sky-scene .c2 { opacity: var(--k-c2) !important; }
+#stats .sky-scene .c3 { opacity: var(--k-c3) !important; }
+#stats .sky-scene .c4 { opacity: var(--k-c4) !important; }
+#stats .sky-scene .rain { opacity: var(--k-rain) !important; }
+#stats .sky-scene .rain2 { opacity: var(--k-rain2) !important; }
+#stats .sky-scene .drops { opacity: var(--k-drops) !important; }
+#stats .sky-scene .snow { opacity: var(--k-snow) !important; }
+#stats .sky-scene .cloud { background: var(--cloud) !important; }
+/* Clouds start spread across the sky (negative delays), instead of all queuing off-screen to the left */
+.sky-scene .c1 { animation-delay: -25s !important; }
+.sky-scene .c2 { animation-delay: -60s !important; }
+.sky-scene .c3 { animation-delay: -95s !important; }
+.sky-scene .c4 { top: 20%; left: -160px; --s: 1.5; animation: drift 150s linear -40s infinite; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.22)); }
+/* A heavy sky: a darker band of cloud across the top, denser the worse the weather */
+.sky-scene .dark { left: 0; right: 0; top: 0; height: 46%; opacity: var(--k-dark) !important; background: linear-gradient(rgba(40, 46, 58, 0.85), rgba(60, 68, 82, 0.5) 60%, transparent); }
+/* Fog: soft layers drifting slowly */
+.sky-scene .fog { inset: 0; opacity: var(--k-fog) !important; background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0) 0 40px, rgba(255, 255, 255, 0.16) 40px 70px, rgba(255, 255, 255, 0) 70px 120px); background-size: 100% 240px; animation: fog-roll 24s linear infinite; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+@keyframes fog-roll { to { background-position: 0 240px; } }
+/* Sun rays: a slow wheel of light behind the sun on clear days */
+.sky-scene .rays { top: calc(9% - 90px); right: calc(10% - 90px); width: 272px; height: 272px; border-radius: 50%; opacity: var(--k-rays) !important;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 236, 170, 0.18) 0 7deg, transparent 7deg 22deg); -webkit-mask-image: radial-gradient(circle, #000 20%, transparent 70%); mask-image: radial-gradient(circle, #000 20%, transparent 70%); animation: rays-turn 60s linear infinite; }
+@keyframes rays-turn { to { transform: rotate(360deg); } }
+/* Heavier, faster rain in front of the fine streaks, slanted by the wind */
+.sky-scene .rain2 { inset: -10% 0 0; background-image: repeating-linear-gradient(104deg, transparent 0 17px, rgba(255, 255, 255, 0.28) 17px 18.5px, transparent 18.5px 35px); background-size: 100% 90px; animation: rain-fall2 0.42s linear infinite; }
+@keyframes rain-fall2 { to { background-position: -22px 90px; } }
+/* Lightning: a flash across the sky now and then */
+.sky-scene .flash { inset: 0; background: radial-gradient(120% 60% at 60% 0%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.2) 50%, transparent 75%); opacity: 0 !important; }
+#stats[data-weather="storm"] .sky-scene .flash { animation: lightning 9s linear infinite; opacity: 1 !important; }
+@keyframes lightning { 0%, 88%, 100% { visibility: hidden; } 89%, 89.6% { visibility: visible; } 89.7%, 90.6% { visibility: hidden; } 90.7%, 91.4% { visibility: visible; } 91.5% { visibility: hidden; } }
+/* Wet ground shines a little */
+#stats[data-weather="wet"] .ground, #stats[data-weather="storm"] .ground, #stats[data-weather="drizzle"] .ground { background: linear-gradient(#2f6a3a, #1f4a2a); box-shadow: inset 0 14px 30px rgba(255, 255, 255, 0.12); }
+.steps-num .label .dot.usage { color: var(--tint) !important; }

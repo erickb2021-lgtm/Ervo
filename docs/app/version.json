@@ -1,6 +1,8 @@
 {
-  "version": "0.3.9",
+  "version": "0.3.10",
   "notes": [
+    "The sky on Ervo Stats now matches the real weather: rain and drizzle bring gray clouds and slanted rain behind glass, storms flash with lightning, fog rolls in, snow falls, and the sun with its rays only shows when it's actually clear or partly cloudy",
+    "Clouds are already in the sky when you open Stats instead of drifting in from the side",
     "Updates can't get stuck anymore: Android checks for a new Ervo a few times a day and shows a notification the moment one is out. Tap it and Ervo updates, even if the app itself won't open",
     "If Ervo ever fails to start, a small dialog offers Update Ervo or Try Again",
     "Fixes the black screen in 0.3.7: the app crashed while starting up",
@@ -10,8 +12,6 @@
     "Tap Not Now on a permission and Ervo says no problem and offers an Allow button, instead of going quiet",
     "The bottom tabs come back after the keyboard closes, every time",
     "The Goals tab shows your goals, including ones Ervo saved as \"Wants to…\"",
-    "\"Plan a workout that fits my health\" goes to Ervo's AI now, instead of your step count",
-    "Ervo plans more: any request becomes a concrete plan, and it drafts emails and texts with a one-tap Send button",
-    "Rows use detailed 3D icons on a clear background"
+    "\"Plan a workout that fits my health\" goes to Ervo's AI now, instead of your step count"
   ]
 }
