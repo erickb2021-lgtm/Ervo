@@ -1,12 +1,117 @@
 [
-  { "id": "classic", "name": "Classic", "file": "ervo-classic.png" },
-  { "id": "business", "name": "Business", "file": "ervo-business.png" },
-  { "id": "scholar", "name": "Scholar", "file": "ervo-scholar.png" },
-  { "id": "gamer", "name": "Gamer", "file": "ervo-gamer.png" },
-  { "id": "space", "name": "Space", "file": "ervo-space.png" },
-  { "id": "explorer", "name": "Explorer", "file": "ervo-explorer.png" },
-  { "id": "tech", "name": "Tech", "file": "ervo-tech.png" },
-  { "id": "builder", "name": "Builder", "file": "ervo-builder.png" },
-  { "id": "winter", "name": "Winter", "file": "ervo-winter.png" },
-  { "id": "creative", "name": "Creative", "file": "ervo-creative.png" }
+  {
+    "id": "classic",
+    "name": "Classic",
+    "file": "ervo-classic.png"
+  },
+  {
+    "id": "business",
+    "name": "Business",
+    "file": "ervo-business.png"
+  },
+  {
+    "id": "king",
+    "name": "Royal",
+    "file": "ervo-king.png"
+  },
+  {
+    "id": "detective",
+    "name": "Detective",
+    "file": "ervo-detective.png"
+  },
+  {
+    "id": "explorer",
+    "name": "Explorer",
+    "file": "ervo-explorer.png"
+  },
+  {
+    "id": "scientist",
+    "name": "Scientist",
+    "file": "ervo-scientist.png"
+  },
+  {
+    "id": "wizard",
+    "name": "Wizard",
+    "file": "ervo-wizard.png"
+  },
+  {
+    "id": "ninja",
+    "name": "Ninja",
+    "file": "ervo-ninja.png"
+  },
+  {
+    "id": "samurai",
+    "name": "Samurai",
+    "file": "ervo-samurai.png"
+  },
+  {
+    "id": "pirate",
+    "name": "Pirate",
+    "file": "ervo-pirate.png"
+  },
+  {
+    "id": "pilot",
+    "name": "Pilot",
+    "file": "ervo-pilot.png"
+  },
+  {
+    "id": "athlete",
+    "name": "Athlete",
+    "file": "ervo-athlete.png"
+  },
+  {
+    "id": "soccer",
+    "name": "Soccer",
+    "file": "ervo-soccer.png"
+  },
+  {
+    "id": "musician",
+    "name": "Musician",
+    "file": "ervo-musician.png"
+  },
+  {
+    "id": "chef",
+    "name": "Chef",
+    "file": "ervo-chef.png"
+  },
+  {
+    "id": "creative",
+    "name": "Artist",
+    "file": "ervo-creative.png"
+  },
+  {
+    "id": "gamer",
+    "name": "Gamer",
+    "file": "ervo-gamer.png"
+  },
+  {
+    "id": "space",
+    "name": "Space",
+    "file": "ervo-space.png"
+  },
+  {
+    "id": "scholar",
+    "name": "Scholar",
+    "file": "ervo-scholar.png"
+  },
+  {
+    "id": "tech",
+    "name": "Tech",
+    "file": "ervo-tech.png"
+  },
+  {
+    "id": "builder",
+    "name": "Builder",
+    "file": "ervo-builder.png"
+  },
+  {
+    "id": "winter",
+    "name": "Winter",
+    "file": "ervo-winter.png"
+  },
+  {
+    "id": "holiday",
+    "name": "Holiday",
+    "file": "ervo-holiday.png"
+  }
 ]

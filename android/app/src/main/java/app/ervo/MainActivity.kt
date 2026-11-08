@@ -3,6 +3,7 @@ package app.ervo
 import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -616,6 +617,19 @@ open class MainActivity : AppCompatActivity() {
                 .putExtra(Intent.EXTRA_TITLE, title)
                 .putExtra(Intent.EXTRA_TEXT, text)
             try { startActivity(Intent.createChooser(send, title.ifEmpty { "Share" })) } catch (e: Exception) { /* nothing can share */ }
+        }
+
+        /** Home-screen icon = Ervo's look. Enables that look's launcher alias and disables the others. */
+        @JavascriptInterface
+        fun setAppIcon(look: String) = runOnUiThread {
+            val id = look.lowercase().filter { it.isLetter() }
+            if (id !in LOOK_IDS) return@runOnUiThread
+            val pm = packageManager
+            // Enable the new one first, so there is never a moment with no icon
+            pm.setComponentEnabledSetting(ComponentName(this@MainActivity, "app.ervo.Look_$id"), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
+            LOOK_IDS.filter { it != id }.forEach { l ->
+                pm.setComponentEnabledSetting(ComponentName(this@MainActivity, "app.ervo.Look_$l"), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP)
+            }
         }
 
         /** This app's version, like "0.2.1", so the screens can check for updates. */
@@ -1370,6 +1384,8 @@ open class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val APP_HOST = "appassets.androidplatform.net"
+        // Every look with a launcher alias in the manifest (keep in step with docs/app/img/looks.json)
+        val LOOK_IDS = listOf("classic", "business", "king", "detective", "explorer", "scientist", "wizard", "ninja", "samurai", "pirate", "pilot", "athlete", "soccer", "musician", "chef", "creative", "gamer", "space", "scholar", "tech", "builder", "winter", "holiday")
         private const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
         // Updates only ever come from Ervo's own GitHub releases
         private const val UPDATE_PREFIX = "https://github.com/erickb2021-lgtm/Ervo/releases/download/"

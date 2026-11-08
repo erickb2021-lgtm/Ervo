@@ -4416,7 +4416,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.4.2"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.4.3"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -5057,6 +5057,9 @@
   }
   function applyLook() {
     const src = lookSrc();
+    // iPhone: the icon used when Ervo is added to the home screen follows the look
+    const touch = document.querySelector('link[rel="apple-touch-icon"]');
+    if (touch) touch.href = prefs().look && lookFile(prefs().look) ? `img/touch-${prefs().look}.png` : "img/apple-touch-icon.png";
     $("chat-avatar").src = src;
     $("voice-owl").src = src;
     $("set-owl").src = src;
@@ -5085,6 +5088,7 @@
         applyLook();
         buzz("tick");
         logActivity({ kind: "settings", ico: "star", title: `Changed Ervo's look to ${name} Ervo` });
+        if (native && native.setAppIcon) { native.setAppIcon(id); toast(`${name} Ervo is your home-screen icon too`); }
       });
       grid.append(b);
     });
