@@ -200,7 +200,7 @@
     return "Couldn't reach Ervo's sign-in. Check your connection and try again.";
   }
   if (realAuth) {
-    document.querySelector(".demo").textContent = "Check your inbox (and spam folder) for a 6-digit code from Ervo.";
+    document.querySelector(".demo").textContent = "Check your inbox (and spam folder) for a code from Ervo.";
     $("contact").placeholder = "Your email";
   }
 
