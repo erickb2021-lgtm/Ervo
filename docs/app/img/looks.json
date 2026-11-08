@@ -1,0 +1,12 @@
+[
+  { "id": "classic", "name": "Classic", "file": "ervo-classic.png" },
+  { "id": "business", "name": "Business", "file": "ervo-business.png" },
+  { "id": "scholar", "name": "Scholar", "file": "ervo-scholar.png" },
+  { "id": "gamer", "name": "Gamer", "file": "ervo-gamer.png" },
+  { "id": "space", "name": "Space", "file": "ervo-space.png" },
+  { "id": "explorer", "name": "Explorer", "file": "ervo-explorer.png" },
+  { "id": "tech", "name": "Tech", "file": "ervo-tech.png" },
+  { "id": "builder", "name": "Builder", "file": "ervo-builder.png" },
+  { "id": "winter", "name": "Winter", "file": "ervo-winter.png" },
+  { "id": "creative", "name": "Creative", "file": "ervo-creative.png" }
+]

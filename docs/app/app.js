@@ -440,6 +440,9 @@
   }
   // ---------- Settings page: compact rows grouped like the phone's Settings ----------
   const SETTINGS = [
+    ["", [
+      ["open-switch", "undo", "#5e5ce6", "Switch to Ervo for Business", "Same email, separate chats and settings"],
+    ]],
     ["Ervo", [
       ["open-look", "people", "#7a4be0", "Ervo's Look", "Pick an outfit"],
       ["open-greeting", "sun", "#ff9f0a", "Greeting", "What Ervo says first"],
@@ -452,7 +455,6 @@
       ["open-company", "home", "#30d158", "My Company", ""],
     ]],
     ["You", [
-      ["open-switch", "undo", "#5e5ce6", "Switch to Ervo for Business", "Same email, separate chats and settings"],
       ["open-psyche", "brain", "#bf5af2", "Psyche", "What Ervo knows about you"],
       ["open-stats", "stats", "#ff375f", "Ervo Stats", "Steps, upcoming, activity"],
       ["open-apps", "open", "#5e5ce6", "Connected Apps", "Calendar, Health, Location and more"],
@@ -2837,8 +2839,10 @@
   const MEMORY_KEY = "ervo-memory"; // before 0.2.8: plain facts
   const PSYCHE_KEY = "ervo-psyche";
   const STYLE_NAMES = { tone: "Tone", length: "Length", emojis: "Emojis", humor: "Humor", language: "Language", other: "Also" };
-  const KIND_NAMES = { health: "Health", food: "Food", goal: "Goals", likes: "Likes", dislikes: "Dislikes", people: "People", places: "Places", work: "Work", routine: "Routine", money: "Money", music: "Music", other: "Other" };
-  const KIND_ICON = { health: "health", food: "food", goal: "star", likes: "heart", dislikes: "brain", people: "people", places: "location", work: "clock", routine: "clock", money: "money", music: "music", other: "brain" };
+  const KIND_NAMES = { health: "Health", food: "Food", goal: "Goals", likes: "Likes", dislikes: "Dislikes", people: "People", places: "Places", work: "Work", routine: "Routine", money: "Money", music: "Music", other: "Other",
+    company: "Company", product: "Products & services", policy: "Policies", customers: "Customers", finance: "Finance", tools: "Tools", schedule: "Schedule", team: "Team" };
+  const KIND_ICON = { health: "health", food: "food", goal: "star", likes: "heart", dislikes: "brain", people: "people", places: "location", work: "clock", routine: "clock", money: "money", music: "music", other: "brain",
+    company: "home", product: "shop", policy: "book", customers: "people", finance: "money", tools: "open", schedule: "clock", team: "people" };
   function psyche() {
     let p = load(PSYCHE_KEY);
     if (!p || !Array.isArray(p.facts)) {
@@ -4040,9 +4044,12 @@
     const p = psyche();
     const box = $("psyche-list");
     box.innerHTML = "";
-    $("psyche-sub").textContent = p.facts.length
-      ? `Ervo knows ${p.facts.length} thing${p.facts.length === 1 ? "" : "s"} about you and keeps learning as you chat.`
-      : "Ervo is just getting to know you. It learns as you chat.";
+    const biz = account && account.plan === "business";
+    const co = biz && account.team ? account.team.companyName : "your business";
+    $("psyche-title").textContent = biz ? "Business Psyche" : "Psyche";
+    $("psyche-sub").textContent = biz
+      ? (p.facts.length ? `What Ervo knows about ${co}: ${p.facts.length} thing${p.facts.length === 1 ? "" : "s"}, from your chats. Nothing personal lives here.` : `Ervo is getting to know ${co}. Tell it what the company does, its hours and policies, and it remembers.`)
+      : (p.facts.length ? `Ervo knows ${p.facts.length} thing${p.facts.length === 1 ? "" : "s"} about you and keeps learning as you chat.` : "Ervo is just getting to know you. It learns as you chat.");
     const section = (title, card) => { const h = document.createElement("h2"); h.textContent = title; box.append(h, card); };
     const card = () => { const c = document.createElement("div"); c.className = "card list"; return c; };
 
@@ -4080,6 +4087,28 @@
   // ---------- Ideas: things Ervo can do for you, tied to who you are ----------
   const IDEAS_KEY = "ervo-ideas";
   const IDEA_ICONS = ["calendar", "map", "plane", "heart", "food", "shop", "home", "ball", "book", "tooth", "doctor", "money", "star", "camera", "music", "car", "sun", "people"];
+  const DEFAULT_IDEAS_BUSINESS = { groups: [
+    { title: "For your business", ideas: [
+      { icon: "home", title: "Tell me what your business does. I'll tailor everything to it.", detail: "Your hours, policies, products and tools go in the Business Psyche, so every answer fits.", prompt: "Let me tell you about my business" },
+      { icon: "book", title: "Give me your refund policy. I'll answer customers by it.", detail: "I draft replies to refund and return requests that follow your exact policy.", prompt: "Here's our refund policy, use it when I ask you to reply to customers" },
+      { icon: "clock", title: "Set your hours and I'll plan around them.", detail: "Appointments, follow-ups and reminders land inside your working hours.", prompt: "Set up my business hours" },
+    ] },
+    { title: "Customers", ideas: [
+      { icon: "mail", title: "Upset customer? I'll draft a calm, professional reply.", detail: "Paste their message and I'll write a response in your company's voice, ready to send.", prompt: "Help me reply to an upset customer" },
+      { icon: "star", title: "I'll write replies to your latest reviews.", detail: "A thank-you for the good ones and a careful answer for the bad ones.", prompt: "Help me reply to customer reviews" },
+      { icon: "people", title: "Follow up with customers you haven't heard from.", detail: "A short check-in message and a reminder list for this week.", prompt: "Draft a follow-up message for customers who went quiet" },
+    ] },
+    { title: "Billing & taxes", ideas: [
+      { icon: "money", title: "Who still owes you? I'll draft the payment reminders.", detail: "Polite nudges for overdue invoices, firmer the longer they're late.", prompt: "Write payment reminders for overdue invoices" },
+      { icon: "calendar", title: "Tax deadlines coming up. I'll put them on your calendar.", detail: "Quarterly estimates, sales tax and filing dates for your state, with reminders.", prompt: "Add this year's tax deadlines to my calendar" },
+      { icon: "book", title: "Month-end bookkeeping checklist, ready to tick off.", detail: "Receipts, reconciliations, payroll and reports in one list.", prompt: "Make me a month-end bookkeeping checklist" },
+    ] },
+    { title: "Organization", ideas: [
+      { icon: "done", title: "Plan this week's priorities in 5 minutes.", detail: "Tell me what's on your plate and I'll order it into a day-by-day plan.", prompt: "Help me plan my work week" },
+      { icon: "open", title: "Renewals you'd forget: license, domain, insurance.", detail: "One list of what expires this year and reminders a month ahead.", prompt: "List my business renewals and remind me before they expire" },
+      { icon: "people", title: "Hand work to your team through Ervo.", detail: "Say \"send this to Maria\" and it lands in her Ervo.", prompt: "How do I send tasks to my team?" },
+    ] },
+  ] };
   const DEFAULT_IDEAS = { groups: [
     { title: "For you", ideas: [
       { icon: "star", title: "Tell me a goal. I'll make a plan and keep you on it.", detail: "Run a 5K, save for a trip, read more. I break it into steps and check in.", prompt: "Help me set a goal" },
@@ -4127,7 +4156,7 @@
   function drawIdeas(data) {
     const box = $("ideas-list");
     box.innerHTML = "";
-    const groups = data && Array.isArray(data.groups) ? data.groups : DEFAULT_IDEAS.groups;
+    const groups = data && Array.isArray(data.groups) ? data.groups : (account && account.plan === "business" ? DEFAULT_IDEAS_BUSINESS : DEFAULT_IDEAS).groups;
     groups.forEach((g) => {
       if (!g || !Array.isArray(g.ideas) || !g.ideas.length) return;
       const h = document.createElement("h2");
@@ -4387,7 +4416,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.4.1"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.4.2"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -4892,7 +4921,7 @@
   $("set-hero").addEventListener("click", () => openLook());
   // Bottom tabs
   $("tab-chat").addEventListener("click", () => show("chat"));
-  $("tab-goals").addEventListener("click", () => (account && account.team && account.team.role === "owner" ? openTeam() : openGoals()));
+  $("tab-goals").addEventListener("click", () => (account && account.team && isAdminRole(account.team.role) ? openTeam() : openGoals()));
   $("goals-back").addEventListener("click", () => show("chat"));
   $("goal-add").addEventListener("click", () => {
     show("chat");
@@ -4926,7 +4955,8 @@
   }
   $("sign-out").addEventListener("click", () => askConfirm("Sign out of Ervo?", "Your chats, Psyche and activity will be removed from this phone.", "Sign Out", signOut));
   // For testing Ervo like a new person: everything Ervo learned and every chat goes, your account stays
-  $("reset-ervo").addEventListener("click", () => askConfirm("Reset Ervo?", "Ervo forgets everything it learned about you and clears your chats, ideas, activity and settings. You stay signed in, and Ervo starts over like the first time.", "Reset", resetErvo));
+  $("reset-ervo").addEventListener("click", () => askConfirm("Reset Ervo?", `Ervo forgets everything it learned ${account && account.plan === "business" ? "about your business" : "about you"} and clears your chats, ideas, activity and settings here. You stay signed in, and Ervo starts over like the first time.`, "Continue",
+    () => setTimeout(() => askConfirm("Really reset?", "This can't be undone. Your chats and Psyche on this phone are gone for good.", "Reset Ervo", resetErvo), 250)));
   $("confirm-cancel").addEventListener("click", () => { $("confirm").hidden = true; confirmDo = null; });
   $("confirm-ok").addEventListener("click", () => {
     $("confirm").hidden = true;
@@ -5010,11 +5040,18 @@
   }
 
   // ---------- Ervo's look: tap Ervo at the top to pick an outfit ----------
-  const LOOKS = [["classic", "Classic"], ["business", "Business"], ["scholar", "Scholar"], ["gamer", "Gamer"], ["space", "Space"],
+  // The list of looks lives in img/looks.json: {id, name, file}. Add a picture (PNG, or an animated GIF/WebP)
+  // and a line there, and it shows up in the picker. This built-in list is the fallback when the file can't load.
+  let LOOKS = [["classic", "Classic"], ["business", "Business"], ["scholar", "Scholar"], ["gamer", "Gamer"], ["space", "Space"],
     ["explorer", "Explorer"], ["tech", "Tech"], ["builder", "Builder"], ["winter", "Winter"], ["creative", "Creative"]];
+  fetch("img/looks.json", { cache: "no-store" }).then((r) => r.json()).then((list) => {
+    if (Array.isArray(list) && list.length) { LOOKS = list.filter((x) => x && x.id && x.name).map((x) => [x.id, x.name, x.file || `ervo-${x.id}.png`]); applyLook(); }
+  }).catch(() => { /* keep the built-in list */ });
+  const lookFile = (id) => { const l = LOOKS.find((x) => x[0] === id); return l ? `img/${l[2] || `ervo-${id}.png`}` : null; };
   function lookSrc() {
     const l = prefs().look;
-    if (l && LOOKS.some((x) => x[0] === l)) return `img/ervo-${l}.png`;
+    const f = l && lookFile(l);
+    if (f) return f;
     return PLAN[(account || { plan: "personal" }).plan].avatar;
   }
   function applyLook() {
@@ -5034,8 +5071,8 @@
       const b = document.createElement("button");
       b.type = "button";
       b.setAttribute("role", "radio");
-      b.setAttribute("aria-checked", String(now === `img/ervo-${id}.png`));
-      b.innerHTML = `<img src="img/ervo-${id}.png" alt="">`;
+      b.setAttribute("aria-checked", String(now === lookFile(id)));
+      b.innerHTML = `<img src="${lookFile(id)}" alt="">`;
       b.append(`${name}`);
       b.setAttribute("aria-label", `${name} Ervo`);
       b.addEventListener("click", () => {
@@ -5157,8 +5194,29 @@
 
   // ---------- a few things to know (guidelines 1, 2 and 17) ----------
   const INTRO_KEY = "ervo-intro";
+  const INTRO_PERSONAL = [
+    ["✨", "What I can do", "Plan your days, add and change calendar events, set alarms and timers, research things to buy, find places near you, and give you ideas tied to your goals."],
+    ["🦉", "I can make mistakes", "I'm an AI, so double-check things that matter, like prices, health info and dates. I never buy anything or call anyone for you."],
+    ["🔒", "You're in control", "I ask before using your calendar, location or other apps. See and change what I've learned in Psyche, turn learning off, or reset me anytime."],
+  ];
+  const INTRO_BUSINESS = [
+    ["💼", "What I do for your business", "Customer replies in your company's voice, refunds by your policy, scheduling inside your hours, invoices and payment reminders, bookkeeping checklists, suppliers, reviews and hand-offs to your team."],
+    ["🦉", "I can make mistakes", "I'm an AI. Check anything that goes to a customer or involves money, taxes or legal terms before you send it. I never pay, file or sign for you."],
+    ["🔒", "Your company's Psyche", "What I learn here is about the business, not anyone's private life, and it stays separate from Ervo Personal. The owner and co-owners can read employees' chats with me."],
+  ];
   function showIntro() {
     toggleMenu(false);
+    const biz = account && account.plan === "business";
+    const items = biz ? INTRO_BUSINESS : INTRO_PERSONAL;
+    const list = document.querySelector("#intro .intro-list");
+    list.innerHTML = "";
+    items.forEach(([e, b, s]) => {
+      const li = document.createElement("li");
+      const ico = document.createElement("span"); ico.className = "intro-ico"; ico.setAttribute("aria-hidden", "true"); ico.innerHTML = e3d(e);
+      const txt = document.createElement("span"); const bb = document.createElement("b"); bb.textContent = b; const sm = document.createElement("small"); sm.textContent = s; txt.append(bb, sm);
+      li.append(ico, txt); list.append(li);
+    });
+    $("intro-title").textContent = biz ? "Ervo for Business" : "A few things to know";
     if ($("intro-owl")) $("intro-owl").src = lookSrc();
     $("intro").hidden = false;
     setTimeout(() => $("intro-ok").focus(), 50);
@@ -5270,7 +5328,7 @@
       r = await fetch(`${AI_URL}/team/${path}`, { method: "POST", headers: { "content-type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body || {}), signal: AbortSignal.timeout(15000) });
     } catch (e) { throw new Error("Couldn't reach Ervo. Check your connection and try again."); }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { const e = new Error(j.error || `Ervo's server said ${r.status}.`); e.status = r.status; e.none = !!j.none; throw e; }
+    if (!r.ok) { const e = new Error(j.error || `Ervo's server said ${r.status}.`); e.status = r.status; e.none = !!j.none; e.removed = j.removed || null; throw e; }
     return j;
   }
   const teamFromView = (v) => ({
@@ -5293,13 +5351,20 @@
       applyTeamUI();
       pollInbox();
     } catch (e) {
-      if (e.none) { pendingAcc = account; show("welcome"); setTeamRole("owner"); step("team"); }
+      if (e.none) {
+        pendingAcc = account;
+        show("welcome");
+        setTeamRole(e.removed ? "employee" : "owner");
+        step("team");
+        if (e.removed) $("team-error").textContent = `Your access to ${e.removed.company} on Ervo was removed by the company. To rejoin, ask them for a new employee ID.`;
+      }
       else if (e.status === 401) { /* signed out elsewhere: the next action asks to sign in */ }
     }
   }
+  const isAdminRole = (r) => r === "owner" || r === "coowner";
   function applyTeamUI() {
     const t = account && account.team;
-    const owner = !!(t && t.role === "owner");
+    const owner = !!(t && isAdminRole(t.role));
     $("open-team").hidden = !owner;
     $("open-hours").hidden = !t;
     $("open-company").hidden = !(t && t.role === "employee");
@@ -5355,7 +5420,7 @@
   function resolveTeammate(raw) {
     const want = String(raw || "").trim().replace(/^(the |my )?(owner|boss|manager)$/i, "owner").replace(/[.!,]+$/, "").toLowerCase();
     if (!want) return null;
-    if (want === "owner") return account.team.role === "owner" ? null : "owner";
+    if (want === "owner") return isAdminRole(account.team.role) && account.team.role === "owner" ? null : "owner";
     const names = teamNames();
     return names.find((n) => n.toLowerCase() === want) || names.find((n) => n.toLowerCase().split(" ")[0] === want) || names.find((n) => n.toLowerCase().startsWith(want)) || null;
   }
@@ -5395,13 +5460,15 @@
   function renderTeam() {
     const t = account.team;
     $("team-title").textContent = t.companyName;
-    const staff = t.members.filter((m) => m.role === "employee");
-    $("team-sub").textContent = `${staff.length} employee${staff.length === 1 ? "" : "s"} · you're the owner`;
+    const staff = t.members.filter((m) => m.id !== t.memberId);
+    const n = staff.filter((m) => m.role === "employee").length;
+    $("team-sub").textContent = `${n} employee${n === 1 ? "" : "s"} · you're ${t.role === "owner" ? "the owner" : "a co-owner"}`;
     const mbox = $("team-members");
     mbox.innerHTML = "";
-    if (!staff.length) mbox.append(empty("No employees yet. Add an employee ID below and give it to them."));
+    if (!staff.length) mbox.append(empty("No one else yet. Add an employee ID below and give it to them."));
     staff.forEach((m) => {
-      const r = row("people", m.name, hoursText(m.hours), m.lastAt ? ago(m.lastAt) : "›");
+      const tag = m.role === "owner" ? "Owner · " : m.role === "coowner" ? "Co-owner · " : "";
+      const r = row(isAdminRole(m.role) ? "star" : "people", m.name, `${tag}${hoursText(m.hours)}`, m.lastAt ? ago(m.lastAt) : "›");
       r.classList.add("tap");
       r.setAttribute("role", "button");
       r.tabIndex = 0;
@@ -5464,8 +5531,13 @@
   let teamChatMember = null;
   async function openTeamChat(m) {
     teamChatMember = m;
+    const me = account.team;
     $("teamchat-title").textContent = m.name;
-    $("teamchat-sub").textContent = `${hoursText(m.hours)}${m.lastAt ? ` · last active ${ago(m.lastAt)}` : ""}`;
+    $("teamchat-sub").textContent = `${m.role === "owner" ? "Owner · " : m.role === "coowner" ? "Co-owner · " : ""}${hoursText(m.hours)}${m.lastAt ? ` · last active ${ago(m.lastAt)}` : ""}`;
+    // Only the owner makes co-owners; nobody removes the owner; only the owner removes a co-owner
+    $("teamchat-role").hidden = !(me.role === "owner" && m.role !== "owner");
+    $("teamchat-role").textContent = m.role === "coowner" ? "Remove co-owner role" : "Make co-owner";
+    $("teamchat-remove").hidden = m.role === "owner" || (m.role === "coowner" && me.role !== "owner");
     const box = $("teamchat-list");
     box.innerHTML = "";
     box.append(empty("Loading…"));
@@ -5490,6 +5562,22 @@
     } catch (e) { box.innerHTML = ""; box.append(empty(e.message)); }
   }
   $("teamchat-back").addEventListener("click", () => show("team"));
+  $("teamchat-role").addEventListener("click", () => {
+    const m = teamChatMember;
+    if (!m) return;
+    const makeCo = m.role !== "coowner";
+    askConfirm(makeCo ? `Make ${m.name} a co-owner?` : `Remove ${m.name}'s co-owner role?`,
+      makeCo ? `${m.name} will see every employee's chat, create and revoke employee IDs, change team settings and remove employees. Only you can remove co-owners or make new ones, and only you can delete the company.` : `${m.name} goes back to being an employee: their own chat, no Team tab.`,
+      makeCo ? "Make co-owner" : "Remove role", async () => {
+        try {
+          account.team = teamFromView(await teamApi("member/role", { memberId: m.id, role: makeCo ? "coowner" : "employee" }));
+          save(ACCOUNT_KEY, account);
+          logActivity({ kind: "team", ico: "star", title: makeCo ? `Made ${m.name} a co-owner` : `${m.name} is an employee again` });
+          const fresh = account.team.members.find((x) => x.id === m.id);
+          if (fresh) openTeamChat(fresh); else openTeam();
+        } catch (e) { toast(e.message); }
+      });
+  });
   $("teamchat-send").addEventListener("click", () => { if (!teamChatMember) return; show("chat"); $("message").value = `Tell ${teamChatMember.name}: `; setTimeout(() => { $("message").focus(); syncComposer(); }, 300); });
   $("teamchat-remove").addEventListener("click", () => {
     if (!teamChatMember) return;

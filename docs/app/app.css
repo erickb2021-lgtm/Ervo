@@ -1459,3 +1459,5 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 .tc-msg.ervo { align-self: flex-start; background: var(--card); border-bottom-left-radius: 5px; }
 .tc-msg span { white-space: pre-wrap; word-break: break-word; }
 #teamchat-remove { display: block; margin: 8px auto 0; }
+/* 0.4.2: the Add Employee ID button is a normal filled pill; role tags */
+#team-add { display: block; width: 100%; margin-top: 10px; color: var(--on-tint) !important; }
