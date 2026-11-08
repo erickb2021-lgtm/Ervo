@@ -5866,7 +5866,8 @@
     const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
     const hintEmail = (hash.get("signin") || "").trim().toLowerCase();
     const hintPlan = PLAN[hash.get("plan")] ? hash.get("plan") : "personal";
-    if (hintEmail) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* fine */ } }
+    const dropHash = () => { try { if (location.hash) history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* fine */ } };
+    if (hintEmail) { dropHash(); setTimeout(dropHash, 600); } // some browsers re-apply the fragment after load
     const saved = load(ACCOUNT_KEY);
     if (saved && saved.plan && saved.name && realAuth && !session()) { drop(ACCOUNT_KEY); show("welcome"); }
     else if (saved && saved.plan && saved.name) openChat(saved, false);
