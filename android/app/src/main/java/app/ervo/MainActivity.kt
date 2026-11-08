@@ -1274,6 +1274,7 @@ open class MainActivity : AppCompatActivity() {
     override fun onStop() {
         visible = false
         if (overlay) WakeService.resume(this) // pop-up closed: listen for "Hey Ervo" again
+        applyPendingIcon() // a new home-screen icon waits until Ervo is out of sight
         super.onStop()
     }
 
@@ -1364,11 +1365,6 @@ open class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         tts?.stop()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        applyPendingIcon()
     }
 
     @Volatile private var pendingIcon: String? = null
