@@ -5873,7 +5873,7 @@
     else if (OVERLAY && native && native.openFullApp) native.openFullApp(); // sign in first, in the full app
     else show("welcome");
     if (native) $("same-email").hidden = false; // Android can't carry the email through the APK install
-    if (hintEmail && !account && realAuth && !OVERLAY) startFromHint(hintEmail, hintPlan);
+    if (hintEmail && !account && !OVERLAY) startFromHint(hintEmail, hintPlan);
   }
   // Signed up on the website: same sign-in if the browser already has it, else send the code to that email
   async function startFromHint(email, plan) {
