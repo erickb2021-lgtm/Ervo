@@ -289,7 +289,7 @@
     show("welcome");
     step("name");
   }
-  $("open-switch").addEventListener("click", switchProfile);
+  // (the Switch row's click is wired in the menu block, once the Settings rows exist)
 
   // ---------- Business: run a company, or join one with an employee ID ----------
   let pendingAcc = null;
@@ -4917,6 +4917,7 @@
   function openSettings() { $("set-owl").src = lookSrc(); show("settings"); }
   function toggleMenu(open) { if (open) openSettings(); } // closing is Back
   $("menu-btn").addEventListener("click", openSettings);
+  $("open-switch").addEventListener("click", switchProfile);
   $("settings-back").addEventListener("click", () => show("chat"));
   $("set-hero").addEventListener("click", () => openLook());
   // Bottom tabs
