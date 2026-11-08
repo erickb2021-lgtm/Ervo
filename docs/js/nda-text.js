@@ -166,5 +166,127 @@
       </div>`;
   }
 
-  window.ErvoNda = { VERSION, TITLE, html, plain, hash, signedHtml, esc };
+  // ---------- PDF (needs jsPDF loaded on the page) ----------
+  // record = a signed record, or null for a blank copy with empty signature lines.
+  // withAudit adds the IP address and browser (Erick's copy only).
+  function pdf(record, withAudit) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const M = 60;
+    const TW = W - M * 2;
+    let y = M;
+    const strip = (t) => String(t).replace(/<[^>]+>/g, "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/…/g, "...");
+
+    function room(h) {
+      if (y + h > H - M) { doc.addPage(); y = M; }
+    }
+    function text(t, opts) {
+      const o = Object.assign({ size: 10.5, style: "normal", indent: 0, hang: "", gap: 6, font: "helvetica", lead: 1.4 }, opts);
+      doc.setFont(o.font, o.style);
+      doc.setFontSize(o.size);
+      const lines = doc.splitTextToSize(strip(t), TW - o.indent);
+      const lh = o.size * o.lead;
+      lines.forEach((line, i) => {
+        room(lh);
+        if (i === 0 && o.hang) doc.text(o.hang, M + o.indent - 14, y + o.size);
+        doc.text(line, M + o.indent, y + o.size);
+        y += lh;
+      });
+      y += o.gap;
+    }
+
+    // Footer on every page is added at the end
+    text(TITLE, { size: 18, style: "bold", gap: 2 });
+    text("Version " + VERSION + " · For invited testers only", { size: 9.5, gap: 14 });
+    for (const s of SECTIONS) {
+      room(40);
+      y += 4;
+      text(s.h, { size: 12.5, style: "bold", gap: 4 });
+      for (const b of s.blocks) {
+        if (b.p) text(b.p);
+        else (b.ul || b.ol).forEach((item, n) => text(item, { indent: 18, hang: b.ol ? n + 1 + "." : "•", gap: 3 }));
+        y += 3;
+      }
+    }
+
+    // Signatures
+    doc.addPage();
+    y = M;
+    text("Signatures", { size: 15, style: "bold", gap: 8 });
+    text("By signing, the Tester confirms that Ervo invited them, that they read this agreement, and that they agree to it.", { gap: 14 });
+    const colW = (TW - 20) / 2;
+    const top = y;
+
+    function party(x, label, img, typed, lines, signedText) {
+      let yy = top;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11.5);
+      doc.text(label, x, yy + 11); yy += 22;
+      if (img) {
+        try { doc.addImage(img, "PNG", x, yy, colW, colW * 0.27); } catch (e) { /* skip a bad image */ }
+        yy += colW * 0.27 + 4;
+      } else { yy += 40; }
+      if (typed) { doc.setFont("times", "italic"); doc.setFontSize(18); doc.text(strip(typed), x, yy + 16); }
+      yy += 24;
+      doc.setDrawColor(120); doc.line(x, yy, x + colW, yy); yy += 14;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+      lines.forEach((l) => { doc.text(doc.splitTextToSize(strip(l), colW), x, yy); yy += 14; });
+      if (signedText) { doc.text(doc.splitTextToSize(strip(signedText), colW), x, yy); yy += 28; }
+      return yy;
+    }
+    const r = record;
+    const day = (iso) => { try { return new Date(iso).toLocaleString("en-US", { dateStyle: "long", timeStyle: "long", timeZone: (r && r.timeZone) || undefined }); } catch (e) { return new Date(iso).toLocaleString("en-US"); } };
+    const left = party(M, "Tester", r ? r.drawing : null, r ? r.typedSignature : "",
+      r ? [r.name, r.email] : ["Name: ______________________________", "Email: ______________________________"],
+      r ? "Signed " + day(r.signedAt) : "Date: ______________________");
+    const right = party(M + colW + 20, "Ervo", null, r ? r.ervo.name : "",
+      ["Erick S. Bardales", "Founder, Ervo"], r ? "Signed " + day(r.ervo.signedAt) : "Date: ______________________");
+    y = Math.max(left, right) + 10;
+
+    if (!r || r.minor) {
+      room(120);
+      text("Parent or guardian, if the Tester is under 18", { size: 11.5, style: "bold", gap: 10 });
+      if (r) {
+        text(r.guardianSignature, { font: "times", style: "italic", size: 18, gap: 2 });
+        text(r.guardianName, { gap: 14 });
+      } else {
+        text("Signature: ______________________________   Name: ______________________________", { gap: 14 });
+      }
+    }
+
+    if (r) {
+      room(140);
+      text("Signature record", { size: 11.5, style: "bold", gap: 6 });
+      const rec = [
+        "Signature ID: " + r.id,
+        "Agreement version: " + r.version,
+        "Agreement fingerprint (SHA-256): " + r.textHash,
+        "Agreed to sign electronically: yes",
+        "Recorded by Ervo's server at " + new Date(r.signedAt).toISOString(),
+      ];
+      if (withAudit) rec.push("IP address: " + r.ip, "Browser: " + r.userAgent);
+      rec.forEach((l) => text(l, { size: 9.5, gap: 2 }));
+    } else {
+      y += 10;
+      text("To sign online, use the personal invite link Ervo sent you.", { size: 9.5 });
+    }
+
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(110);
+      doc.text(TITLE + (r ? " · Signed by " + strip(r.name) : "") + " · Page " + i + " of " + pages, M, H - 30);
+      doc.setTextColor(0);
+    }
+    return doc;
+  }
+
+  function pdfName(record) {
+    if (!record) return "Ervo-Tester-Agreement-" + VERSION + ".pdf";
+    const who = String(record.name).replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "") || "Tester";
+    return "Ervo-Tester-Agreement-Signed-" + who + "-" + record.signedAt.slice(0, 10) + ".pdf";
+  }
+
+  window.ErvoNda = { VERSION, TITLE, html, plain, hash, signedHtml, esc, pdf, pdfName };
 })();

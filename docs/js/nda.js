@@ -25,7 +25,28 @@
   }
   const NOT_INVITED = 'This page is only for people Ervo invited to test. If you were invited, open the exact link from your invite, or <a href="contact.html">contact Ervo</a> for a new one.';
 
+  let current = null;
+
+  function savePdf(record) {
+    if (!window.jspdf) { alert("The PDF tool didn't load. Check your connection and reload the page."); return; }
+    N.pdf(record, false).save(N.pdfName(record));
+  }
+
+  // Sends Erick a PDF copy right after signing (once per signature)
+  async function sendCopy(record) {
+    const status = $("copy-status");
+    if (!window.jspdf) { status.textContent = "Ervo has your signature on file."; return; }
+    try {
+      const data = N.pdf(record, false).output("datauristring").split(",")[1];
+      const r = await call("/nda/send-copy", { email, code, pdf: data, filename: N.pdfName(record) });
+      status.textContent = r.data.ok ? "A copy was emailed to Ervo." : "Ervo has your signature on file.";
+    } catch (e) {
+      status.textContent = "Ervo has your signature on file.";
+    }
+  }
+
   function showSigned(record) {
+    current = record;
     $("state").hidden = true;
     $("agreement").hidden = true;
     $("signed").hidden = false;
@@ -136,6 +157,8 @@
   $("f-typed").addEventListener("input", (e) => { $("typed-preview").textContent = e.target.value; });
   $("f-minor").addEventListener("change", (e) => { $("guardian").hidden = !e.target.checked; });
   $("print-btn").addEventListener("click", () => window.print());
+  $("signed-pdf").addEventListener("click", () => { if (current) savePdf(current); });
+  $("blank-pdf").addEventListener("click", () => savePdf(null));
 
   $("sign-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -165,7 +188,7 @@
         consentEsign: true, agreed: true, version: N.VERSION, textHash: await N.hash(),
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
-      if (r.data.ok && r.data.signed) { showSigned(r.data.signed); return; }
+      if (r.data.ok && r.data.signed) { showSigned(r.data.signed); if (!r.data.already) sendCopy(r.data.signed); return; }
       err.textContent = r.status === 403 ? "This invite isn't active anymore. Contact Ervo for help." : r.status === 429 ? "Too many tries. Wait a minute and try again." : "Something went wrong. Check every field and try again.";
     } catch (ex) {
       err.textContent = "Couldn't reach Ervo. Check your internet connection and try again.";

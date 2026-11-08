@@ -65,7 +65,8 @@
 
   <dialog class="copy" id="copy">
     <div class="doc">
-      <div class="actions no-print"><button class="btn btn-primary" type="button" id="copy-print">Save as PDF or print</button><button class="btn btn-ghost" type="button" id="copy-close">Close</button></div>
+      <div class="actions no-print"><button class="btn btn-primary" type="button" id="copy-pdf">Download PDF</button><button class="btn btn-ghost" type="button" id="copy-email">Email me a copy</button><button class="btn btn-ghost" type="button" id="copy-print">Print</button><button class="btn btn-ghost" type="button" id="copy-close">Close</button></div>
+      <p class="hint no-print" id="copy-msg" aria-live="polite"></p>
       <h1>Ervo Tester Confidentiality Agreement</h1>
       <p class="updated" id="copy-version"></p>
       <div class="nda-text" id="copy-text"></div>
@@ -75,7 +76,8 @@
 </main>
 
 <script src="js/theme.js?v=2"></script>
-<script src="js/nda-text.js?v=1"></script>
-<script src="js/nda-admin.js?v=1"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="js/nda-text.js?v=2"></script>
+<script src="js/nda-admin.js?v=2"></script>
 </body>
 </html>

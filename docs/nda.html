@@ -34,6 +34,7 @@
 
   <div id="agreement" hidden>
     <p>Read the agreement below, then sign at the bottom. It takes about 5 minutes. You'll get a signed copy to save.</p>
+    <div class="actions no-print"><button class="btn btn-ghost" type="button" id="blank-pdf">Download the agreement (PDF)</button></div>
     <div class="nda-text" id="nda-text"></div>
 
     <form class="sign-box no-print" id="sign-form" novalidate>
@@ -82,8 +83,9 @@
   </div>
 
   <div id="signed" hidden>
-    <div class="nda-state no-print"><h2>Signed. Thank you!</h2><p>Save a copy for your records. Ervo keeps a copy too.</p>
-      <div class="actions"><button class="btn btn-primary" type="button" id="print-btn">Save as PDF or print</button></div>
+    <div class="nda-state no-print"><h2>Signed. Thank you!</h2><p>Download your signed copy and keep it for your records. Ervo gets a copy too.</p>
+      <div class="actions"><button class="btn btn-primary" type="button" id="signed-pdf">Download your signed copy (PDF)</button><button class="btn btn-ghost" type="button" id="print-btn">Print</button></div>
+      <p class="hint" id="copy-status" aria-live="polite"></p>
     </div>
     <div class="nda-text" id="signed-text"></div>
     <div id="signed-block"></div>
@@ -97,7 +99,8 @@
   </div>
 </footer>
 <script src="js/theme.js?v=2"></script>
-<script src="js/nda-text.js?v=1"></script>
-<script src="js/nda.js?v=1"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="js/nda-text.js?v=2"></script>
+<script src="js/nda.js?v=2"></script>
 </body>
 </html>

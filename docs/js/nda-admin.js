@@ -114,11 +114,26 @@
     if (b.dataset.undo) { await call("/nda/admin/revoke", { email: b.dataset.undo, undo: true }); await load(); }
     if (b.dataset.view) {
       const s = signedBy[b.dataset.view];
+      viewing = s;
+      $("copy-msg").textContent = "";
       $("copy-version").textContent = "Version " + s.version + (s.version !== N.VERSION ? " (the wording on this page is version " + N.VERSION + ")" : "");
       $("copy-text").innerHTML = N.html();
       $("copy-block").innerHTML = N.signedHtml(s, true);
       $("copy").showModal();
     }
+  });
+  let viewing = null;
+  $("copy-pdf").addEventListener("click", () => {
+    if (!viewing || !window.jspdf) return;
+    N.pdf(viewing, true).save(N.pdfName(viewing));
+  });
+  $("copy-email").addEventListener("click", async () => {
+    if (!viewing || !window.jspdf) return;
+    const msg = $("copy-msg");
+    msg.textContent = "Sending…";
+    const data = N.pdf(viewing, true).output("datauristring").split(",")[1];
+    const r = await call("/nda/admin/send-copy", { email: viewing.email, pdf: data, filename: N.pdfName(viewing) });
+    msg.textContent = r.data.ok ? "Sent to your email." : r.data.error === "email_not_set_up" ? "Email isn't set up on the server yet (RESEND_API_KEY)." : "Couldn't send it. Try again.";
   });
   $("copy-close").addEventListener("click", () => $("copy").close());
   $("copy-print").addEventListener("click", () => window.print());
