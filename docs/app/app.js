@@ -221,10 +221,10 @@
     step("code");
   });
 
-  $("code").addEventListener("input", () => { $("code").value = $("code").value.replace(/\D/g, "").slice(0, 6); });
+  $("code").addEventListener("input", () => { $("code").value = $("code").value.replace(/\D/g, "").slice(0, 8); });
   document.querySelector('[data-step="code"]').addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!/^\d{6}$/.test($("code").value)) { $("code-error").textContent = "Enter all 6 digits."; return; }
+    if (!/^\d{6,8}$/.test($("code").value)) { $("code-error").textContent = "Enter the whole code from the email."; return; }
     if (realAuth) {
       let j;
       try { j = await auth("verify", { type: "email", email: contact, token: $("code").value }); } catch (err) { $("code-error").textContent = friendlyAuthError(err); return; }
