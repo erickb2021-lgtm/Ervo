@@ -1,17 +1,17 @@
 {
-  "version": "0.3.5",
+  "version": "0.3.6",
   "notes": [
+    "Four tabs at the bottom: Chat, Ideas, Goals and Files, so the main things are one tap away",
+    "Settings is its own page now, with a Back button and compact grouped rows, instead of a long drop-down",
+    "Goals have their own tab, with an Add a goal button",
+    "A new modern black background in dark mode: a deep slate with a soft glow and a little texture instead of flat black",
+    "Big emoji, like the weather on Ervo Stats and the status icons, show as 3D pictures",
+    "While Ervo writes, you see its picture and name with three bouncing dots, like someone typing. What it's doing still shows at the top",
     "Change how Ervo looks: tap Ervo's picture at the top (or the menu) and pick from 10 looks, like Gamer, Space, Winter or Business",
     "Weather before you leave (Android): pick when you usually head out, and about 20 minutes before, Ervo sends one heads-up only if there's rain, snow, storms, wind, heat or cold",
     "Calorie questions like \"how many calories in a spicy wrap and large fries\" get real numbers for each item and a total, instead of your steps",
     "Product picks always show a picture now, even when the store doesn't share one",
     "Share long answers like meal plans straight to Notes, email or messages. Ervo no longer says it saved a file it can't make",
-    "Thumbs up or down on Ervo's answers. Tell it \"Too long\" or \"Wrong info\" and it learns from that",
-    "When Ervo learns something about you, it says so with an Undo button, and you can turn learning off in Psyche",
-    "\"A few things to know\" explains what Ervo can do and that it can make mistakes, and the menu has How Ervo Works",
-    "Touch and hold an answer for Share and Why This Answer?, or hold a suggestion to stop seeing it",
-    "After an update, Ervo tells you what's new in the chat",
-    "Faster answers: Ervo's reply now appears word by word as it's written, so you see it start in a second or two instead of waiting for the whole thing",
-    "Everyday questions get a quicker, lighter answer; research, shopping and plans still get the full deep look"
+    "Thumbs up or down on Ervo's answers. Tell it \"Too long\" or \"Wrong info\" and it learns from that"
   ]
 }

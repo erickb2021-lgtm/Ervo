@@ -80,34 +80,9 @@
         <span class="chat-name" id="chat-name" hidden></span>
       </span>
     </div>
-    <button class="icon-btn" id="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18.5" cy="12" r="1.9"/></svg>
+    <button class="icon-btn" id="menu-btn" type="button" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </button>
-    <div class="menu" id="menu" role="menu" hidden>
-      <p class="menu-who" id="menu-who"></p>
-      <div class="menu-group">
-        <button type="button" id="open-chats" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/></svg></span>Chats</button>
-        <button type="button" id="open-ideas" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></span>Ideas</button>
-        <button type="button" id="open-psyche" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M8.5 4.5A3.5 3.5 0 0 0 5 8a3.5 3.5 0 0 0-1 6.5A3.5 3.5 0 0 0 8.5 20M15.5 4.5A3.5 3.5 0 0 1 19 8a3.5 3.5 0 0 1 1 6.5 3.5 3.5 0 0 1-4.5 5.5"/></svg></span>Psyche</button>
-        <button type="button" id="open-library" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg></span>Chats &amp; Media</button>
-        <button type="button" id="open-stats" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg></span>Ervo Stats</button>
-      </div>
-      <div class="menu-group">
-        <button type="button" id="open-apps" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7H6a4 4 0 0 0 0 8h3M15 7h3a4 4 0 0 1 0 8h-3M8 11h8"/></svg></span>Connected Apps</button>
-        <button type="button" id="open-greeting" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg></span>Greeting…</button>
-        <button type="button" id="open-leave" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z"/><path d="M9 21l1-2M13 21l1-2"/></svg></span>Weather Before You Leave…</button>
-        <button type="button" id="open-look" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="4"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>Ervo's Look…</button>
-        <button type="button" id="open-wake" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span>Hey Ervo</button>
-      </div>
-      <div class="menu-group">
-        <button type="button" id="open-intro" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.1"/></svg></span>How Ervo Works</button>
-        <button type="button" id="check-update" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v8M8.5 12.5 12 16l3.5-3.5"/></svg></span>Check for Updates</button>
-        <button type="button" id="reset-ervo" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4.5v4h4"/></svg></span>Reset Ervo…</button>
-        <button type="button" id="sign-out" class="danger" role="menuitem"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h3a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-3M10 8l-4 4 4 4M6 12h10"/></svg></span>Sign Out…</button>
-      </div>
-      <p class="menu-ai">Ervo uses AI and can make mistakes. Check important info.</p>
-      <p class="menu-version" id="menu-version">Ervo version 0.3.5 (preview)</p>
-    </div>
   </header>
 
   <div class="thread" id="thread" role="log" aria-live="polite" aria-label="Conversation with Ervo"></div>
@@ -243,14 +218,15 @@
   </div>
 </section>
 
-<!-- 6. Chats & media: photos, links and earlier chats -->
+<!-- 6. Files: photos, links and earlier chats -->
 <section class="screen stats" id="library" aria-labelledby="library-title">
   <header class="stats-header">
     <button class="back" type="button" id="library-back" aria-label="Back to chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <span class="nav-title" aria-hidden="true"></span>
   </header>
   <div class="stats-body">
-    <h1 id="library-title">Chats &amp; media</h1>
+    <h1 id="library-title">Files</h1>
+    <p class="stats-weather">Photos, links and chats you've shared with Ervo.</p>
     <div class="lib-tabs" id="lib-tabs" role="tablist">
       <button type="button" role="tab" data-tab="photos">Photos</button>
       <button type="button" role="tab" data-tab="links">Links</button>
@@ -290,12 +266,51 @@
   <div class="stats-body">
     <h1 id="ideas-title">Ideas</h1>
     <p class="stats-weather" id="ideas-sub">Picked for you. Tap one and Ervo starts on it.</p>
-    <h2>Your goals</h2>
-    <div class="card list" id="goals"></div>
     <div id="ideas-list"></div>
     <button class="pill ghost ideas-refresh" type="button" id="ideas-refresh">New ideas</button>
   </div>
 </section>
+
+<!-- 9. Goals: what you're working toward (from your Psyche) -->
+<section class="screen stats" id="goalpage" aria-labelledby="goals-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="goals-back" aria-label="Back to chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span class="nav-title" aria-hidden="true"></span>
+  </header>
+  <div class="stats-body">
+    <h1 id="goals-title">Goals</h1>
+    <p class="stats-weather">Tap a goal and Ervo plans your next step.</p>
+    <div class="card list" id="goals"></div>
+    <button class="pill ghost ideas-refresh" type="button" id="goal-add">Add a goal</button>
+  </div>
+</section>
+
+<!-- 10. Settings: one page, grouped like the phone's Settings, with a Back button -->
+<section class="screen stats" id="settings" aria-labelledby="settings-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="settings-back" aria-label="Back to chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span class="nav-title" aria-hidden="true"></span>
+  </header>
+  <div class="stats-body">
+    <h1 id="settings-title">Settings</h1>
+    <button class="card set-hero" type="button" id="set-hero" aria-label="Change Ervo's look">
+      <img id="set-owl" src="img/ervo-classic.png" alt="">
+      <span class="txt"><b>Ervo</b><small id="menu-who"></small></span>
+      <span class="set-edit">Look</span>
+    </button>
+    <div id="settings-list"></div>
+    <p class="foot-note menu-ai">Ervo uses AI and can make mistakes. Check important info.</p>
+    <p class="foot-note menu-version" id="menu-version">Ervo version 0.3.6 (preview)</p>
+  </div>
+</section>
+
+<!-- Bottom tabs: Chat, Ideas, Goals, Files -->
+<nav class="tabbar" id="tabbar" aria-label="Main" hidden>
+  <button type="button" id="tab-chat" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/></svg><span>Chat</span></button>
+  <button type="button" id="open-ideas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg><span>Ideas</span></button>
+  <button type="button" id="tab-goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg><span>Goals</span></button>
+  <button type="button" id="open-library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h4l2 2.5h7A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg><span>Files</span></button>
+</nav>
 
 <!-- Chats: the main chat, and side chats that branch off it -->
 <div class="chats-wrap" id="chats-panel" hidden>

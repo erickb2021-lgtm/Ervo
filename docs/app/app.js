@@ -82,7 +82,12 @@
   // ---------- screens ----------
   // How deep each screen sits, so moving in slides from the right and going back slides away
   // to the right, like every iPhone app (Apple: navigation is a stack you push and pop)
-  const DEPTH = { splash: 0, welcome: 0, chat: 0, stats: 1, psyche: 1, ideas: 1, library: 1, activity: 2 };
+  const DEPTH = { splash: 0, welcome: 0, chat: 0, ideas: 0, goalpage: 0, library: 0, settings: 1, stats: 2, psyche: 2, activity: 3 };
+  // The four tabs at the bottom, and which screen each one shows
+  const TAB_OF = { chat: "tab-chat", ideas: "open-ideas", goalpage: "tab-goals", library: "open-library" };
+  // Back goes to where you came from: Settings when you opened it there, else the chat
+  const openedFrom = {};
+  const backTo = (id) => (openedFrom[id] === "settings" ? "settings" : "chat");
   function show(id) {
     const chatWas = $("chat").classList.contains("active");
     if (chatWas && id !== "chat") savedScroll = $("thread").scrollTop;
@@ -96,6 +101,10 @@
       if (d) setTimeout(() => { from.classList.remove("pop-out", "under"); to.classList.remove("push-in", "under"); }, 420);
     }
     document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("active", s.id === id));
+    if (from && from !== to) openedFrom[id] = from.id;
+    $("tabbar").hidden = !TAB_OF[id];
+    document.body.classList.toggle("tabs-on", !!TAB_OF[id]);
+    document.querySelectorAll("#tabbar button").forEach((b) => { if (TAB_OF[id] === b.id) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     if (to && to.classList.contains("stats")) syncTitle(to);
     if (id === "chat" && !chatWas && savedScroll !== null) { const keep = savedScroll; savedScroll = null; requestAnimationFrame(() => { if (!stuck) $("thread").scrollTop = keep; else $("thread").scrollTop = $("thread").scrollHeight; }); }
     syncBars();
@@ -296,6 +305,57 @@
     people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5.5 5.5"/></svg>',
     brain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M8.5 4.5A3.5 3.5 0 0 0 5 8a3.5 3.5 0 0 0-1 6.5A3.5 3.5 0 0 0 8.5 20M15.5 4.5A3.5 3.5 0 0 1 19 8a3.5 3.5 0 0 1 1 6.5 3.5 3.5 0 0 1-4.5 5.5"/></svg>',
   };
+
+  // ---------- Settings page: compact rows grouped like the phone's Settings ----------
+  const SETTINGS = [
+    ["Ervo", [
+      ["open-look", "people", "#7a4be0", "Ervo's Look", "Pick an outfit"],
+      ["open-greeting", "sun", "#ff9f0a", "Greeting", "What Ervo says first"],
+      ["open-wake", "mic", "#30d158", "Hey Ervo", "Hands-free"],
+      ["open-leave", "map", "#0a84ff", "Weather Before You Leave", "A heads-up only on bad-weather days"],
+    ]],
+    ["You", [
+      ["open-psyche", "brain", "#bf5af2", "Psyche", "What Ervo knows about you"],
+      ["open-stats", "stats", "#ff375f", "Ervo Stats", "Steps, upcoming, activity"],
+      ["open-apps", "open", "#5e5ce6", "Connected Apps", "Calendar, Health, Location and more"],
+      ["open-chats", "chat", "#64d2ff", "Chats", "Side chats"],
+    ]],
+    ["About", [
+      ["open-intro", "book", "#8e8e93", "How Ervo Works"],
+      ["check-update", "done", "#34c759", "Check for Updates"],
+    ]],
+    ["", [
+      ["reset-ervo", "undo", "#ff9f0a", "Reset Ervo…"],
+      ["sign-out", "open", "#ff453a", "Sign Out…", "", "danger"],
+    ]],
+  ];
+  (function buildSettings() {
+    const box = $("settings-list");
+    SETTINGS.forEach(([name, rows]) => {
+      if (name) { const hd = document.createElement("h2"); hd.textContent = name; box.append(hd); }
+      const card = document.createElement("div");
+      card.className = "card list compact";
+      rows.forEach(([id, ico, color, label, sub, cls]) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.id = id;
+        b.className = `row compact${cls ? ` ${cls}` : ""}`;
+        const i = document.createElement("span");
+        i.className = `app-ico ${ico}`;
+        i.style.background = color;
+        i.innerHTML = ICON[ico] || ICON.done;
+        const t = document.createElement("span");
+        t.className = "txt";
+        const bb = document.createElement("b");
+        bb.textContent = label;
+        t.append(bb);
+        if (sub) { const s = document.createElement("small"); s.textContent = sub; t.append(s); }
+        b.append(i, t, chevron());
+        card.append(b);
+      });
+      box.append(card);
+    });
+  })();
 
   // Apps Ervo can work with. Allow opens the app (or its sign-in page if you're signed out).
   const CONNECTORS = {
@@ -1955,6 +2015,29 @@
 
   // ---------- status pill: what Ervo is doing right now ----------
   const capFirst = (w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w);
+  // Big emoji show as 3D pictures (Microsoft's Fluent emoji, MIT). Offline, the plain emoji shows instead.
+  const E3D = {
+    "☀️": "Sun", "☁️": "Cloud", "⛅": "Sun behind cloud", "⛈️": "Cloud with lightning and rain", "✅": "Check mark button", "✈️": "Airplane",
+    "✏️": "Pencil", "🌙": "Crescent moon", "🌤️": "Sun behind small cloud", "🌦️": "Sun behind rain cloud", "🌧️": "Cloud with rain",
+    "🌨️": "Cloud with snow", "🌫️": "Fog", "🍳": "Cooking", "🍽️": "Fork and knife with plate", "🎁": "Wrapped gift", "🎵": "Musical note",
+    "💪": "Flexed biceps*", "💭": "Thought balloon", "📅": "Calendar", "📇": "Card index", "📍": "Round pushpin", "📷": "Camera",
+    "🔍": "Magnifying glass tilted left", "🔎": "Magnifying glass tilted right", "🗑️": "Wastebasket", "🗓️": "Spiral calendar", "🛒": "Shopping cart",
+    "🥗": "Green salad", "🧳": "Luggage", "⏰": "Alarm clock", "⏱️": "Stopwatch", "↩️": "Right arrow curving left", "🧠": "Brain",
+    "💡": "Light bulb", "🎯": "Bullseye", "✨": "Sparkles", "🔒": "Locked", "🦉": "Owl", "⚠️": "Warning", "📝": "Memo", "⏳": "Hourglass not done",
+  };
+  function e3d(ch) {
+    const key = String(ch || "").trim();
+    const name = E3D[key] || E3D[key.replace(/\uFE0F/g, "")] || E3D[`${key}\uFE0F`];
+    if (!name) return key;
+    const skin = name.endsWith("*");
+    const n = name.replace(/\*$/, "");
+    const file = n.toLowerCase().replace(/ /g, "_");
+    const src = `https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/${encodeURIComponent(n)}/${skin ? "Default/" : ""}3D/${file}_3d${skin ? "_default" : ""}.png`;
+    return `<img class="e3d" src="${src}" alt="${key}" onerror="this.replaceWith(document.createTextNode(this.alt))">`;
+  }
+  const setIco = (el, ch) => { el.innerHTML = ch ? e3d(ch) : ""; };
+  document.querySelectorAll(".intro-ico").forEach((el) => { el.innerHTML = e3d(el.textContent); });
+
   // An emoji for what Ervo is doing, when the caller didn't pick one
   function statusIcon(w) {
     return /calendar|event|planning it/i.test(w) ? "📅" : /contact/i.test(w) ? "📇" : /remov/i.test(w) ? "🗑️"
@@ -1963,13 +2046,13 @@
   function setStatus(ico, text) {
     text = capFirst(String(text || "").replace(/[….]+$/, ""));
     ico = ico || (text && !/^typing$/i.test(text) ? statusIcon(text) : "");
-    $("status-ico").textContent = ico;
+    setIco($("status-ico"), ico);
     $("status-text").textContent = text;
     $("status").classList.add("busy");
     if (liveTyping && text && !/^typing$/i.test(text)) showTyping(text, ico);
   }
   function idleStatus() {
-    $("status-ico").textContent = "";
+    setIco($("status-ico"), "");
     $("status-text").textContent = account ? PLAN[account.plan].label : "";
     $("status").classList.remove("busy");
   }
@@ -1988,7 +2071,8 @@
   }
   if (window.visualViewport) window.visualViewport.addEventListener("resize", keepPlace);
   // Typing: show the newest messages above the keyboard
-  $("message").addEventListener("focus", () => { setTimeout(() => toBottom(true), 50); setTimeout(() => toBottom(true), 350); });
+  $("message").addEventListener("focus", () => { document.body.classList.add("kbd"); setTimeout(() => toBottom(true), 50); setTimeout(() => toBottom(true), 350); });
+  $("message").addEventListener("blur", () => setTimeout(() => document.body.classList.remove("kbd"), 120));
 
   // While Ervo works: its picture, name and what it's doing ("checking your calendar")
   let liveTyping = null;
@@ -2002,12 +2086,12 @@
     if (words) {
       const w = capFirst(String(words).replace(/[….]+$/, ""));
       const typing = /^typing$/i.test(w);
-      liveTyping.classList.toggle("is-typing", typing);
+      liveTyping.classList.add("is-typing"); // always the dots; the words stay in the status at the top
       if (!typing) {
         // Same words and emoji as the status at the top
         const i = ico || statusIcon(w);
         liveTyping.querySelector("em").textContent = `${i} ${w}`;
-        if ($("status-text").textContent !== w) { $("status-ico").textContent = i; $("status-text").textContent = w; $("status").classList.add("busy"); }
+        if ($("status-text").textContent !== w) { setIco($("status-ico"), i); $("status-text").textContent = w; $("status").classList.add("busy"); }
       } else liveTyping.querySelector("em").textContent = w;
     }
     thread.append(liveTyping); // keep it last
@@ -3595,7 +3679,7 @@
     $("sky-now").hidden = true;
     if (allowed("location")) {
       weatherNow().then((w) => {
-        $("sky-emoji").textContent = w.emoji;
+        setIco($("sky-emoji"), w.emoji);
         $("sky-temp").textContent = `${w.temp}°`;
         $("sky-cond").textContent = `${cap(w.kind)}${w.city ? ` in ${w.city}` : ""}`;
         $("sky-hilo").textContent = `H ${w.hi}°  L ${w.lo}°`;
@@ -3781,14 +3865,16 @@
       box.append(h, c);
     });
   }
-  async function renderIdeas(force) {
-    // Your goals first (from your Psyche)
+  // Goals tab: what you're working toward, from your Psyche
+  function renderGoals() {
     const goals = psyche().facts.filter((f) => f.kind === "goal");
     const gbox = $("goals");
     gbox.innerHTML = "";
     if (!goals.length) gbox.append(empty("Tell Ervo a goal, like \"I want to run a 5K by spring\" or \"save $500 this month\", and it shows up here."));
-    goals.slice().reverse().forEach((f) => gbox.append(ideaRow({ icon: "star", title: f.text, detail: "Tap to plan your next step", prompt: `Help me with my goal: ${f.text}` })));
-
+    goals.slice().reverse().forEach((f) => gbox.append(ideaRow({ icon: "star", title: f.text, detail: "Tap to plan your next step", prompt: `Help me with my goal to ${goalText(f.text).replace(/[.!]+$/, "")}` })));
+  }
+  function openGoals() { renderGoals(); show("goalpage"); }
+  async function renderIdeas(force) {
     const cached = load(IDEAS_KEY);
     const learned = psyche().learned || 0;
     const fresh = cached && cached.day === new Date().toDateString() && learned - (cached.learned || 0) < 5;
@@ -4007,7 +4093,7 @@
     $("stats-body").scrollTop = 0;
     if (scrollToApps) setTimeout(() => $("apps-heading").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }
-  $("stats-back").addEventListener("click", () => show("chat"));
+  $("stats-back").addEventListener("click", () => show(backTo("stats")));
   window.ervoResume = () => {
     if ($("stats").classList.contains("active")) renderStats();
     setTimeout(() => checkForUpdate(false), 1500);
@@ -4021,7 +4107,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.3.5"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.3.6"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -4518,13 +4604,21 @@
   thread.addEventListener("click", (e) => { if (OVERLAY && e.target === thread) closeVoice(); });
 
   // ---------- menu ----------
-  const menu = $("menu");
-  function toggleMenu(open) {
-    menu.hidden = !open;
-    $("menu-btn").setAttribute("aria-expanded", String(open));
-  }
-  $("menu-btn").addEventListener("click", (e) => { e.stopPropagation(); toggleMenu(menu.hidden); });
-  document.addEventListener("click", (e) => { if (!menu.hidden && !menu.contains(e.target)) toggleMenu(false); });
+  const menu = { get hidden() { return !$("settings").classList.contains("active"); } };
+  function openSettings() { $("set-owl").src = lookSrc(); show("settings"); }
+  function toggleMenu(open) { if (open) openSettings(); } // closing is Back
+  $("menu-btn").addEventListener("click", openSettings);
+  $("settings-back").addEventListener("click", () => show("chat"));
+  $("set-hero").addEventListener("click", () => openLook());
+  // Bottom tabs
+  $("tab-chat").addEventListener("click", () => show("chat"));
+  $("tab-goals").addEventListener("click", openGoals);
+  $("goals-back").addEventListener("click", () => show("chat"));
+  $("goal-add").addEventListener("click", () => {
+    show("chat");
+    ervoSays("What's a goal you're working toward? Tell me, like \"run a 5K by spring\" or \"save $500 this month\", and I'll keep it in your Psyche and help you get there.");
+    setTimeout(() => $("message").focus(), 300);
+  });
   $("open-stats").addEventListener("click", () => openStats(false));
   $("open-apps").addEventListener("click", () => openStats(true));
   $("open-greeting").addEventListener("click", openGreeting);
@@ -4534,7 +4628,7 @@
   $("open-psyche").addEventListener("click", openPsyche);
   $("chats-panel").addEventListener("click", (e) => { if (e.target === $("chats-panel")) closeChats(); });
   $("chats-btn").addEventListener("click", openChats);
-  $("psyche-back").addEventListener("click", () => show("chat"));
+  $("psyche-back").addEventListener("click", () => show(backTo("psyche")));
   $("ideas-back").addEventListener("click", () => show("chat"));
   $("ideas-refresh").addEventListener("click", () => renderIdeas(true));
   $("psyche-tell").addEventListener("click", () => { show("chat"); setTimeout(() => $("message").focus(), 100); });
@@ -4588,11 +4682,12 @@
     if (!$("update").hidden) { $("update").hidden = true; return true; }
     if (!$("greet").hidden) { $("greet").hidden = true; return true; }
     if (!voice.hidden) { $("voice-cancel").click(); return true; }
-    if (!menu.hidden) { toggleMenu(false); return true; }
     if ($("activity").classList.contains("active")) { renderStats(); show("stats"); return true; }
-    if ($("stats").classList.contains("active")) { show("chat"); return true; }
+    if ($("stats").classList.contains("active")) { show(backTo("stats")); return true; }
+    if ($("settings").classList.contains("active")) { show("chat"); return true; }
     if (!$("chats-panel").hidden && !docked()) { closeChats(); return true; }
-    if ($("psyche").classList.contains("active") || $("ideas").classList.contains("active")) { show("chat"); return true; }
+    if ($("psyche").classList.contains("active")) { show(backTo("psyche")); return true; }
+    if ($("ideas").classList.contains("active") || $("goalpage").classList.contains("active")) { show("chat"); return true; }
     if (document.querySelector(".photo-view")) { document.querySelector(".photo-view").remove(); return true; }
     if (!$("calpick").hidden) { answerCalendar(null); return true; }
     if ($("library").classList.contains("active")) { show("chat"); return true; }
@@ -4639,6 +4734,7 @@
     const src = lookSrc();
     $("chat-avatar").src = src;
     $("voice-owl").src = src;
+    $("set-owl").src = src;
     if ($("intro-owl")) $("intro-owl").src = src;
     if (liveTyping) liveTyping.querySelector("img").src = src;
   }
@@ -4830,7 +4926,7 @@
     row.className = "learned";
     row.setAttribute("role", "status");
     const txt = document.createElement("span");
-    txt.append("🧠 Added to your Psyche: ");
+    txt.insertAdjacentHTML("beforeend", `${e3d("🧠")} Added to your Psyche: `);
     const b = document.createElement("b");
     b.textContent = listJoin(facts.slice(0, 3).map((f) => f.text)) + (facts.length > 3 ? ` and ${facts.length - 3} more` : "");
     txt.append(b);

@@ -1214,3 +1214,74 @@ html.docked .chats-drawer { border-right: 0.5px solid var(--sep); background: va
 .learned { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 8px 6px; padding: 8px 12px; border-radius: 14px; background: color-mix(in srgb, var(--tint) 10%, transparent); color: var(--text-2); font-size: 0.82rem; max-width: 86%; }
 .learned b { color: var(--text); font-weight: 600; }
 .learned button { border: 0; background: none; color: var(--tint); font: inherit; font-weight: 700; padding: 6px 4px; min-height: 32px; cursor: pointer; }
+
+/* ===== 0.3.6: bottom tabs, a Settings page, a deeper black, 3D emoji, typing dots ===== */
+/* A modern black: not flat #000 but a deep slate, a soft violet glow on one side, a cool blue on the other,
+   and a whisper of grain so big dark areas don't look empty. Soothing at night, still true black for OLED edges. */
+[data-theme="dark"] {
+  --bg: #0b0b10; --group: #0b0b10; --card: #17171e; --surface: #17171e; --surface-2: #23232c;
+  --line: #2c2c35; --sep: rgba(99, 99, 120, 0.42); --pill: #23232c;
+  --glass-bg: rgba(38, 38, 48, 0.62); --glass-solid: #23232c;
+  --bg-art:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    radial-gradient(75% 48% at -5% 42%, rgba(122, 75, 224, 0.2), transparent 62%),
+    radial-gradient(70% 45% at 105% 78%, rgba(10, 132, 255, 0.13), transparent 62%),
+    #0b0b10;
+}
+[data-theme="dark"] #chat { --chat-bg: #0b0b10; --them: #1e1e27; }
+[data-theme="dark"] .screen { background: var(--bg-art); }
+[data-theme="dark"] .splash { background: #0b0b10; }
+
+/* Bottom tabs: Chat, Ideas, Goals, Files */
+:root { --tab-h: calc(58px + env(safe-area-inset-bottom)); }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; grid-template-columns: repeat(4, 1fr); height: var(--tab-h); padding: 4px max(8px, calc((100% - var(--col)) / 2)) env(safe-area-inset-bottom); background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border-top: 0.5px solid var(--glass-line); }
+.tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; color: var(--text-2); font-size: 0.68rem; font-weight: 600; letter-spacing: 0; border-radius: 14px; -webkit-tap-highlight-color: transparent; }
+.tabbar button svg { width: 25px; height: 25px; transition: transform 0.28s var(--ease-ios); }
+.tabbar button[aria-current="page"] { color: var(--tint); }
+.tabbar button[aria-current="page"] svg { transform: translateY(-1px) scale(1.08); }
+.tabbar button:active svg { transform: scale(0.9); }
+body.tabs-on .dock { bottom: var(--tab-h); padding-bottom: 0; }
+body.tabs-on .thread { padding-bottom: calc(var(--dock-h, 110px) + var(--tab-h) + 24px); }
+body.tabs-on .screen.stats .stats-body { padding-bottom: calc(var(--tab-h) + 28px); }
+body.tabs-on #ideas .back, body.tabs-on #goalpage .back, body.tabs-on #library .back { visibility: hidden; }
+/* While you type, the tabs step aside so the keyboard doesn't push everything up */
+body.kbd .tabbar { display: none; }
+body.kbd .dock { bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
+body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
+
+/* Settings page: Ervo at the top, then compact grouped rows */
+.set-hero { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; color: var(--text); margin: 4px 0 2px; padding: 12px 14px; cursor: pointer; }
+.set-hero img { width: 54px; height: 54px; border-radius: 50%; background: #fff; object-fit: cover; flex: none; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15); }
+.set-hero .txt { flex: 1; min-width: 0; }
+.set-hero b { display: block; font-size: var(--fs-body); font-weight: 600; }
+.set-hero small { display: block; color: var(--text-2); font-size: var(--fs-foot); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-edit { color: var(--tint); font-weight: 600; font-size: var(--fs-sub); }
+.set-hero:active { background: var(--fill); }
+#settings .stats-body h2 { margin: 18px 10px 6px; font-size: var(--fs-cap2); font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; }
+#settings .card.list.compact { padding: 0; overflow: hidden; margin-top: 0; }
+#settings .card.list.compact + .card.list.compact { margin-top: 14px; }
+#settings .row.compact { min-height: 46px; padding: 6px 12px 6px 10px; gap: 11px; border-radius: 0; }
+#settings .row.compact + .row.compact { border-top: 0.5px solid var(--sep); }
+#settings .row.compact .app-ico { width: 30px; height: 30px; border-radius: 8px; }
+#settings .row.compact .app-ico svg { width: 17px; height: 17px; }
+#settings .row.compact .txt b { font-size: var(--fs-sub); font-weight: 500; }
+#settings .row.compact .txt small { font-size: var(--fs-cap2); }
+#settings .row.danger .txt b { color: var(--red); }
+#settings .row.compact:active { background: var(--fill); }
+#settings .foot-note { text-align: center; color: var(--text-3); margin: 18px 0 0; }
+#settings .menu-version { margin-top: 2px; }
+.menu { display: none !important; } /* the old drop-down is gone */
+
+/* While Ervo works: its picture and name, then three dots bouncing like someone typing */
+.typing .spin, .typing em { display: none !important; }
+.typing .dots { display: inline-flex !important; align-items: center; gap: 4px; min-height: 1.1em; padding: 2px 1px; }
+.typing .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--text-2); animation: dots 1.25s ease-in-out infinite; }
+.typing .dots i:nth-child(2) { animation-delay: 0.18s; }
+.typing .dots i:nth-child(3) { animation-delay: 0.36s; }
+@keyframes dots { 0%, 60%, 100% { opacity: 0.4; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-5px); } }
+
+/* 3D emoji pictures */
+.e3d { width: 1.3em; height: 1.3em; vertical-align: -0.3em; object-fit: contain; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)); }
+.status-ico .e3d { width: 15px; height: 15px; vertical-align: -3px; }
+.sky-emoji .e3d { width: 50px; height: 50px; vertical-align: middle; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3)); }
+.intro-ico .e3d { width: 30px; height: 30px; }
