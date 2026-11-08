@@ -19,9 +19,17 @@
   const $ = (id) => document.getElementById(id);
 
   // ---------- storage ----------
-  const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
-  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
-  const drop = (k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } };
+  // One email can have both an Ervo Personal and an Ervo for Business. They keep separate chats, Psyche,
+  // activity, settings, usage and team data: Business is stored under a "biz:" prefix. A few things are
+  // shared by both (the sign-in itself, the list of profiles, the theme, update checks, your city).
+  const PROFILES_KEY = "ervo-profiles";
+  const SHARED_KEYS = new Set([ACCOUNT_KEY, PROFILES_KEY, "ervo-session", THEME_KEY, PLACE_KEY, "ervo-seen-version", "ervo-intro", "ervo-update-checked", "ervo-cal-reset-027"]);
+  let NS = (() => { try { const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY)); return a && a.plan === "business" ? "biz:" : ""; } catch (e) { return ""; } })();
+  const setNS = (plan) => { NS = plan === "business" ? "biz:" : ""; };
+  const nsKey = (k) => (NS && !SHARED_KEYS.has(k) ? NS + k : k);
+  const load = (k) => { try { return JSON.parse(localStorage.getItem(nsKey(k))); } catch (e) { return null; } };
+  const save = (k, v) => { try { localStorage.setItem(nsKey(k), JSON.stringify(v)); } catch (e) { /* ignore */ } };
+  const drop = (k) => { try { localStorage.removeItem(nsKey(k)); } catch (e) { /* ignore */ } };
   const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // ---------- theme: always follows the phone's light/dark setting ----------
@@ -221,10 +229,12 @@
       let j;
       try { j = await auth("verify", { type: "email", email: contact, token: $("code").value }); } catch (err) { $("code-error").textContent = friendlyAuthError(err); return; }
       save(SESSION_KEY, { access_token: j.access_token, refresh_token: j.refresh_token, expiresAt: Date.now() + j.expires_in * 1000 });
-      // Coming back? Pick up their name and Personal/Business choice from their account
-      const meta = (j.user && j.user.user_metadata) || {};
-      if (meta.name && PLAN[meta.plan]) {
-        const acc = { plan: meta.plan, name: meta.name, contact, id: j.user.id, createdAt: j.user.created_at };
+      // Coming back? This email may already have the Ervo they picked (Personal or Business); open that one
+      userMeta = (j.user && j.user.user_metadata) || {};
+      const prof = (userMeta.profiles && userMeta.profiles[plan]) || (userMeta.plan === plan && userMeta.name ? { name: userMeta.name } : null);
+      if (prof && prof.name) {
+        const acc = { plan, name: prof.name, contact, id: j.user.id, createdAt: j.user.created_at };
+        setNS(plan);
         save(ACCOUNT_KEY, acc);
         openChat(acc, false);
         return;
@@ -241,14 +251,45 @@
     const acc = { plan, name: v, contact, createdAt: new Date().toISOString() };
     if (realAuth) {
       try {
-        const u = await auth("user", { data: { name: v, plan } }, "PUT", await freshToken());
+        const profiles = Object.assign({}, userMeta.profiles || {}, { [plan]: { name: v } });
+        const u = await auth("user", { data: { name: v, plan, profiles } }, "PUT", await freshToken());
         acc.id = u.id;
+        userMeta = (u && u.user_metadata) || Object.assign({}, userMeta, { profiles });
       } catch (err) { $("name-error").textContent = friendlyAuthError(err); return; }
     }
+    setNS(plan);
     if (plan === "business" && realAuth) { pendingAcc = acc; setTeamRole("owner"); step("team"); return; }
     save(ACCOUNT_KEY, acc);
+    if (switching) { location.reload(); return; }
     openChat(acc, true);
   });
+  let userMeta = {};
+
+  // ---------- one email, two Ervos: switching between Personal and Business ----------
+  let switching = false;
+  function switchProfile() {
+    toggleMenu(false);
+    const to = account.plan === "business" ? "personal" : "business";
+    const prof = load(PROFILES_KEY) || {};
+    prof[account.plan] = Object.assign({}, prof[account.plan] || {}, { plan: account.plan, name: account.name, contact: account.contact, id: account.id, createdAt: account.createdAt });
+    save(PROFILES_KEY, prof);
+    const other = prof[to] || ((userMeta.profiles && userMeta.profiles[to]) ? { plan: to, name: userMeta.profiles[to].name, contact: account.contact, id: account.id } : null);
+    if (other && other.name) {
+      setNS(to);
+      save(ACCOUNT_KEY, other);
+      location.reload(); // start clean in the other Ervo's space
+      return;
+    }
+    if (!realAuth || !session()) { ervoSays(`To add Ervo ${to === "business" ? "for Business" : "Personal"} to this email, sign out and sign in again choosing ${to === "business" ? "Business" : "Personal"}.`); return; }
+    // Same sign-in, new profile: just the name (and for Business, the company)
+    switching = true;
+    contact = account.contact || "";
+    setPlan(to);
+    $("name").value = "";
+    show("welcome");
+    step("name");
+  }
+  $("open-switch").addEventListener("click", switchProfile);
 
   // ---------- Business: run a company, or join one with an employee ID ----------
   let pendingAcc = null;
@@ -286,6 +327,7 @@
     btn.disabled = false;
     pendingAcc = null;
     save(ACCOUNT_KEY, acc);
+    if (switching) { location.reload(); return; }
     openChat(acc, true);
   });
 
@@ -410,6 +452,7 @@
       ["open-company", "home", "#30d158", "My Company", ""],
     ]],
     ["You", [
+      ["open-switch", "undo", "#5e5ce6", "Switch to Ervo for Business", "Same email, separate chats and settings"],
       ["open-psyche", "brain", "#bf5af2", "Psyche", "What Ervo knows about you"],
       ["open-stats", "stats", "#ff375f", "Ervo Stats", "Steps, upcoming, activity"],
       ["open-apps", "open", "#5e5ce6", "Connected Apps", "Calendar, Health, Location and more"],
@@ -1533,7 +1576,7 @@
     return sides().find((c) => c.id === id) || null;
   }
   function storeChat(id, c) {
-    const write = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch (e) { return false; } };
+    const write = (key, val) => { try { localStorage.setItem(nsKey(key), JSON.stringify(val)); return true; } catch (e) { return false; } };
     const slim = (x) => { x.items = x.items.filter((it, i) => it.t !== "photo" || i > x.items.length - 6); };
     if (id === "main") {
       if (!write(CHAT_KEY, c)) { slim(c); write(CHAT_KEY, c); }
@@ -2437,6 +2480,11 @@
 
   function openChat(acc, fresh) {
     account = acc;
+    const prof = load(PROFILES_KEY) || {};
+    prof[acc.plan] = { plan: acc.plan, name: acc.name, contact: acc.contact, id: acc.id, createdAt: acc.createdAt };
+    save(PROFILES_KEY, prof);
+    $("open-switch").querySelector("b").textContent = acc.plan === "business" ? "Switch to Ervo Personal" : "Switch to Ervo for Business";
+    $("open-switch").querySelector("small").textContent = acc.plan === "business" ? "Your own chats, Psyche and settings, kept apart from work" : "Your work Ervo, with its own chats and team";
     const p = PLAN[acc.plan];
     $("chat-avatar").src = lookSrc();
     $("menu-who").textContent = `${acc.name} · Ervo ${acc.plan === "business" ? "for Business" : "Personal"}${acc.team ? ` · ${acc.team.companyName}` : ""}`;
@@ -4339,7 +4387,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.4.0"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.4.1"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -4897,7 +4945,10 @@
   function signOut() {
     buzz("reject");
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
-    [ACCOUNT_KEY, PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, SESSION_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY].forEach(drop);
+    const mine = [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", HIDDEN_CHIPS_KEY, USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY];
+    mine.forEach((k) => { try { localStorage.removeItem(k); localStorage.removeItem(`biz:${k}`); } catch (e) { /* ignore */ } });
+    [ACCOUNT_KEY, PROFILES_KEY, PLACE_KEY, SESSION_KEY, "ervo-intro", "ervo-seen-version"].forEach(drop);
+    setNS("personal");
     account = null;
     ["contact", "code", "name"].forEach((id) => { $(id).value = ""; });
     setPlan("personal");

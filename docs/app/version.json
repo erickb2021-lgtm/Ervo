@@ -1,6 +1,7 @@
 {
-  "version": "0.4.0",
+  "version": "0.4.1",
   "notes": [
+    "One email, two Ervos: the same sign-in can have Ervo Personal and Ervo for Business, each with its own chats, Psyche, activity, settings and notifications. Switch between them in Settings",
     "Real sign-in: Ervo now sends a 6-digit code to your email. Anyone who had a preview account signs in again once",
     "Ervo for Business teams: pick Company or Employee when you sign up. Owners create employee IDs; employees join with the company name and their ID, and nobody else can",
     "Owners get a Team tab: every employee, their office hours, and their chats with Ervo",
@@ -11,7 +12,6 @@
     "Updates can't get stuck anymore: Android checks for a new Ervo a few times a day and shows a notification the moment one is out. Tap it and Ervo updates, even if the app itself won't open",
     "If Ervo ever fails to start, a small dialog offers Update Ervo or Try Again",
     "Fixes the black screen in 0.3.7: the app crashed while starting up",
-    "Ervo Stats is new: your usage today with what's left, milestones you've reached, what's coming up with a busy meter for the next 7 days, and your recent activity",
-    "The sky behind Ervo Stats is alive now: sun or moon, drifting clouds, rain behind glass, falling snow, autumn leaves and a hill that changes with the season"
+    "Ervo Stats is new: your usage today with what's left, milestones you've reached, what's coming up with a busy meter for the next 7 days, and your recent activity"
   ]
 }
