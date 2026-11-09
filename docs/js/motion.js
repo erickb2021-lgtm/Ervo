@@ -117,21 +117,28 @@
     };
     (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(splitHeadings);
 
-    // ---- section reveals: how, choose, compare, apps, closing ----
+    // ---- section reveals ----
     const reveal = (sel, from, stagger) => {
       const els = gsap.utils.toArray(sel).filter(below);
       if (!els.length) return;
       // Back to rest: only the properties this reveal moved, so a tile that is meant to be half see-through stays so.
       const rest = { duration: 0.9, stagger: stagger || 0.1, overwrite: true, clearProps: "transform" + ("opacity" in from ? ",opacity" : "") };
       Object.keys(from).forEach((k) => { if (!k.startsWith("transform")) rest[k] = k === "opacity" || k === "scale" ? 1 : 0; });
+      // While GSAP moves an element, its own CSS transition must not ease the same property a second time.
+      els.forEach((el) => el.classList.add("gs-anim"));
       gsap.set(els, from);
-      ScrollTrigger.batch(els, { start: "top 88%", once: true, onEnter: (batch) => gsap.to(batch, rest) });
+      ScrollTrigger.batch(els, { start: "top 88%", once: true, onEnter: (batch) => gsap.to(batch, { ...rest, onComplete: () => batch.forEach((el) => el.classList.remove("gs-anim")) }) });
     };
     const up = { opacity: 0, y: 34 };
-    reveal("#how .section-head > p, #choose .section-head > p, #compare .section-head > p", { opacity: 0, y: 16 });
+    reveal("#how .section-head > p, #choose .section-head > p, #compare .section-head > p, #learn .section-head > p", { opacity: 0, y: 16 });
     reveal("#choose .plan-card", { opacity: 0, y: 46, rotationX: 9, transformPerspective: 1100, transformOrigin: "50% 100%" }, 0.14);
     reveal("#choose .both, #choose .same-ask", up);
     reveal("#compare .cmp", { opacity: 0, y: 40, scale: 0.975 });
+    reveal("#learn .feature", { opacity: 0, y: 44, rotationX: 10, transformPerspective: 1100, transformOrigin: "50% 100%" }, 0.12);
+    // The words beside each picture rise; the pictures themselves stand at an angle (CSS), so they only fade or rise whole.
+    reveal(gsap.utils.toArray(".split > .reveal").filter((el) => el.classList.length === 1), { opacity: 0, y: 28 });
+    reveal(".phone-stand, .ideas", { opacity: 0, y: 54 });
+    reveal(".split .perm-mock", { opacity: 0 });
     reveal(".apps", { opacity: 0 });
     reveal(".apps .app", { y: 26, scale: 0.78 }, 0.045);
     reveal(".closing .closing-line, .closing .closing-sub", up, 0.12);
@@ -154,6 +161,7 @@
         const glare = document.createElement("i");
         glare.className = "tilt-glare"; glare.setAttribute("aria-hidden", "true");
         card.appendChild(glare);
+        card.classList.add("tilt");
         card.addEventListener("pointerenter", () => gsap.set(card, { transformPerspective: 1000 }));
         const rx = gsap.quickTo(card, "rotationX", { duration: 0.5, ease: "power3.out" });
         const ry = gsap.quickTo(card, "rotationY", { duration: 0.5, ease: "power3.out" });

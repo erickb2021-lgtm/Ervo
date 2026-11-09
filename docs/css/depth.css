@@ -143,3 +143,145 @@ html.lenis, html.lenis body { height: auto; }
 .spot-glow { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.3s ease;
   background: radial-gradient(260px circle at var(--gx, 50%) var(--gy, 50%), var(--spot), transparent 66%); }
 .has-spot:hover > .spot-glow { opacity: 1; }
+
+/* ---------- 5. Depth across the page ---------- */
+/* 5a. More tokens: ambient light, film grain, deeper glass, raised keys */
+:root {
+  --orb-a: rgba(139, 92, 246, 0.16); --orb-b: rgba(255, 160, 120, 0.15);
+  --grain-o: 0.07;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .16 0 0 0 0 .08 0 0 0 0 .31 0 0 0 .9 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --glass-shadow: 0 1px 1px rgba(42, 22, 80, 0.04), 0 8px 16px -8px rgba(42, 22, 80, 0.12), 0 28px 56px -24px rgba(42, 22, 80, 0.24);
+  --glass-shadow-up: 0 2px 2px rgba(42, 22, 80, 0.04), 0 14px 24px -10px rgba(42, 22, 80, 0.16), 0 44px 80px -28px rgba(109, 40, 217, 0.34);
+  --key-top: rgba(255, 255, 255, 0.55); --key-lip: rgba(30, 14, 60, 0.26); --key-drop: rgba(42, 22, 80, 0.34);
+  --btn-lip: rgba(60, 20, 150, 0.55); --btn-drop: rgba(109, 40, 217, 0.5);
+  --device-a: #6a6a72; --device-b: #1b1b1f; --floor: rgba(109, 40, 217, 0.3);
+}
+[data-theme="dark"] {
+  --orb-a: rgba(124, 58, 237, 0.24); --orb-b: rgba(99, 102, 241, 0.2);
+  --grain-o: 0.09;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --glass-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.45), 0 14px 28px -12px rgba(0, 0, 0, 0.85), 0 36px 70px -30px rgba(0, 0, 0, 0.95);
+  --glass-shadow-up: inset 0 -1px 0 rgba(0, 0, 0, 0.45), 0 20px 36px -12px rgba(0, 0, 0, 0.9), 0 0 60px -4px rgba(139, 92, 246, 0.5);
+  --key-top: rgba(255, 255, 255, 0.4); --key-lip: rgba(0, 0, 0, 0.36); --key-drop: rgba(0, 0, 0, 0.8);
+  --btn-lip: rgba(40, 10, 110, 0.75); --btn-drop: rgba(124, 58, 237, 0.6);
+  --device-a: #5c5c66; --device-b: #0c0c10; --floor: rgba(139, 92, 246, 0.5);
+}
+
+/* 5b. Ambient light: each section has a soft orb behind its picture, so the page is never plain ground */
+section.block::after { content: ""; position: absolute; z-index: -1; pointer-events: none; top: 50%; left: 72%; width: 780px; height: 780px; margin: -390px 0 0 -390px; border-radius: 50%;
+  background: radial-gradient(closest-side, var(--orb-a), transparent); }
+section.block.alt::after { left: 28%; background: radial-gradient(closest-side, var(--orb-b), transparent); }
+#learn::after, section.closing::after { left: 50%; width: 1100px; height: 520px; margin: -260px 0 0 -550px; background: radial-gradient(closest-side, var(--orb-a), transparent); }
+/* Film grain over the whole ground, under every section */
+main { position: relative; }
+main::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: var(--grain-o); background-image: var(--grain); background-size: 240px 240px; }
+
+/* 5c. Glass cards rise when the pointer is on them */
+@media (hover: hover) and (pointer: fine) {
+  :root .feature, :root .only, :root .ask-card { transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out); }
+  .feature:hover, .only:hover, .ask-card:hover { transform: translateY(-5px); }
+  :root[data-theme] .feature:hover, :root[data-theme] .only:hover, :root[data-theme] .ask-card:hover { box-shadow: var(--edge-top), var(--glass-shadow-up); }
+}
+/* While a reveal or a tilt is moving a card, CSS must not ease the same property a second time */
+.gs-anim { transition: none !important; }
+.plan-card.tilt { transition: box-shadow 0.2s var(--ease-out); }
+
+/* 5d. The three words: a raised, lit tile above each one */
+.feature { display: block; padding: 26px 26px 28px; }
+.feature .ico, :root[data-theme] .feature .ico { width: 58px; height: 58px; margin: 0 0 20px; border-radius: 18px; color: #fff;
+  background: linear-gradient(160deg, var(--t1, #b197fc), var(--t2, #6d28d9));
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.5), inset 0 -4px 0 rgba(30, 8, 80, 0.35), 0 3px 0 rgba(30, 8, 80, 0.3), 0 16px 24px -8px color-mix(in srgb, var(--t2, #6d28d9) 70%, transparent);
+  transform: perspective(420px) rotateX(10deg) rotateY(-14deg); transition: transform 0.45s var(--ease-out); }
+.feature .ico svg { width: 28px; height: 28px; filter: drop-shadow(0 2px 2px rgba(30, 8, 80, 0.45)); }
+.feature:nth-child(2) .ico { --t1: #d8a4ff; --t2: #9333ea; }
+.feature:nth-child(3) .ico { --t1: #a5b4fc; --t2: #4f46e5; }
+.feature:hover .ico { transform: perspective(420px) translateY(-4px); }
+.feature h3 { margin: 0 0 6px; }
+
+/* 5e. App tiles are raised keys on a board that leans back */
+.app, .app.light { box-shadow: inset 0 1.5px 0 var(--key-top), inset 0 -4px 0 var(--key-lip), 0 2px 0 var(--key-lip), 0 14px 20px -8px var(--key-drop); }
+.app.blur, .app.fade { box-shadow: none; }
+@media (min-width: 861px) {
+  :root .apps { transform: perspective(1300px) rotateX(24deg) rotateY(16deg) rotateZ(-5deg); transform-style: preserve-3d; }
+  .app:not(.blur) { translate: 0 0 22px; transition: translate 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out); }
+  .app:not(.blur):hover { transform: none; translate: 0 0 46px; }
+}
+
+/* 5f. The phone, the permissions screen and the idea cards stand in the room at an angle, and turn to face you */
+.phone-stand { position: relative; justify-self: center; display: grid; justify-items: center; width: 100%; }
+.phone-stand::after { content: ""; position: absolute; z-index: -1; left: 50%; bottom: 14px; width: 330px; max-width: 90%; height: 60px; margin-left: -165px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, var(--floor), transparent); filter: blur(6px); }
+@media (min-width: 861px) {
+  :root .phone-stand .phone { transform: perspective(1500px) rotateY(-18deg) rotateX(7deg) rotateZ(1.5deg); transition: transform 0.7s var(--ease-out), border-radius 0.3s ease; }
+  :root[data-theme] .phone-stand .phone { box-shadow: 0 0 0 1px var(--device-b), inset 0 0 0 3px #111113,
+    1px 0 0 var(--device-a), 2px 1px 0 var(--device-a), 4px 1px 0 #3a3a42, 6px 2px 0 #2a2a30, 8px 3px 0 var(--device-b),
+    34px 46px 70px -24px rgba(0, 0, 0, 0.55), 0 0 90px -10px var(--floor); }
+  :root .phone-stand:hover .phone { transform: perspective(1500px) rotateY(-5deg) rotateX(2deg); }
+
+  :root .split .perm-mock { transform: perspective(1500px) rotateY(-13deg) rotateX(5deg); transition: transform 0.6s var(--ease-out); }
+  :root .split .perm-mock:hover, :root .split .perm-mock:focus-within { transform: perspective(1500px); }
+
+  .ideas { perspective: 1500px; }
+  :root .ideas .ideas-card { transform: rotateY(14deg) rotateX(4deg) translateZ(34px); transition: transform 0.6s var(--ease-out); }
+  :root .ideas .ideas-card.goals { transform: rotateY(14deg) rotateX(4deg) translateZ(-30px); }
+  :root .ideas:hover .ideas-card, :root .ideas:focus-within .ideas-card { transform: translateZ(0); }
+}
+
+/* 5g. The main button is a real key: a lit top, a lip underneath, and it goes down when pressed */
+:root[data-theme] .btn-primary, :root[data-theme] .ct-send {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36), inset 0 -2px 0 rgba(40, 10, 110, 0.3), 0 2px 0 var(--btn-lip), 0 12px 24px -8px var(--btn-drop); }
+:root[data-theme] .btn-primary:hover, :root[data-theme] .ct-send:hover {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), inset 0 -2px 0 rgba(40, 10, 110, 0.3), 0 3px 0 var(--btn-lip), 0 18px 30px -8px var(--btn-drop); }
+:root[data-theme] .btn-primary:active, :root[data-theme] .ct-send:active {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(40, 10, 110, 0.3), 0 0 0 var(--btn-lip), 0 6px 14px -8px var(--btn-drop); }
+
+/* 5h. The demo screen and the closing line float above the ground */
+:root:not([data-theme="dark"]) .stage { box-shadow: 0 0 0 1px rgba(42, 22, 80, 0.1), var(--lift-3); }
+[data-theme="dark"] .stage { box-shadow: 0 0 0 1px rgba(160, 120, 255, 0.2), var(--lift-3); }
+:root:not([data-theme="dark"]) .statement.closing-line { box-shadow: var(--edge-top), 0 0 0 1px rgba(109, 40, 217, 0.1), var(--lift-2); }
+[data-theme="dark"] .statement.closing-line { box-shadow: var(--edge-top), 0 0 0 1px var(--glass-edge), var(--lift-2); }
+.statement .inline-chip, .statement .badge-icon { filter: drop-shadow(0 8px 10px rgba(20, 8, 50, 0.3)); }
+html.motion .statement .inline-chip, html.motion .statement .badge-icon { animation: chip-bob 5.2s ease-in-out infinite; }
+html.motion .statement .badge-icon { animation-delay: -1.7s; }
+html.motion .statement .badge-icon ~ .badge-icon { animation-delay: -3.4s; }
+@keyframes chip-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
+
+/* 5i. Phones and tablets: lighter effects, nothing leans */
+@media (max-width: 860px) {
+  section.block::after, #learn::after, section.closing::after { width: 440px; height: 440px; margin: -220px 0 0 -220px; left: 50%; }
+  main::before { display: none; }
+  .feature .ico, :root[data-theme] .feature .ico { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html .statement .inline-chip, html .statement .badge-icon { animation: none; }
+}
+
+/* ---------- 6. Contact, Privacy and Terms: the same room, quieter ---------- */
+.phone-stand .stage-note { margin-top: 26px; }
+/* A soft light in the corner and the film grain stay put while the page scrolls */
+main.doc { overflow-x: visible; }
+main.doc::before { position: fixed; z-index: -1; }
+main.doc::after { content: ""; position: fixed; z-index: -1; pointer-events: none; top: -280px; right: -240px; width: 920px; height: 920px; border-radius: 50%;
+  background: radial-gradient(closest-side, var(--orb-a), transparent); }
+/* Contact cards: a raised icon tile, and the card lifts under the pointer */
+:root .cc-ico { background: linear-gradient(160deg, var(--tile-a), var(--tile-b));
+  box-shadow: inset 0 1.5px 0 var(--key-top), inset 0 -3px 0 var(--key-lip), 0 2px 0 var(--key-lip), 0 14px 20px -8px var(--key-drop);
+  transform: perspective(420px) rotateX(10deg) rotateY(-14deg); transition: transform 0.45s var(--ease-out); }
+.contact-card:hover .cc-ico { transform: perspective(420px) translateY(-3px); }
+@media (hover: hover) and (pointer: fine) {
+  :root .contact-doc .contact-card { transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out); }
+  :root .contact-doc .contact-card:hover { transform: translateY(-5px); }
+  :root[data-theme] .contact-doc .contact-card:hover { box-shadow: var(--edge-top), var(--glass-shadow-up); }
+}
+/* The founder's picture stands at a slight angle, like a framed photo, and turns to face you */
+@media (min-width: 861px) {
+  .contact-doc .founder { overflow: visible; }
+  .contact-doc .founder::after { overflow: hidden; }
+  :root .contact-doc .founder .photo { transform: perspective(900px) rotateY(11deg) rotateX(3deg); transition: transform 0.6s var(--ease-out);
+    box-shadow: -1px 0 0 var(--device-a), -3px 1px 0 var(--device-b), -22px 30px 50px -22px rgba(0, 0, 0, 0.5), 0 0 60px -10px var(--floor); }
+  :root .contact-doc .founder:hover .photo { transform: perspective(900px); }
+}
+@media (max-width: 860px) {
+  main.doc::after { width: 460px; height: 460px; top: -160px; right: -160px; }
+  :root .cc-ico { transform: none; }
+}
