@@ -1,18 +1,15 @@
 {
-  "version": "0.5.7",
+  "version": "0.5.8",
   "notes": [
-    "Ervo picks the right brain for each message: quick answers on a fast model, research and health questions on a deeper one with web search, long documents written in full",
-    "Ervo draws pictures: ask for a drawing, logo or wallpaper, then tap Save. It won't draw real people or anything explicit or violent",
-    "Usage is counted by Ervo's server: chats a day, research and pictures a month. Ervo Stats shows what's left, and a friendly note with See plans appears at a limit",
-    "Plans: Free, Plus ($9.99) and Pro ($19.99), with Business Starter and Growth. Upgrading opens with the app stores",
-    "Order cards say where their status comes from (what you told Ervo, your order email, or the carrier), and nothing sends you out to the store anymore",
-    "Paste an Amazon order number or any tracking number and Ervo saves a card to Files; the phone reminds you the day before and the day it should arrive",
-    "Order tracking asks once, inside Ervo, under Connected Apps",
-    "Replies start appearing within a second or two as Ervo writes"
+    "Switching to Business, or adding a company, can be cancelled: Back to Ervo Personal on the name and company steps, and the phone's back button returns to your chat",
+    "Plans has its own row in Settings: Free, Plus and Pro, with what each one includes",
+    "Ervo's Look has its own icon in Settings, and the Add a business button is easier to read",
+    "The password-reset link: when it opens in your browser, one tap hands it to the Ervo app",
+    "Ervo's own name is reserved in every form; your business name must be your own"
   ],
   "highlights": [
-    "Ask Ervo to draw a picture, then tap Save",
-    "Ervo Stats shows chats, research and pictures left",
-    "Order cards are honest about what's live, and remind you when it should arrive"
+    "Cancel a switch to Business and go straight back to your chat",
+    "Plans now has its own row in Settings",
+    "Password reset opens in the Ervo app"
   ]
 }
