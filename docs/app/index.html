@@ -259,7 +259,7 @@
         <div class="steps-num">
           <span class="label"><i class="dot usage"></i>Today</span>
           <b id="usage-today">0</b>
-          <small id="usage-of">of 150 messages</small>
+          <small id="usage-of">chats left today</small>
         </div>
       </div>
       <div class="mini-stats" id="usage-extra"></div>
@@ -385,9 +385,22 @@
     </button>
     <div id="settings-list"></div>
     <p class="foot-note menu-ai">Ervo uses AI and can make mistakes. Check important info.</p>
-    <p class="foot-note menu-version" id="menu-version">Ervo version 0.5.6 (preview)</p>
+    <p class="foot-note menu-version" id="menu-version">Ervo version 0.5.7 (preview)</p>
   </div>
 </section>
+
+<!-- Plans: what each one includes (payments come later) -->
+<div class="sheet-wrap" id="plans" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="plans-title">
+    <h2 id="plans-title">Plans</h2>
+    <p class="muted">Chats are everyday messages. Research is when Ervo searches the web or looks something up for you.</p>
+    <div class="card list" id="plans-list"></div>
+    <p class="perm-note">Upgrading isn't open yet. It's coming with the app stores, and your limits reset on their own in the meantime.</p>
+    <div class="sheet-actions">
+      <button class="pill" type="button" id="plans-done">Done</button>
+    </div>
+  </div>
+</div>
 
 <!-- Calendar pop-up: a month at a glance, and everything on the day you tap -->
 <div class="sheet-wrap" id="calsheet" hidden>

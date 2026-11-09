@@ -27,7 +27,8 @@
   const KEEP_KEY = "ervo-keep"; // stay signed in (default on)
   const BIO_KEY = "ervo-bio"; // unlock with fingerprint or face
   const LEFT_KEY = "ervo-left"; // the app was put away while "keep me logged in" was off
-  const SHARED_KEYS = new Set([ACCOUNT_KEY, PROFILES_KEY, ICON_PROFILE_KEY, KEEP_KEY, BIO_KEY, LEFT_KEY, "ervo-session", THEME_KEY, PLACE_KEY, "ervo-seen-version", "ervo-intro", "ervo-update-checked", "ervo-cal-reset-027"]);
+  const DEVICE_KEY = "ervo-device";
+  const SHARED_KEYS = new Set([ACCOUNT_KEY, PROFILES_KEY, ICON_PROFILE_KEY, KEEP_KEY, BIO_KEY, LEFT_KEY, DEVICE_KEY, "ervo-session", THEME_KEY, PLACE_KEY, "ervo-seen-version", "ervo-intro", "ervo-update-checked", "ervo-cal-reset-027"]);
   // Business data lives per company: "biz:<companyId>:", or "biz:" before a company is set up
   const nsFor = (plan, companyId) => (plan === "business" ? (companyId ? `biz:${companyId}:` : "biz:") : "");
   let NS = (() => { try { const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY)); return a ? nsFor(a.plan, a.team && a.team.companyId) : ""; } catch (e) { return ""; } })();
@@ -2978,6 +2979,7 @@
           plan: account.plan,
           name: prefs().nickname || account.name,
           team: teamForAI(),
+          deviceId: deviceId(),
           messages: history.slice(-16),
           psyche: psycheForServer(),
           memory: memory(),
@@ -3173,6 +3175,10 @@
     };
     const result = askServer(extra, extra ? null : onText).then((j) => {
       // Learn first, so "use emojis" already shows in this reply
+      if (j.usage) save(SERVER_USAGE_KEY, Object.assign({ at: new Date().toISOString() }, j.usage));
+      if (j.limit) {
+        return { text: plainText(j.reply), acts: [{ label: "See plans", icon: "star", onClick: openPlans }], limit: j.limit };
+      }
       // Learning can be turned off in Psyche (guideline 17); asked-for style changes ("use emojis") still apply
       const learning = prefs().learn !== false;
       const before = new Set(psyche().facts.map((f) => f.id));
@@ -4379,17 +4385,50 @@
     while (u.days[dayKeyOf(d)]) { n++; d = addDays(d, -1); }
     return n;
   }
+  const SERVER_USAGE_KEY = "ervo-usage-server";
+  const PLAN_NAMES = { free: "Free", plus: "Plus", pro: "Pro", starter: "Business Starter", growth: "Business Growth", owner: "Owner" };
   function renderUsage() {
     const u = usage();
+    const sv = load(SERVER_USAGE_KEY);
+    const week = Object.entries(u.days).filter(([d]) => new Date(`${d}T12:00`) > addDays(new Date(), -7)).reduce((a, [, n]) => a + n, 0);
+    if (sv && sv.chatsLimit) {
+      // Numbers from the server (the ones that count)
+      const stale = sv.resetsAt && new Date(sv.resetsAt) < new Date();
+      const left = stale ? sv.chatsLimit : sv.chatsLeft;
+      const rLeft = stale && sv.chatsPer === "month" ? sv.researchLimit : sv.researchLeft;
+      $("usage-today").textContent = left.toLocaleString();
+      $("usage-of").textContent = `chats left ${sv.chatsPer === "day" ? "today" : "this month"} · ${PLAN_NAMES[sv.plan] || sv.plan}`;
+      $("usage-ring").style.strokeDashoffset = String(314.16 * (1 - Math.min(left / sv.chatsLimit, 1)));
+      $("usage-extra").innerHTML = `<div><small>Research left this month</small><b>${rLeft.toLocaleString()}</b></div><div><small>Day streak</small><b>${streakDays()} 🔥</b></div>`;
+      $("usage-note").textContent = `${sv.chatsLimit.toLocaleString()} chats ${sv.chatsPer === "day" ? "a day" : "a month"} and ${sv.researchLimit.toLocaleString()} research questions a month on ${PLAN_NAMES[sv.plan] || sv.plan}. Research is when Ervo searches the web or looks things up.`;
+      return;
+    }
     const limit = DAILY[(account || { plan: "personal" }).plan] || DAILY.personal;
     const today = u.days[dayKeyOf()] || 0;
     const left = Math.max(0, limit - today);
-    $("usage-today").textContent = today.toLocaleString();
-    $("usage-of").textContent = `of ${limit.toLocaleString()} messages`;
-    $("usage-ring").style.strokeDashoffset = String(314.16 * (1 - Math.min(today / limit, 1)));
-    const week = Object.entries(u.days).filter(([d]) => new Date(`${d}T12:00`) > addDays(new Date(), -7)).reduce((a, [, n]) => a + n, 0);
+    $("usage-today").textContent = left.toLocaleString();
+    $("usage-of").textContent = "chats left today";
+    $("usage-ring").style.strokeDashoffset = String(314.16 * (1 - Math.min(left / limit, 1)));
     $("usage-extra").innerHTML = `<div><small>This week</small><b>${week.toLocaleString()}</b></div><div><small>Day streak</small><b>${streakDays()} 🔥</b></div>`;
-    $("usage-note").textContent = left ? `${left.toLocaleString()} left today. Resets at midnight.` : "You've used today's messages. More at midnight.";
+    $("usage-note").textContent = "Your plan's exact numbers show after your next chat.";
+  }
+  // Plans: what each one gives (no payments yet; they arrive with Google Play Billing and Stripe)
+  function openPlans() {
+    const biz = account && account.plan === "business";
+    const rows = biz
+      ? [["Business Starter", "1,000 chats and 300 research a month for the whole team", "Current"], ["Business Growth", "5,000 chats and 1,500 research a month", "Coming soon"]]
+      : [["Free", "10 chats a day, 3 research a month", (load(SERVER_USAGE_KEY) || {}).plan === "free" ? "Current" : ""], ["Plus", "50 chats a day, 15 research a month", "Coming soon"], ["Pro", "100 chats a day, 40 research a month", "Coming soon"]];
+    const box = $("plans-list");
+    box.innerHTML = "";
+    rows.forEach(([name, sub, side]) => { const r = row("star", name, sub, side); if (side === "Current") r.classList.add("current"); box.append(r); });
+    $("plans").hidden = false;
+  }
+  $("plans-done").addEventListener("click", () => { $("plans").hidden = true; });
+  $("plans").addEventListener("click", (e) => { if (e.target === $("plans")) $("plans").hidden = true; });
+  function deviceId() {
+    let id = load(DEVICE_KEY);
+    if (!id) { id = `dv${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`; save(DEVICE_KEY, id); }
+    return id;
   }
 
   // ----- Milestones: little wins, and Ervo says so in the chat when you reach one -----
@@ -4882,7 +4921,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.6"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.7"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -5510,6 +5549,7 @@
     if ($("teamchat").classList.contains("active")) { show("team"); return true; }
     if (!$("newid").hidden) { $("newid").hidden = true; return true; }
     if (!$("calsheet").hidden) { $("calsheet").hidden = true; return true; }
+    if (!$("plans").hidden) { $("plans").hidden = true; return true; }
     if (!$("hours").hidden) { $("hours").hidden = true; return true; }
     if (!$("company").hidden) { $("company").hidden = true; return true; }
     if ($("ideas").classList.contains("active") || $("goalpage").classList.contains("active") || $("team").classList.contains("active")) { show("chat"); return true; }
@@ -5881,7 +5921,7 @@
   function teamForAI() {
     const t = account && account.team;
     if (!t) return undefined;
-    return { company: t.companyName, location: t.location, verified: t.verified, role: t.role, myName: t.myName, hours: t.hours, members: t.members.filter((m) => m.id !== t.memberId).map((m) => m.name), peerMessages: t.peer };
+    return { companyId: t.companyId, company: t.companyName, location: t.location, verified: t.verified, role: t.role, myName: t.myName, hours: t.hours, members: t.members.filter((m) => m.id !== t.memberId).map((m) => m.name), peerMessages: t.peer };
   }
   // Fresh team picture from the server (and the first place a returning Business user is sent to pick Company or Employee)
   async function syncTeam() {

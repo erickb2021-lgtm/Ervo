@@ -44,9 +44,9 @@
   }
 
   // Music: plays in sync with the timeline; silent if assets/music.mp3 is missing
-  // Every visit starts quiet, at 4%, and fades in, so nobody gets blasted. Changes last
+  // Every visit starts at 10%, so it's audible without blasting anyone. Changes last
   // until the page is closed or reloaded (nothing is saved between visits).
-  const START_VOLUME = 4;
+  const START_VOLUME = 10;
   const toVolume = (v) => v / 100;
   vol.value = START_VOLUME;
   music.volume = toVolume(START_VOLUME);
@@ -140,16 +140,9 @@
     stage.classList.remove("paused");
     toggle.setAttribute("aria-label", "Pause");
     syncMusic(true);
-    // Fade the music in over about a second instead of starting at full level
-    const target = toVolume(vol.value);
-    music.volume = 0;
+    // Play right away at the slider's level (10% to start), no fade from silence
+    if (total - elapsed > 1500) music.volume = toVolume(vol.value);
     music.play().catch(() => {});
-    const t0 = performance.now();
-    (function fade(now) {
-      const k = Math.min(1, (now - t0) / 1200);
-      music.volume = target * k;
-      if (k < 1 && playing) requestAnimationFrame(fade);
-    })(t0);
     last = performance.now();
     requestAnimationFrame(tick);
   }
@@ -178,14 +171,47 @@
     playing ? pause() : play();
   });
 
-  bar.addEventListener("click", (e) => {
+  // Scrub: press and hold on the bar, then drag left to rewind or right to skip ahead.
+  // The picture follows the finger or mouse live; the music jumps to the spot on release.
+  let scrubbing = false, wasPlaying = false;
+  const msAt = (x) => {
     const r = bar.getBoundingClientRect();
-    seek(((e.clientX - r.left) / r.width) * total);
+    if (!r.width) return elapsed;
+    return Math.max(0, Math.min(1, (x - r.left) / r.width)) * total;
+  };
+  function scrubTo(x) {
+    elapsed = Math.max(0, Math.min(total - 1, msAt(x)));
+    current = -1;
+    render();
+  }
+  bar.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    scrubbing = true;
+    wasPlaying = playing;
+    if (playing) pause();
+    bar.setPointerCapture(e.pointerId);
+    player.classList.add("scrubbing");
+    scrubTo(e.clientX);
   });
+  bar.addEventListener("pointermove", (e) => { if (scrubbing) scrubTo(e.clientX); });
+  function endScrub(e) {
+    if (!scrubbing) return;
+    scrubbing = false;
+    player.classList.remove("scrubbing");
+    if (e.type === "pointerup") seek(msAt(e.clientX));
+    else seek(elapsed);
+    if (wasPlaying) play();
+  }
+  bar.addEventListener("pointerup", endScrub);
+  bar.addEventListener("pointercancel", endScrub);
+  bar.addEventListener("lostpointercapture", endScrub);
   bar.addEventListener("keydown", (e) => {
     const i = sceneAt(elapsed);
     if (e.key === "ArrowRight") seek(starts[Math.min(scenes.length - 1, i + 1)]);
     else if (e.key === "ArrowLeft") seek(starts[Math.max(0, i - 1)]);
+    else if (e.key === "Home") seek(0);
+    else if (e.key === "End") seek(total - 1);
     else return;
     e.preventDefault();
   });

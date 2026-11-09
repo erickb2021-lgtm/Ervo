@@ -1,6 +1,8 @@
 {
-  "version": "0.5.6",
+  "version": "0.5.7",
   "notes": [
+    "Usage is counted by Ervo's server now: chats per day and research per month (research is when Ervo searches the web or looks something up). Ervo Stats shows what's left, and a friendly note with a See plans button appears at the limit",
+    "Everyday chats run on a faster model; research, shopping, plans and photos keep the deeper one",
     "Passwords: sign in with email and password, sign up with a confirmed password, and reset it from an email link that opens Ervo. Three wrong tries and Ervo points you to Forgot password",
     "Keep me logged in (on by default) and Unlock with fingerprint or face, in Settings. Password fields work with Samsung Pass, Google and iCloud Keychain",
     "The company name Ervo is reserved",
@@ -10,13 +12,11 @@
     "Ervo for Business starts by learning the company: what it does, customers, products, hours, policies, tools, team",
     "Hold your own message for Copy, Send again or Edit",
     "Ervo turns down harmful or illegal requests in one calm line and never shares another company's information",
-    "Connected Apps is its own page, out of Ervo Stats; Settings lost the Greeting and Weather rows",
-    "The greeting is just \"Hi Erick, what can I help you with today?\"; tell Ervo \"call me …\" to change the name",
-    "Android: when you close Ervo, one short weather line (temperature and sky), with a brief caution only for storms, snow, rain, very hot, very cold or strong wind; at most every 3 hours, never at night"
+    "Connected Apps is its own page, out of Ervo Stats; Settings lost the Greeting and Weather rows"
   ],
   "highlights": [
-    "Sign in with a password; Sign up and Forgot password are built in",
-    "Keep me logged in, and unlock with fingerprint or face on Android",
-    "Run several businesses and switch between them"
+    "Ervo Stats shows your chats and research left, counted by Ervo",
+    "Everyday chats answer faster",
+    "A Plans page explains Free, Plus and Pro"
   ]
 }
