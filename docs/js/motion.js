@@ -131,7 +131,7 @@
     reveal("#how .section-head > p, #choose .section-head > p, #compare .section-head > p, #learn .section-head > p", { opacity: 0, y: 16 });
     reveal("#choose .plan-card", { opacity: 0, y: 46, rotationX: 9, transformPerspective: 1100, transformOrigin: "50% 100%" }, 0.14);
     reveal("#choose .both, #choose .same-ask", up);
-    reveal("#compare .cmp", { opacity: 0, y: 40, scale: 0.975 });
+    reveal("#compare .cmp", { opacity: 0, y: 40 });
     reveal("#learn .feature", { opacity: 0, y: 44, rotationX: 10, transformPerspective: 1100, transformOrigin: "50% 100%" }, 0.12);
     // The words beside each picture rise; the pictures themselves stand at an angle (CSS), so they only fade or rise whole.
     reveal(gsap.utils.toArray(".split > .reveal").filter((el) => el.classList.length === 1), { opacity: 0, y: 28 });

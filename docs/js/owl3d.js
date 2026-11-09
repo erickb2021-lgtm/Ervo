@@ -81,7 +81,7 @@ function furMaterial(length, density) {
         "  if (vShell > tall || d > 1.25 * pow(1.0 - vShell / tall, 0.55)) discard;",
         "}",
       ].join("\n"))
-      .replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb *= mix(0.66, 1.1, pow(vShell, 0.7));");
+      .replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb *= mix(0.72, 1.05, pow(vShell, 0.7));");
   };
   return m;
 }
@@ -89,16 +89,16 @@ function furMaterial(length, density) {
 function buildOwl() {
   const C = (hex) => new THREE.Color(hex);
   const K = {
-    body: C(0x9552c2), dark: C(0x7c3fae), inner: C(0x5a2a8c), face: C(0xfff3f8), belly: C(0xbf9be6), scallop: C(0xdcc3f6),
-    blush: C(0xff8fb4), feet: C(0xffae1c),
+    body: C(0x7b3fb4), dark: C(0x6a34a0), inner: C(0x4e2380), face: C(0xfff1f7), belly: C(0xb596e2), scallop: C(0xc6aaee),
+    blush: C(0xff9dbb), feet: C(0xffb41c),
   };
-  const fur = furMaterial(0.05, 44);
+  const fur = furMaterial(0.032, 60);
   const M = {
     fur,
     eye: new THREE.MeshPhysicalMaterial({ color: 0x120820, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 0.55 }),
-    iris: new THREE.MeshStandardMaterial({ color: 0x4a2a7c, roughness: 0.5 }),
+    iris: new THREE.MeshStandardMaterial({ color: 0x3a1f66, roughness: 0.45 }),
     glint: new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    beak: new THREE.MeshPhysicalMaterial({ color: 0xff9a0a, roughness: 0.5, clearcoat: 0.2, clearcoatRoughness: 0.5, envMapIntensity: 0.5 }),
+    beak: new THREE.MeshPhysicalMaterial({ color: 0xffb01a, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.4, envMapIntensity: 0.6 }),
   };
   const sphere = new THREE.SphereGeometry(1, 96, 64);
   const midSphere = new THREE.SphereGeometry(1, 40, 28);
@@ -174,7 +174,7 @@ function buildOwl() {
     xs.forEach((x) => {
       const { p, n } = onSurface(bodyR, [x, y, 1]);
       const q = new THREE.Quaternion().setFromUnitVectors(Z, n);
-      furPart(body, lowSphere, matrix([p.x, p.y, p.z], [0.235, 0.2, 0.08], null, q), (v, o) => { o.c.copy(K.scallop); o.f = 0.55; });
+      furPart(body, lowSphere, matrix([p.x, p.y, p.z], [0.235, 0.2, 0.08], null, q), (v, o) => { o.c.copy(K.scallop); o.f = 0.5; });
     });
   });
   // Wings, tail
@@ -210,13 +210,13 @@ function buildOwl() {
     let face = 0, nearEye = 0, blush = 0;
     if (v.z > 0) {
       const ax = Math.abs(ux);
-      face = 1 - smooth(0.93, 1.05, Math.hypot((ax - 0.36) / 0.53, (uy + 0.02) / 0.62));
+      face = 1 - smooth(0.94, 1.02, Math.hypot((ax - 0.43) / 0.47, (uy + 0.03) / 0.6));
       nearEye = 1 - smooth(0.26, 0.4, Math.hypot(ax - eyeAt[0], uy - eyeAt[1]));
-      blush = 1 - smooth(0.3, 1.0, Math.hypot((ax - 0.66) / 0.2, (uy + 0.34) / 0.13));
+      blush = 1 - smooth(0.3, 1.0, Math.hypot((ax - 0.68) / 0.19, (uy + 0.33) / 0.12));
     }
     o.c.copy(K.body).lerp(K.face, face).lerp(K.blush, blush * 0.8 * face);
     o.c.multiplyScalar(1 - 0.22 * smooth(-0.55, -0.95, v.y));
-    o.f = 1 - 0.35 * face - 0.45 * nearEye;
+    o.f = 1 - 0.62 * face - 0.3 * nearEye;
   });
   // Ears: a big rounded point with a darker inside, and a smaller tuft beside it
   [-1, 1].forEach((side) => {
@@ -252,8 +252,8 @@ function buildOwl() {
   const bk = onSurface(headR, [0, -0.19, 1]);
   beak.position.copy(bk.p).addScaledVector(bk.n, 0.05);
   beak.quaternion.setFromUnitVectors(Y, new THREE.Vector3(0, -0.8, 0.6).normalize());
-  plain(beak, new THREE.ConeGeometry(0.17, 0.32, 28), M.beak, [0, 0.03, 0], [1, 1, 0.8]);
-  plain(beak, lowSphere, M.beak, [0, -0.13, 0], [0.17, 0.08, 0.136]);
+  plain(beak, new THREE.ConeGeometry(0.2, 0.34, 32), M.beak, [0, 0.03, 0], [1.08, 1, 0.84]);
+  plain(beak, lowSphere, M.beak, [0, -0.14, 0], [0.216, 0.1, 0.168]);
   skull.add(beak);
 
   return { turn, body, head, eyes, wings, materials: M };
@@ -282,7 +282,7 @@ export async function mountOwl(host, opts = {}) {
   camera.lookAt(0, 0.62, 0);
 
   const key = new THREE.DirectionalLight(0xfff4ea, 2.1); key.position.set(-3.2, 5, 6); scene.add(key);
-  const rim = new THREE.DirectionalLight(0xe2d2ff, 2.0); rim.position.set(4.5, 3, -5); scene.add(rim);
+  const rim = new THREE.DirectionalLight(0xe2d2ff, 1.6); rim.position.set(4.5, 3, -5); scene.add(rim);
   const rim2 = new THREE.DirectionalLight(0xc3a6ff, 1.0); rim2.position.set(-5, 1.5, -4); scene.add(rim2);
   const under = new THREE.PointLight(0xb48cff, 6, 9, 1.6); under.position.set(0, -2.3, 2.6); scene.add(under);
 
