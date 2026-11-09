@@ -24,11 +24,11 @@
   root.className = "ct";
   root.innerHTML = `
     <button class="ct-fab" id="ct-fab" type="button" aria-expanded="false" aria-controls="ct-panel">
-      <img src="assets/ervo-classic.png" alt=""><span>Contact</span>
+      <img src="assets/sm/ervo-classic.webp" alt=""><span>Contact</span>
     </button>
     <section class="ct-panel" id="ct-panel" role="dialog" aria-modal="false" aria-labelledby="ct-title" hidden>
       <header class="ct-head">
-        <img src="assets/ervo-classic.png" alt="">
+        <img src="assets/sm/ervo-classic.webp" alt="">
         <div><b id="ct-title">Write to Ervo</b><small>Straight to the founder's inbox · replies within 2 business days</small></div>
         <button class="ct-close" type="button" aria-label="Close">&times;</button>
       </header>
