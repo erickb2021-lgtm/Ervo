@@ -1,17 +1,17 @@
 {
-  "version": "0.4.5",
+  "version": "0.5.0",
   "notes": [
+    "Orders, returns and refunds as cards: a progress bar from Ordered to Delivered (or Requested to Refunded), the arrival date, the tracking number, and buttons to open the store's own orders page or the carrier. Tell Ervo about an order, paste a tracking number or send a photo of the order email",
+    "60 stores and services Ervo can open for orders and returns: Amazon, Walmart, Target, Costco, eBay, Etsy, Temu, Shein, Best Buy, Nike, Zara, DoorDash, Uber Eats, Instacart, Domino's, CVS and more, plus UPS, FedEx, USPS, DHL tracking",
+    "A Files tab for Orders, where every card lives with its progress",
+    "\"What do I have today?\" shows the day as a card with a 3D icon per event and the time; Open calendar brings up a month with dots on busy days",
+    "Glass everywhere: frosted cards, sheets and bubbles with a hairline highlight, tuned for light and dark",
+    "The status pill only ever says simple things like Researching, Planning or Writing a draft, never your own words",
     "Signed up on ervo.company? The QR code opens Ervo with your email filled in and sends your code right away; if your browser already has the sign-in, you go straight to your chat",
     "Pick which Ervo is your home-screen icon, Personal or Business, with a switch in Ervo's Look. The icon changes quietly once you leave the app, no more getting kicked out",
     "Ervo's Look scrolls without closing; a quick \"Switching to Business\" curtain when you change Ervos",
     "Work settings show only for Business; the owner can create co-owner IDs; IDs are longer and never reused",
     "Smoother: fewer heavy effects while you move around the app",
-    "The website lives at ervo.company",
-    "23 looks for Ervo: Royal, Detective, Explorer, Scientist, Wizard, Ninja, Samurai, Pirate, Pilot, Athlete, Soccer, Musician, Chef, Artist, Holiday and more, all cut out clean",
-    "Your home-screen icon follows Ervo's look. On iPhone, the icon you add to the home screen uses the look you had picked",
-    "Ervo for Business thinks like a business: Ideas are about customers, billing, taxes, suppliers, team and renewals, shaped by what your company does. No dentist appointments here",
-    "Business Psyche: what Ervo learns in Business is about the company (products, policies, customers, finance, tools, schedule, team), kept apart from your personal Psyche",
-    "Co-owners: the owner can make an employee a co-owner, with everything the owner can do except removing co-owners or the owner",
-    "An employee whose access was removed sees why when they open Ervo, and can rejoin with a new ID"
+    "The website lives at ervo.company"
   ]
 }

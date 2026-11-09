@@ -1480,3 +1480,91 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 .screen.push-in, .screen.pop-out { box-shadow: none; }
 .row { content-visibility: auto; contain-intrinsic-size: 56px; }
 .look-grid img { content-visibility: auto; }
+
+/* ===== 0.5.0: glass, order and return cards, the day card and the calendar pop-up ===== */
+/* Glass: a frosted surface with a hairline highlight, tuned for both themes */
+:root { --glass-card: rgba(255, 255, 255, 0.72); --glass-hi: rgba(255, 255, 255, 0.85); --glass-line2: rgba(60, 60, 90, 0.12); }
+[data-theme="dark"] { --glass-card: rgba(34, 34, 46, 0.62); --glass-hi: rgba(255, 255, 255, 0.14); --glass-line2: rgba(255, 255, 255, 0.09); }
+.glass { background: var(--glass-card); -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6); box-shadow: inset 0 0 0 0.5px var(--glass-line2), inset 0 1px 0 var(--glass-hi), 0 10px 30px rgba(0, 0, 0, 0.12); }
+[data-theme="dark"] .glass { box-shadow: inset 0 0 0 0.5px var(--glass-line2), inset 0 1px 0 var(--glass-hi), 0 14px 36px rgba(0, 0, 0, 0.45); }
+.screen.stats .card, .sheet { background: var(--glass-card); -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6); box-shadow: inset 0 0 0 0.5px var(--glass-line2), inset 0 1px 0 var(--glass-hi); }
+.msg.them { box-shadow: inset 0 0 0 0.5px var(--glass-line2), inset 0 1px 0 var(--glass-hi); }
+[data-theme="dark"] .msg.them { background: rgba(36, 36, 48, 0.78); }
+.stats-body h1, .welcome-top h1 { background: linear-gradient(180deg, var(--text), color-mix(in srgb, var(--text) 72%, var(--tint))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#stats .stats-body h1 { background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.78)); -webkit-background-clip: text; background-clip: text; }
+
+/* Order, return and refund cards */
+.tracker { align-self: flex-start; width: min(94%, 400px); margin: 8px 0 4px; padding: 14px 14px 12px; border-radius: 22px; color: var(--text); animation: rise 0.3s var(--ease-ios) both; }
+.tk-head { display: flex; align-items: center; gap: 10px; }
+.tk-badge { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: color-mix(in srgb, var(--tint) 12%, transparent); flex: none; }
+.tk-badge .e3d { width: 28px; height: 28px; vertical-align: top; }
+.tk-badge.letter { background: var(--c); color: #fff; font-weight: 800; font-size: 1.1rem; }
+.tk-text { flex: 1; min-width: 0; }
+.tk-text b { display: block; font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-text small { display: block; color: var(--text-2); font-size: var(--fs-cap2); }
+.tk-chip { flex: none; padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--tint) 16%, transparent); color: var(--tint); font-size: var(--fs-cap2); font-weight: 700; white-space: nowrap; }
+.tk-chip.ok { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
+.tk-bar { position: relative; height: 6px; margin: 16px 8px 6px; border-radius: 3px; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.tk-fill { position: absolute; inset: 0 auto 0 0; width: var(--p); border-radius: 3px; background: linear-gradient(90deg, var(--tint-fill), var(--tint)); transition: width 0.9s var(--ease-ios); overflow: hidden; }
+.tracker:not(.done) .tk-fill::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent); transform: translateX(-100%); animation: tk-shimmer 1.8s ease-in-out infinite; }
+.tracker.done .tk-fill { background: var(--green); }
+.tk-dot { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--card); box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 14%, transparent); }
+.tk-dot.on { background: var(--tint); box-shadow: 0 0 0 2px var(--tint); }
+.tracker.done .tk-dot.on { background: var(--green); box-shadow: 0 0 0 2px var(--green); }
+.tk-dot.now::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--tint); opacity: 0.6; animation: tk-pulse 1.6s ease-out infinite; }
+.tk-steps { display: flex; justify-content: space-between; margin: 0 2px 10px; font-size: 0.68rem; color: var(--text-2); }
+.tk-steps span { flex: 1; text-align: center; } .tk-steps span:first-child { text-align: left; } .tk-steps span:last-child { text-align: right; }
+.tk-steps .now { color: var(--text); font-weight: 700; }
+.tk-rows { display: grid; gap: 4px; }
+.tk-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--text) 5%, transparent); font-size: var(--fs-sub); }
+.tk-row.tap { cursor: pointer; }
+.tk-remoji .e3d { width: 22px; height: 22px; vertical-align: top; }
+.tk-rlabel { color: var(--text-2); flex: none; }
+.tk-rvalue { flex: 1; min-width: 0; text-align: right; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tk-acts .pill { min-height: 36px; padding: 0 12px; font-size: var(--fs-cap2); }
+@keyframes tk-shimmer { to { transform: translateX(100%); } }
+@keyframes tk-pulse { from { transform: scale(0.6); opacity: 0.8; } to { transform: scale(1.5); opacity: 0; } }
+.lib-trackers { display: grid; gap: 10px; }
+.lib-trackers .tracker { width: 100%; margin: 0; animation: none; }
+.lib-tabs { grid-template-columns: repeat(4, 1fr); }
+
+/* The day card in chat */
+.calcard { align-self: flex-start; width: min(94%, 400px); margin: 8px 0 4px; padding: 14px; border-radius: 22px; color: var(--text); animation: rise 0.3s var(--ease-ios) both; }
+.cc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cc-ico .e3d { width: 26px; height: 26px; vertical-align: top; }
+.cc-head b { font-size: var(--fs-body); font-weight: 700; }
+.cc-head small { color: var(--text-2); }
+.cc-weather { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--tint) 12%, transparent); font-size: var(--fs-cap2); }
+.cc-weather .e3d { width: 18px; height: 18px; vertical-align: top; }
+.cc-list { display: grid; gap: 4px; }
+.cc-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--text) 5%, transparent); font-size: var(--fs-sub); }
+.cc-emoji .e3d { width: 24px; height: 24px; vertical-align: top; }
+.cc-time { flex: none; min-width: 58px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.cc-title { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-src { color: var(--text-3); }
+.cc-empty { margin: 4px 2px; color: var(--text-2); font-size: var(--fs-sub); }
+.cc-foot { display: flex; gap: 6px; margin-top: 10px; }
+.cc-foot .pill { min-height: 36px; padding: 0 12px; font-size: var(--fs-cap2); }
+
+/* Calendar pop-up */
+.calsheet { max-height: 92%; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; }
+.cal-head h2 { margin: 0; text-align: center; flex: 1; }
+.cal-nav { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--fill); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+.cal-nav svg { width: 20px; height: 20px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 10px; }
+.cal-dow { text-align: center; font-size: var(--fs-cap2); font-weight: 600; color: var(--text-2); padding: 4px 0; }
+.cal-day { position: relative; aspect-ratio: 1; border-radius: 12px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-sub); display: grid; place-items: center; cursor: pointer; }
+.cal-day i { position: absolute; left: 50%; bottom: 6px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--tint); opacity: 0; }
+.cal-day.busy i { opacity: 1; }
+.cal-day.today span { color: var(--tint); font-weight: 700; }
+.cal-day.picked { background: var(--tint-fill); color: var(--on-tint); }
+.cal-day.picked span { color: var(--on-tint); } .cal-day.picked i { background: var(--on-tint); }
+.cal-day-title { margin: 6px 2px 6px; font-weight: 700; }
+.cal-events { display: grid; gap: 4px; min-height: 48px; max-height: 32vh; overflow-y: auto; }
+/* Sheets stay readable over a busy chat: more body in the glass */
+:root { --glass-sheet: rgba(255, 255, 255, 0.92); }
+[data-theme="dark"] { --glass-sheet: rgba(30, 30, 40, 0.9); }
+.sheet { background: var(--glass-sheet); }
+.sheet.glass { background: var(--glass-sheet); }

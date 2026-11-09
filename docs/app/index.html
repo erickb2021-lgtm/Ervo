@@ -253,8 +253,9 @@
   </header>
   <div class="stats-body">
     <h1 id="library-title">Files</h1>
-    <p class="stats-weather">Photos, links and chats you've shared with Ervo.</p>
+    <p class="stats-weather">Your orders and returns, plus photos, links and chats you've shared with Ervo.</p>
     <div class="lib-tabs" id="lib-tabs" role="tablist">
+      <button type="button" role="tab" data-tab="orders">Orders</button>
       <button type="button" role="tab" data-tab="photos">Photos</button>
       <button type="button" role="tab" data-tab="links">Links</button>
       <button type="button" role="tab" data-tab="chats">Chats</button>
@@ -327,9 +328,27 @@
     </button>
     <div id="settings-list"></div>
     <p class="foot-note menu-ai">Ervo uses AI and can make mistakes. Check important info.</p>
-    <p class="foot-note menu-version" id="menu-version">Ervo version 0.4.5 (preview)</p>
+    <p class="foot-note menu-version" id="menu-version">Ervo version 0.5.0 (preview)</p>
   </div>
 </section>
+
+<!-- Calendar pop-up: a month at a glance, and everything on the day you tap -->
+<div class="sheet-wrap" id="calsheet" hidden>
+  <div class="sheet glass calsheet" role="dialog" aria-modal="true" aria-labelledby="cal-title">
+    <div class="cal-head">
+      <button class="cal-nav" type="button" id="cal-prev" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <h2 id="cal-title">Calendar</h2>
+      <button class="cal-nav" type="button" id="cal-next" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <div class="cal-grid" id="cal-grid" role="grid" aria-label="Days of the month"></div>
+    <p class="cal-day-title" id="cal-day-title"></p>
+    <div class="cal-events" id="cal-events"></div>
+    <div class="sheet-actions">
+      <button class="pill ghost" type="button" id="cal-open-app">Open calendar app</button>
+      <button class="pill" type="button" id="cal-done">Done</button>
+    </div>
+  </div>
+</div>
 
 <!-- Switching between Ervo Personal and Ervo for Business -->
 <div class="switching" id="switching" hidden aria-live="polite"><img id="switching-owl" src="img/ervo-classic.png" alt=""><b id="switching-text">Switching</b></div>
@@ -586,6 +605,7 @@
 </div>
 
 <script src="config.js"></script>
+<script src="stores.js"></script>
 <script src="suggestions.js"></script>
 <script src="app.js"></script>
 </body>

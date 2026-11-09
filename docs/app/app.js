@@ -171,7 +171,8 @@
   const SB_URL = (CFG.supabaseUrl || "").replace(/\/+$/, "");
   const SB_KEY = CFG.supabaseKey || "";
   const SESSION_KEY = "ervo-session";
-  const realAuth = !!(SB_URL && SB_KEY);
+  const PREVIEW_HERE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]preview=1\b/.test(location.search);
+  const realAuth = !!(SB_URL && SB_KEY) && !PREVIEW_HERE;
 
   async function auth(path, body, method, token) {
     const r = await fetch(`${SB_URL}/auth/v1/${path}`, {
@@ -424,6 +425,11 @@
     "💬": "Speech balloon", "🗺️": "World map", "❤️": "Red heart", "🏠": "House", "⚽": "Soccer ball", "📚": "Books", "🦷": "Tooth", "🩺": "Stethoscope",
     "💵": "Dollar banknote", "⭐": "Star", "🚗": "Automobile", "👥": "Busts in silhouette", "🏆": "Trophy", "🎉": "Party popper", "🔥": "Fire", "🌟": "Glowing star",
     "💯": "Hundred points", "💎": "Gem stone", "🚀": "Rocket", "🏅": "Sports medal", "☔": "Umbrella with rain drops", "❄️": "Snowflake", "🍂": "Fallen leaf",
+    "📦": "Package", "🚚": "Delivery truck", "🧾": "Receipt", "🎯": "Bullseye", "🧶": "Yarn", "👗": "Dress", "👟": "Running shoe", "👔": "Necktie", "👚": "Womans clothes",
+    "👕": "T-shirt", "👖": "Jeans", "🧘": "Person in lotus position*", "👜": "Handbag", "🍔": "Hamburger", "🍱": "Bento box", "🥡": "Takeout box", "🥕": "Carrot",
+    "🛵": "Motor scooter", "🥦": "Broccoli", "🍕": "Pizza", "☕": "Hot beverage", "🌯": "Burrito", "🍟": "French fries", "🍗": "Poultry leg", "🥘": "Shallow pan of food",
+    "💊": "Pill", "📱": "Mobile phone", "💄": "Lipstick", "🪑": "Chair", "🛋️": "Couch and lamp", "🐾": "Paw prints", "🔨": "Hammer", "🔧": "Wrench", "🏷️": "Label",
+    "✂️": "Scissors", "🧹": "Broom", "🎬": "Clapper board", "🎂": "Birthday cake", "🔎": "Magnifying glass tilted right",
   };
   function e3d(ch) {
     const key = String(ch || "").trim();
@@ -1654,8 +1660,10 @@
       else if (x.t === "link") linkBubble(x.url);
       else if (x.t === "choices") showChoices(x.options || [], x.picked || "");
       else if (x.t === "list" && x.list) showList(x.list);
+      else if (x.t === "tracker") { const tr = trackers().find((y) => y.id === x.id); if (tr) showTracker(tr); }
+      else if (x.t === "calcard" && x.date) showCalendarCard(new Date(x.date), x.events || []);
     });
-    thread.querySelectorAll(".msg, .products, .acts, .choices, .listcard").forEach((el) => el.classList.add("old"));
+    thread.querySelectorAll(".msg, .products, .acts, .choices, .listcard, .tracker, .calcard").forEach((el) => el.classList.add("old"));
     restoring = false;
   }
   // The conversation the AI sees: the last messages of the saved chat, product picks included
@@ -1667,6 +1675,7 @@
       else if (x.t === "list" && x.list && out.length) out[out.length - 1].text += `\n[Showed a ${x.list.kind} list "${x.list.title}": ${x.list.items.map((i) => `${i.time ? i.time + " " : ""}${i.text}${i.on ? (x.list.kind === "plan" ? " (picked)" : " (got it)") : ""}`).join("; ")}${x.list.store ? `; store: ${storeName(x.list.store)}` : ""}${x.list.added ? "; added to calendar" : ""}]`;
       else if (x.t === "link") out.push({ role: "user", text: `(shared a link: ${x.url})` });
       else if (x.t === "photo") out.push({ role: "user", text: "(sent a photo)" });
+      else if (x.t === "tracker" && out.length) { const tr = trackers().find((y) => y.id === x.id); if (tr) out[out.length - 1].text += `\n[Showed a ${tr.kind} card: ${tr.title} (${tr.storeName}), step "${tr.steps[tr.step]}"${tr.eta ? `, ${tr.eta}` : ""}]`; }
     });
     return out.slice(-24);
   }
@@ -2274,7 +2283,7 @@
     let said;
     try { said = await Promise.resolve(text); } catch (e) { said = "I ran into a problem answering that. Ask again in a moment."; }
     if (said && typeof said === "object") {
-      opts = Object.assign({}, opts, { products: said.products, chips: said.chips || opts.chips, acts: said.acts || opts.acts, choices: said.choices || opts.choices, list: said.list || opts.list });
+      opts = Object.assign({}, opts, { products: said.products, chips: said.chips || opts.chips, acts: said.acts || opts.acts, choices: said.choices || opts.choices, list: said.list || opts.list, trackers: said.trackers || opts.trackers, calendar: said.calendar || opts.calendar });
       said = said.text;
     }
     said = plain(said);
@@ -2294,6 +2303,8 @@
     history.push({ role: "assistant", text: said + shown + listed });
     if (opts.products && opts.products.length) showProducts(opts.products);
     if (opts.list && opts.list.items.length) showList(opts.list);
+    if (opts.trackers && opts.trackers.length) opts.trackers.forEach((tr) => { showTracker(tr); record({ t: "tracker", id: tr.id }); });
+    if (opts.calendar) showCalendarCard(opts.calendar.date, opts.calendar.events, true);
     if (opts.acts && opts.acts.length) showActs(opts.acts);
     const choosing = opts.choices && opts.choices.length;
     if (choosing) showChoices(opts.choices);
@@ -2968,6 +2979,7 @@
     if (/\b(reserv\w*|book (a )?table|table for|appointment)\b/.test(t) || d.intent === "reserve") return ["🍽️", "Planning your reservation"];
     if (/\b(email|e-mail|text message|draft|reply|message to|write (a|an|the))\b/.test(t)) return ["✏️", "Writing a draft"];
     if (/\b(weather|forecast|rain|umbrella)\b/.test(t)) return ["🌤️", "Checking the weather"];
+    if (/\b(order|package|delivery|deliver|shipped|shipping|tracking|refund|return)\b/.test(t)) return ["📦", "Tracking your order"];
     if (/\b(remind|reminder|alarm|timer)\b/.test(t)) return ["⏰", "Setting a reminder"];
     if (/\b(invoice|payment|bill|tax|bookkeeping|budget)\b/.test(t)) return ["💵", "Working on the numbers"];
     if (/\b(schedule|calendar|meeting|plan (my|the|a) (week|month))\b/.test(t) || d.intent === "event") return ["📅", "Planning"];
@@ -3022,6 +3034,12 @@
       (j.actions || []).forEach((a) => {
         if (a.type === "send_to_teammate" && a.to && a.text) {
           afters.push(() => teamSend(String(a.to), String(a.text)));
+        } else if (a.type === "track_order") {
+          const tr = upsertTracker(a);
+          if (tr) (out.trackers = out.trackers || []).push(tr);
+        } else if (a.type === "update_tracker") {
+          const tr = updateTracker(a);
+          if (tr) (out.trackers = out.trackers || []).push(tr);
         } else if (a.type === "make_list") {
           const l = cleanList(a);
           if (l.items.length) out.list = l;
@@ -3558,7 +3576,9 @@
     const mixed = String(text).match(/^(.{8,}?)\s*,?\s+(?:and|then|also|plus)\s+(?:can you\s+|please\s+)?(?:set|start|make)\s+(?:me\s+)?(?:an?|the|another)\s+(?:\d+\s*\w+\s+)?(?:alarm|timer)\b/i);
     if (mixed && AI_URL && !task && !/\b(alarm|timer|wake me)\b/i.test(mixed[1])) return askAI(understand(text));
     if (account.team) { const ts = matchTeamSend(text); if (ts) return teamSend(ts.to, ts.text); }
+    { const tn = String(text).trim().replace(/\s+/g, ""); const car = tn.length >= 10 && !/\s/.test(tn) ? carrierFor(tn) : null; if (car && !/[a-z]{4,}/i.test(tn.replace(/^TBA|^JD/i, ""))) return trackNumberReply(tn, car); }
     const d = understand(text);
+    if (calendarAsk(d.t) && !/(stats|activity|what (have|did) you|add|put|schedule|set up|create|book|make|move|remove|delete|cancel|remind|alarm|timer)/i.test(d.t.replace(/\bwhat'?s? (on|planned|scheduled)\b/, "x"))) return calendarReply(d);
     const biz = account.plan === "business";
     if (account.team && account.team.role === "employee" && ["steps", "shop"].includes(d.intent)) {
       return ervoSays(`This Ervo is set up for work at ${account.team.companyName}, so I keep to work things here. A Personal account can help with that.`);
@@ -3719,9 +3739,277 @@
     const now = Date.now();
     const up = activity().filter((a) => a.when && new Date(a.when).getTime() > now).sort((a, b) => new Date(a.when) - new Date(b.when));
     const open = { label: "Open Ervo Stats", icon: "stats", onClick: () => openStats() };
-    if (!up.length) return ervoSays("Nothing coming up yet. Want me to plan something?", { acts: [open], chips: ["Plan tomorrow", "Plan my week"] });
+    const cal = { label: "Calendar", icon: "calendar", onClick: () => openCalendar(new Date()) };
+    if (!up.length) return ervoSays("Nothing coming up yet. Want me to plan something?", { acts: [cal, open], chips: ["Plan tomorrow", "Plan my week"] });
     const lines = up.slice(0, 4).map((a) => `• ${a.title}, ${whenText(a)}`);
-    return ervoSays(`Coming up:\n${lines.join("\n")}`, { acts: [open] });
+    return ervoSays(`Coming up:\n${lines.join("\n")}`, { acts: [cal, open] });
+  }
+
+  // ---------- "What do I have Friday?": the day as a card, like the one in the video ----------
+  const calendarAsk = (t) => /\b(my (calendar|schedule|agenda|day|week|plans)|what (do|did|have) i (have|got)( going on| planned)?|what('?s| is) (on|planned|scheduled|happening)( for| on)? (today|tomorrow|tonight|this (week|weekend)|(mon|tues|wednes|thurs|fri|satur|sun)day)|(anything|something) (on|planned|scheduled|going on)|am i (free|busy)|do i have (anything|something|plans)|show (me )?(my )?calendar|open (my |the )?calendar)\b/i.test(String(t || ""));
+  const EVENT_EMOJI = [
+    [/gym|workout|lift|run\b|yoga|training|practice/i, "💪"], [/soccer|match|game\b/i, "⚽"], [/call|meeting|zoom|teams|standup|sync|interview/i, "📞"],
+    [/lunch|dinner|breakfast|brunch|coffee|reservation|table/i, "🍽️"], [/doctor|checkup|clinic|physical/i, "🩺"], [/dentist|teeth|cleaning/i, "🦷"],
+    [/flight|airport|fly\b/i, "✈️"], [/birthday|party|celebrat/i, "🎉"], [/class|lecture|school|exam|study/i, "📚"], [/concert|show|music|festival/i, "🎵"],
+    [/haircut|salon|barber|nails/i, "✂️"], [/pay|rent|bill|invoice|tax/i, "💵"], [/groceries|shopping|store|pick ?up/i, "🛒"], [/oil change|car|mechanic|dmv/i, "🚗"],
+    [/clean|laundry|chores|room/i, "🧹"], [/movie|film|cinema/i, "🎬"], [/date night|anniversary/i, "❤️"], [/vet|dog|cat|pet/i, "🐾"],
+  ];
+  const eventEmoji = (title) => (EVENT_EMOJI.find(([re]) => re.test(String(title || ""))) || [null, "📅"])[1];
+  async function eventsOn(day) {
+    const from = startOfDay(day), to = addDays(from, 1);
+    const seen = new Set();
+    const list = [];
+    const push = (title, start, allDay, source) => { const k = `${String(title).trim().toLowerCase()}|${allDay ? "all" : new Date(start).getTime()}`; if (seen.has(k)) return; seen.add(k); list.push({ title, start: new Date(start), allDay, source }); };
+    activity().filter((a) => a.when && new Date(a.when) >= from && new Date(a.when) < to).forEach((a) => push(a.title, a.when, a.allDay, "Ervo"));
+    if (native && native.findEvents && native.calendarAllowed && native.calendarAllowed()) {
+      try { const r = await readCalendar("", { from, to }); if (r.status === "ready") r.events.forEach((e) => push(e.title || "(No title)", e.start, e.allDay, e.calendar || "Calendar")); } catch (e) { /* phone calendar unavailable */ }
+    }
+    list.sort((a, b) => (a.allDay ? -1 : 0) - (b.allDay ? -1 : 0) || a.start - b.start);
+    return list;
+  }
+  async function calendarReply(d) {
+    const day = d.when && d.when.date ? d.when.date : new Date();
+    const events = await eventsOn(day);
+    const name = sameDay(day, new Date()) ? "today" : sameDay(day, addDays(new Date(), 1)) ? "tomorrow" : `on ${dayName(day)}`;
+    const text = events.length ? `Here's ${name}: ${events.length} thing${events.length === 1 ? "" : "s"}.` : `Nothing on your calendar ${name}. Want me to plan something?`;
+    return ervoSays(text, { calendar: { date: day, events }, chips: events.length ? null : ["Plan tomorrow", "Plan my week"] });
+  }
+  function showCalendarCard(date, events, save) {
+    const day = new Date(date);
+    const card = document.createElement("div");
+    card.className = "calcard glass";
+    const head = document.createElement("div");
+    head.className = "cc-head";
+    head.innerHTML = `<span class="cc-ico">${e3d("📅")}</span><b>${sameDay(day, new Date()) ? "Today" : dayName(day)}</b><small>${day.toLocaleDateString(undefined, { month: "long", day: "numeric" })}</small>`;
+    card.append(head);
+    if (sameDay(day, new Date()) && allowed("location")) {
+      const w = document.createElement("span"); w.className = "cc-weather"; head.append(w);
+      weatherNow().then((x) => { w.innerHTML = `${e3d(x.emoji)} <b>${x.temp}°</b>`; }).catch(() => w.remove());
+    }
+    const list = document.createElement("div");
+    list.className = "cc-list";
+    if (!events.length) { const p = document.createElement("p"); p.className = "cc-empty"; p.textContent = "Nothing planned."; list.append(p); }
+    events.slice(0, 8).forEach((ev) => {
+      const row = document.createElement("div");
+      row.className = "cc-row";
+      const t = ev.allDay ? "All day" : new Date(ev.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      row.innerHTML = `<span class="cc-emoji">${e3d(eventEmoji(ev.title))}</span><span class="cc-time">${t}</span><span class="cc-title"></span><small class="cc-src"></small>`;
+      row.querySelector(".cc-title").textContent = ev.title;
+      row.querySelector(".cc-src").textContent = ev.source === "Ervo" ? "Ervo" : "";
+      list.append(row);
+    });
+    card.append(list);
+    const foot = document.createElement("div");
+    foot.className = "cc-foot";
+    const open = document.createElement("button"); open.type = "button"; open.className = "pill ghost"; open.textContent = "Open calendar"; open.addEventListener("click", () => openCalendar(day));
+    const plan = document.createElement("button"); plan.type = "button"; plan.className = "pill"; plan.textContent = "Plan this day"; plan.addEventListener("click", () => send(`Plan ${sameDay(day, new Date()) ? "today" : sameDay(day, addDays(new Date(), 1)) ? "tomorrow" : dayName(day)}`));
+    foot.append(open, plan);
+    card.append(foot);
+    thread.append(card);
+    if (save) record({ t: "calcard", date: day.toISOString(), events: events.map((e) => ({ title: e.title, start: new Date(e.start).toISOString(), allDay: !!e.allDay, source: e.source })) });
+    toBottom();
+    return card;
+  }
+
+  // ---------- Calendar pop-up: a month, with dots on busy days, and the day's events with 3D icons ----------
+  let calMonth = new Date();
+  let calDay = new Date();
+  let calCache = {}; // "YYYY-M" -> events
+  async function monthEvents(month) {
+    const key = `${month.getFullYear()}-${month.getMonth()}`;
+    if (calCache[key]) return calCache[key];
+    const from = new Date(month.getFullYear(), month.getMonth(), 1), to = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+    const list = activity().filter((a) => a.when && new Date(a.when) >= from && new Date(a.when) < to).map((a) => ({ title: a.title, start: new Date(a.when), allDay: a.allDay, source: "Ervo" }));
+    if (native && native.findEvents && native.calendarAllowed && native.calendarAllowed()) {
+      try { const r = await readCalendar("", { from, to }); if (r.status === "ready") r.events.forEach((e) => list.push({ title: e.title || "(No title)", start: new Date(e.start), allDay: e.allDay, source: e.calendar || "Calendar" })); } catch (e) { /* fine */ }
+    }
+    calCache[key] = list;
+    return list;
+  }
+  async function openCalendar(day) {
+    toggleMenu(false);
+    calDay = new Date(day || new Date());
+    calMonth = new Date(calDay.getFullYear(), calDay.getMonth(), 1);
+    calCache = {};
+    $("calsheet").hidden = false;
+    await renderCalendar();
+  }
+  async function renderCalendar() {
+    $("cal-title").textContent = calMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const grid = $("cal-grid");
+    grid.innerHTML = "";
+    ["S", "M", "T", "W", "T", "F", "S"].forEach((d) => { const h = document.createElement("span"); h.className = "cal-dow"; h.textContent = d; grid.append(h); });
+    const events = await monthEvents(calMonth);
+    const busy = new Set(events.map((e) => startOfDay(e.start).getTime()));
+    const first = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1);
+    for (let i = 0; i < first.getDay(); i++) { const s = document.createElement("span"); grid.append(s); }
+    const days = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate();
+    for (let n = 1; n <= days; n++) {
+      const d = new Date(calMonth.getFullYear(), calMonth.getMonth(), n);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = `cal-day${sameDay(d, new Date()) ? " today" : ""}${sameDay(d, calDay) ? " picked" : ""}${busy.has(d.getTime()) ? " busy" : ""}`;
+      b.setAttribute("role", "gridcell");
+      b.setAttribute("aria-label", d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }));
+      b.innerHTML = `<span>${n}</span><i></i>`;
+      b.addEventListener("click", () => { calDay = d; renderCalendar(); buzz("tick"); });
+      grid.append(b);
+    }
+    $("cal-day-title").textContent = `${sameDay(calDay, new Date()) ? "Today, " : ""}${calDay.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}`;
+    const box = $("cal-events");
+    box.innerHTML = "";
+    const todays = events.filter((e) => sameDay(e.start, calDay)).sort((a, b) => (a.allDay ? -1 : 0) - (b.allDay ? -1 : 0) || a.start - b.start);
+    if (!todays.length) { const p = document.createElement("p"); p.className = "cc-empty"; p.textContent = "Nothing planned. Tell Ervo and it goes here."; box.append(p); }
+    todays.forEach((ev) => {
+      const row = document.createElement("div");
+      row.className = "cc-row";
+      const t = ev.allDay ? "All day" : ev.start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      row.innerHTML = `<span class="cc-emoji">${e3d(eventEmoji(ev.title))}</span><span class="cc-time">${t}</span><span class="cc-title"></span><small class="cc-src"></small>`;
+      row.querySelector(".cc-title").textContent = ev.title;
+      row.querySelector(".cc-src").textContent = ev.source === "Ervo" ? "Ervo" : "";
+      box.append(row);
+    });
+  }
+  $("cal-prev").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); });
+  $("cal-next").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); });
+  $("cal-done").addEventListener("click", () => { $("calsheet").hidden = true; });
+  $("calsheet").addEventListener("click", (e) => { if (e.target === $("calsheet")) $("calsheet").hidden = true; });
+  $("cal-open-app").addEventListener("click", () => {
+    const ms = new Date(calDay.getFullYear(), calDay.getMonth(), calDay.getDate(), 9).getTime();
+    if (native && native.openUrl) openOutside(`content://com.android.calendar/time/${ms}`);
+    else openOutside(`https://calendar.google.com/calendar/u/0/r/day/${calDay.getFullYear()}/${calDay.getMonth() + 1}/${calDay.getDate()}`);
+  });
+
+  // ---------- Orders, returns and refunds: cards with a progress bar, like the video ----------
+  // Ervo can't read anyone's orders out of a store's app; it tracks what you tell it or paste,
+  // and takes you to the store's own page or the carrier for the live details.
+  const TRACK_KEY = "ervo-trackers";
+  const STORES_DIR = window.ERVO_STORES || {};
+  const CARRIERS = window.ERVO_CARRIERS || [];
+  const STEPS = { order: ["Ordered", "Shipped", "Out for delivery", "Delivered"], return: ["Requested", "Label sent", "Dropped off", "Refunded"], refund: ["Requested", "Approved", "Refunded"] };
+  const trackers = () => load(TRACK_KEY) || [];
+  const saveTrackers = (list) => save(TRACK_KEY, list.slice(-60));
+  function storeKey(name) {
+    const n = String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!n) return "";
+    if (STORES_DIR[n]) return n;
+    const hit = Object.keys(STORES_DIR).find((k) => STORES_DIR[k].name.toLowerCase().replace(/[^a-z0-9]/g, "") === n || n.includes(k));
+    return hit || "";
+  }
+  function carrierFor(num) {
+    const n = String(num || "").replace(/\s+/g, "");
+    if (!n) return null;
+    return CARRIERS.find((c) => c.key !== "any" && c.test.test(n)) || null;
+  }
+  function stepIndex(kind, status) {
+    const steps = STEPS[kind] || STEPS.order;
+    const s = String(status || "").toLowerCase();
+    if (!s) return 0;
+    const i = steps.findIndex((x) => x.toLowerCase() === s);
+    if (i >= 0) return i;
+    if (/deliver(ed)?$|arrived|received|complete/.test(s) && kind === "order") return 3;
+    if (/out for|on (its|the) way|arriving today|driver/.test(s)) return 2;
+    if (/ship|transit|label created|on the way|left/.test(s)) return 1;
+    if (/refund(ed)?$|money back|credited/.test(s)) return steps.length - 1;
+    if (/approved|accepted/.test(s)) return kind === "refund" ? 1 : 2;
+    if (/dropped|drop(ped)? off|handed|scanned/.test(s)) return 2;
+    if (/label/.test(s)) return 1;
+    return 0;
+  }
+  function upsertTracker(a) {
+    const kind = ["order", "return", "refund"].includes(a.kind) ? a.kind : "order";
+    const key = storeKey(a.store);
+    const list = trackers();
+    const title = String(a.title || a.items && a.items[0] || "Order").slice(0, 80);
+    const tracking = String(a.tracking || "").replace(/\s+/g, "").slice(0, 40);
+    const car = a.carrier ? CARRIERS.find((c) => c.name.toLowerCase().startsWith(String(a.carrier).toLowerCase().slice(0, 4))) : carrierFor(tracking);
+    let t = list.find((x) => !x.done && ((tracking && x.tracking === tracking) || (x.kind === kind && x.title.toLowerCase() === title.toLowerCase())));
+    if (!t) { t = { id: `tr${Date.now().toString(36)}`, kind, createdAt: new Date().toISOString() }; list.push(t); }
+    Object.assign(t, {
+      kind, store: key, storeName: key ? STORES_DIR[key].name : String(a.store || "").slice(0, 30), title, price: String(a.price || t.price || "").slice(0, 20),
+      items: Array.isArray(a.items) ? a.items.slice(0, 8).map((x) => String(x).slice(0, 60)) : t.items || [],
+      steps: STEPS[kind], step: Math.max(stepIndex(kind, a.status), t.step || 0), eta: String(a.eta || t.eta || "").slice(0, 60),
+      tracking: tracking || t.tracking || "", carrier: car ? car.key : t.carrier || "", note: String(a.note || t.note || "").slice(0, 160), updatedAt: new Date().toISOString(),
+    });
+    t.done = t.step >= t.steps.length - 1;
+    saveTrackers(list);
+    logActivity({ kind: "track", ico: "shop", title: `${kind === "order" ? "Tracking" : kind === "return" ? "Return" : "Refund"}: ${t.title}`, detail: `${t.storeName || ""} · ${t.steps[t.step]}` });
+    return t;
+  }
+  function updateTracker(a) {
+    const list = trackers();
+    const want = String(a.match || a.title || a.store || "").toLowerCase();
+    let t = list.filter((x) => !x.done).reverse().find((x) => !want || x.title.toLowerCase().includes(want) || (x.storeName || "").toLowerCase().includes(want) || x.id === want);
+    if (!t) t = list.filter((x) => !x.done).pop();
+    if (!t) return null;
+    if (a.status) t.step = Math.max(t.step, stepIndex(t.kind, a.status));
+    if (a.eta) t.eta = String(a.eta).slice(0, 60);
+    if (a.note) t.note = String(a.note).slice(0, 160);
+    if (a.tracking) { t.tracking = String(a.tracking).replace(/\s+/g, "").slice(0, 40); const c = carrierFor(t.tracking); if (c) t.carrier = c.key; }
+    if (a.done === true) t.step = t.steps.length - 1;
+    t.done = t.step >= t.steps.length - 1;
+    t.updatedAt = new Date().toISOString();
+    saveTrackers(list);
+    return t;
+  }
+  function advanceTracker(id) {
+    const list = trackers();
+    const t = list.find((x) => x.id === id);
+    if (!t || t.done) return;
+    t.step = Math.min(t.steps.length - 1, t.step + 1);
+    t.done = t.step >= t.steps.length - 1;
+    t.updatedAt = new Date().toISOString();
+    saveTrackers(list);
+    document.querySelectorAll(`.tracker[data-id="${id}"]`).forEach((el) => el.replaceWith(trackerEl(t)));
+    if (t.done) { buzz("confirm"); ervoSays(t.kind === "order" ? `${t.title} is delivered 🎉` : `${t.title}: refund done ✅`, { instant: true }); }
+  }
+  function removeTracker(id) {
+    saveTrackers(trackers().filter((x) => x.id !== id));
+    document.querySelectorAll(`.tracker[data-id="${id}"]`).forEach((el) => el.remove());
+    toast("Removed");
+  }
+  function trackNumberReply(num, car) {
+    const t = upsertTracker({ kind: "order", title: "Package", tracking: num, carrier: car.name, status: "shipped" });
+    return ervoSays(`That's a ${car.name} tracking number. I'll keep an eye on it here; tap Track package for the live details, or tell me what's in it and I'll name the card.`, { trackers: [t], instant: true });
+  }
+  function trackerEl(t) {
+    const store = STORES_DIR[t.store];
+    const car = CARRIERS.find((c) => c.key === t.carrier);
+    const el = document.createElement("div");
+    el.className = `tracker glass${t.done ? " done" : ""}`;
+    el.dataset.id = t.id;
+    const badge = store ? `<span class="tk-badge">${e3d(store.e)}</span>` : `<span class="tk-badge letter" style="--c:${(car && car.color) || "var(--tint)"}">${(t.storeName || (car && car.name) || "P").slice(0, 1).toUpperCase()}</span>`;
+    const chipText = t.done ? t.steps[t.steps.length - 1] : t.steps[t.step];
+    const kindText = t.kind === "order" ? "Order" : t.kind === "return" ? "Return" : "Refund";
+    el.innerHTML = `
+      <div class="tk-head">${badge}<div class="tk-text"><b></b><small></small></div><span class="tk-chip ${t.done ? "ok" : ""}"></span></div>
+      <div class="tk-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${t.steps.length - 1}" aria-valuenow="${t.step}"><div class="tk-fill" style="--p:${(t.step / (t.steps.length - 1)) * 100}%"></div>${t.steps.map((s, i) => `<i class="tk-dot${i <= t.step ? " on" : ""}${i === t.step && !t.done ? " now" : ""}" style="left:${(i / (t.steps.length - 1)) * 100}%"></i>`).join("")}</div>
+      <div class="tk-steps">${t.steps.map((s, i) => `<span class="${i === t.step ? "now" : ""}">${s}</span>`).join("")}</div>
+      <div class="tk-rows"></div>
+      <div class="tk-acts"></div>`;
+    el.querySelector(".tk-text b").textContent = t.title;
+    el.querySelector(".tk-text small").textContent = [t.storeName || (car && car.name), kindText, t.price].filter(Boolean).join(" · ");
+    el.querySelector(".tk-chip").textContent = chipText;
+    const rows = el.querySelector(".tk-rows");
+    const row = (emoji, label, value) => { const r = document.createElement("div"); r.className = "tk-row"; r.innerHTML = `<span class="tk-remoji">${e3d(emoji)}</span><span class="tk-rlabel"></span><span class="tk-rvalue"></span>`; r.querySelector(".tk-rlabel").textContent = label; r.querySelector(".tk-rvalue").textContent = value; rows.append(r); return r; };
+    if (t.eta) row(t.kind === "order" ? "🚚" : "💵", t.kind === "order" ? (t.done ? "Delivered" : "Arrives") : "Refund", t.eta);
+    if (t.tracking) { const r = row("🔎", car ? car.name : "Tracking", t.tracking); r.classList.add("tap"); r.title = "Copy"; r.addEventListener("click", async () => { toast((await copyText(t.tracking)) ? "Tracking number copied" : "Couldn't copy"); }); }
+    if (t.items && t.items.length > 1) row("🧾", "Items", t.items.join(", "));
+    if (t.note) row("📝", "Note", t.note);
+    const acts = el.querySelector(".tk-acts");
+    const act = (label, cls, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = `pill ${cls || "ghost"}`; b.textContent = label; b.addEventListener("click", fn); acts.append(b); };
+    if (store) act(`Open ${store.name}`, "ghost", () => { logActivity({ kind: "track", ico: "shop", title: `Opened ${store.name} orders` }); openOutside(t.kind === "order" ? store.orders : store.returns); });
+    if (t.tracking && car) act("Track package", "ghost", () => openOutside(car.url(t.tracking)));
+    if (!t.done) act("Check status", "ghost", () => send(`Check the status of my ${t.storeName || ""} ${t.kind}: ${t.title}${t.tracking ? ` (tracking ${t.tracking})` : ""}`.replace(/\s+/g, " ")));
+    if (!t.done) act(t.step >= t.steps.length - 2 ? (t.kind === "order" ? "It arrived" : "Refund received") : "Next step", "", () => advanceTracker(t.id));
+    if (t.done) act("Remove", "ghost", () => removeTracker(t.id));
+    return el;
+  }
+  function showTracker(t) {
+    const el = trackerEl(t);
+    thread.append(el);
+    toBottom();
+    return el;
   }
 
   // Android steps come from Health Connect through the native bridge
@@ -4439,7 +4727,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.4.5"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.0"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -4738,6 +5026,15 @@
     box.innerHTML = "";
     const chats = allChats();
     const when = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    if (libTab === "orders") {
+      const list = trackers().slice().reverse();
+      if (!list.length) { box.append(libEmpty("Tell Ervo about an order, return or refund, or paste a tracking number, and it shows up here with its progress.")); return; }
+      const wrap = document.createElement("div");
+      wrap.className = "lib-trackers";
+      list.forEach((t) => wrap.append(trackerEl(t)));
+      box.append(wrap);
+      return;
+    }
     if (libTab === "photos") {
       const pics = [];
       chats.forEach((c) => c.items.forEach((x) => {
@@ -4990,7 +5287,7 @@
   });
   function resetErvo() {
     buzz("reject");
-    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY].forEach(drop);
+    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY, TRACK_KEY].forEach(drop);
     history = [];
     closeChats();
     openChat(account, true);
@@ -4999,7 +5296,7 @@
   function signOut() {
     buzz("reject");
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
-    const mine = [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", HIDDEN_CHIPS_KEY, USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY];
+    const mine = [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", HIDDEN_CHIPS_KEY, USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY, TRACK_KEY];
     mine.forEach((k) => { try { localStorage.removeItem(k); localStorage.removeItem(`biz:${k}`); } catch (e) { /* ignore */ } });
     [ACCOUNT_KEY, PROFILES_KEY, PLACE_KEY, SESSION_KEY, "ervo-intro", "ervo-seen-version"].forEach(drop);
     setNS("personal");
@@ -5026,6 +5323,7 @@
     if ($("psyche").classList.contains("active")) { show(backTo("psyche")); return true; }
     if ($("teamchat").classList.contains("active")) { show("team"); return true; }
     if (!$("newid").hidden) { $("newid").hidden = true; return true; }
+    if (!$("calsheet").hidden) { $("calsheet").hidden = true; return true; }
     if (!$("hours").hidden) { $("hours").hidden = true; return true; }
     if (!$("company").hidden) { $("company").hidden = true; return true; }
     if ($("ideas").classList.contains("active") || $("goalpage").classList.contains("active") || $("team").classList.contains("active")) { show("chat"); return true; }
