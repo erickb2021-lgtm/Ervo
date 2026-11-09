@@ -40,3 +40,45 @@
   .photo { width: 160px; height: 160px; }
   .cards { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Jump links at the top of Privacy and Terms (the "short version" box is gone; people read the real thing) */
+.doc .jump { margin: 0 0 8px; }
+.doc .linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--doc-link); font-weight: 600; text-decoration: underline; cursor: pointer; }
+.doc .linkish:hover { color: var(--doc-text); }
+
+/* Contact page: glass cards with a soft purple glow on a plain background */
+.contact-doc { --cg-glass: rgba(255, 255, 255, 0.66); --cg-line: rgba(122, 75, 224, 0.22); --cg-glow: rgba(124, 77, 255, 0.16); --cg-sheen: rgba(255, 255, 255, 0.7); max-width: 860px; }
+[data-theme="dark"] .contact-doc { --cg-glass: rgba(255, 255, 255, 0.05); --cg-line: rgba(170, 130, 255, 0.3); --cg-glow: rgba(124, 77, 255, 0.26); --cg-sheen: rgba(255, 255, 255, 0.1); }
+.contact-doc .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.contact-doc .contact-card, .contact-doc .founder { position: relative; overflow: hidden; background: var(--cg-glass); border: 1px solid var(--cg-line); border-radius: 24px;
+  box-shadow: inset 0 1px 0 var(--cg-sheen), 0 0 0 3px rgba(122, 75, 224, 0.06), 0 18px 44px var(--cg-glow); }
+.contact-doc .contact-card::after, .contact-doc .founder::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(150deg, var(--cg-sheen) 0%, transparent 42%); opacity: 0.6; }
+.contact-doc .contact-card > *, .contact-doc .founder > * { position: relative; z-index: 1; }
+.contact-doc .contact-card { display: flex; flex-direction: column; padding: 22px 22px 20px; transition: transform 0.2s, box-shadow 0.2s; }
+.contact-doc .contact-card:hover { transform: translateY(-3px); box-shadow: inset 0 1px 0 var(--cg-sheen), 0 0 0 3px rgba(122, 75, 224, 0.1), 0 24px 54px var(--cg-glow); }
+.contact-doc .contact-card h3 { margin: 12px 0 6px; font-size: 18px; }
+.contact-doc .contact-card p { flex: 1; font-size: 15px; line-height: 1.6; margin: 0 0 16px; }
+.contact-doc .contact-card .btn { align-self: flex-start; }
+.cc-ico { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; font-size: 26px; background: rgba(124, 77, 255, 0.1); box-shadow: 0 0 18px var(--cg-glow); }
+.cc-ico img { width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.2)); }
+.contact-doc .direct { margin: 18px 0 0; font-size: 15px; color: var(--doc-text); opacity: 0.85; }
+
+.contact-doc .founder { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; align-items: start; margin-top: 56px; padding: 32px; }
+.contact-doc .founder .photo { width: 220px; height: 220px; border-radius: 28px; border: 1px solid var(--cg-line); box-shadow: 0 0 0 4px rgba(122, 75, 224, 0.12), 0 20px 50px var(--cg-glow); }
+.contact-doc .role { display: inline-block; margin: 0 0 10px; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
+  color: #fff; background: linear-gradient(135deg, #7c4dff, #6b2fd0); box-shadow: 0 6px 18px var(--cg-glow); }
+.contact-doc .founder h2 { margin: 0 0 12px; font-size: clamp(26px, 4vw, 34px); letter-spacing: -0.6px; }
+.contact-doc .founder .lede { font-size: 19px; font-weight: 600; line-height: 1.5; margin: 0 0 14px; }
+.contact-doc .founder p { margin: 0 0 12px; }
+.contact-doc .facts { list-style: none; padding: 0; margin: 18px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.contact-doc .facts li { display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 14px; border-radius: 14px; font-size: 14.5px; font-weight: 600; background: rgba(124, 77, 255, 0.07); border: 1px solid var(--cg-line); }
+.contact-doc .facts img { width: 24px; height: 24px; object-fit: contain; flex: none; }
+.contact-doc .motto { margin: 22px 0 20px; padding: 14px 18px; border-left: 3px solid #8b5cf6; border-radius: 0 14px 14px 0; background: rgba(124, 77, 255, 0.07); font-size: 17px; font-weight: 700; font-style: italic; line-height: 1.5; }
+.contact-doc .founder .btn { margin-top: 2px; }
+@media (max-width: 760px) {
+  .contact-doc .cards { grid-template-columns: minmax(0, 1fr); }
+  .contact-doc .founder { grid-template-columns: minmax(0, 1fr); padding: 22px; gap: 20px; }
+  .contact-doc .founder .photo { width: 160px; height: 160px; }
+  .contact-doc .facts { grid-template-columns: minmax(0, 1fr); }
+}

@@ -888,3 +888,19 @@ section.block, section.cta { min-height: 620px; display: flex; flex-direction: c
 .mc-actions.tight { flex-direction: column; }
 .mc-actions.tight .mc-btn { flex: none; width: 100%; min-height: 30px; white-space: nowrap; }
 .mc-btn { white-space: nowrap; }
+
+/* Performance: the blurred glow behind the plan cards and the blur-through-glass on the big cards made
+   the "Pick your Ervo" and video sections stutter while scrolling. Those cards are nearly solid, so the
+   blur was invisible anyway; the glass look stays (gradient, sheen and purple edge), the blur goes. */
+#choose .plans::before { filter: none; }
+.plan-card, [data-theme="dark"] .feature, [data-theme="dark"] .alt .feature,
+[data-theme="dark"] .ideas-card, :root:not([data-theme="dark"]) .ideas-card,
+[data-theme="dark"] .cmp-chat, [data-theme="dark"] .only, :root:not([data-theme="dark"]) .only,
+[data-theme="dark"] .ask-card, [data-theme="dark"] .alt .ask-card, :root:not([data-theme="dark"]) .ask-card,
+[data-theme="dark"] .cmp-tabs, :root:not([data-theme="dark"]) .cmp-tabs,
+[data-theme="dark"] .try:not([aria-pressed="true"]), :root:not([data-theme="dark"]) .try:not([aria-pressed="true"]),
+[data-theme="dark"] .both span:not(.both-label), [data-theme="dark"] .alt .both span:not(.both-label), :root:not([data-theme="dark"]) .both span:not(.both-label),
+[data-theme="dark"] .pm-group { -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* Keep the video and the big cards on their own layers so their glow isn't repainted on every frame */
+.stage, .plan-card, .cmp-chat, .phone { contain: paint; }
+.stage, .phone { will-change: transform; }

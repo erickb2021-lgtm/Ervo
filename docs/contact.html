@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Contact · Ervo</title>
   <script>try{var t=localStorage.getItem("ervo-theme")}catch(e){}document.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")</script>
-  <meta name="description" content="Get in touch with Ervo and meet its founder, Erick S. Bardales.">
+  <meta name="description" content="Write to Ervo without leaving the site, and meet its CEO, Erick S. Bardales.">
   <meta name="theme-color" content="#faf6f2">
   <link rel="icon" href="assets/ervo-symbol.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=23">
-  <link rel="stylesheet" href="css/legal.css?v=5">
+  <link rel="stylesheet" href="css/styles.css?v=50">
+  <link rel="stylesheet" href="css/legal.css?v=6">
+  <link rel="stylesheet" href="css/contact.css?v=1">
 </head>
 <body>
 
@@ -23,33 +24,50 @@
   </div>
 </header>
 
-<main class="doc">
-  <h1>Contact</h1>
-  <p class="updated">We read every message and usually reply within 2 business days.</p>
+<main class="doc contact-doc">
+  <h1>Let's talk</h1>
+  <p class="updated">Every message goes straight to the founder's inbox. Replies usually come within 2 business days.</p>
 
   <div class="cards">
     <div class="contact-card">
-      <h3>Get in touch</h3>
-      <p>Questions, help, ideas or business inquiries. Just tell us whether it's about <b>Ervo Personal</b> or <b>Ervo for Business</b>.</p>
-      <a class="btn btn-primary" href="mailto:erickb2021@gmail.com?subject=Ervo%3A%20Personal%20or%20Business%3F">Email us</a>
+      <span class="cc-ico"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Speech%20balloon/3D/speech_balloon_3d.png" alt="💬" onerror="this.replaceWith(this.alt)"></span>
+      <h3>Concerns and issues</h3>
+      <p>Something broke, felt off or could be better? Tell us, and say whether it's about <b>Ervo Personal</b> or <b>Ervo for Business</b>.</p>
+      <button class="btn btn-primary" type="button" data-contact="issue">Write to us</button>
     </div>
     <div class="contact-card">
+      <span class="cc-ico"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Briefcase/3D/briefcase_3d.png" alt="💼" onerror="this.replaceWith(this.alt)"></span>
+      <h3>Business and partnerships</h3>
+      <p>Bringing Ervo to your company, partnering with us, or writing about Ervo? Let's start a conversation.</p>
+      <button class="btn btn-primary" type="button" data-contact="business">Start a conversation</button>
+    </div>
+    <div class="contact-card">
+      <span class="cc-ico"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Locked/3D/locked_3d.png" alt="🔒" onerror="this.replaceWith(this.alt)"></span>
       <h3>Privacy requests</h3>
-      <p>See, download or delete your data. Read our <a href="privacy.html">Privacy Policy</a> to learn more.</p>
-      <a class="btn btn-ghost" href="mailto:erickb2021@gmail.com?subject=Ervo%20privacy%20request">Send a request</a>
+      <p>See, download, correct or delete your data. We confirm it's you first, then finish within 30 days, usually much sooner. <a href="privacy.html#rights">Your rights</a></p>
+      <button class="btn btn-ghost" type="button" data-contact="privacy">Make a request</button>
     </div>
   </div>
-  <p style="margin-top:16px">Prefer to write directly? <a href="mailto:erickb2021@gmail.com">erickb2021@gmail.com</a> · Based in Texas, United States.</p>
+  <p class="direct">Prefer your own email app? <a href="mailto:erickb2021@gmail.com">erickb2021@gmail.com</a> · Texas, United States</p>
 
-  <h2 id="about">About the founder</h2>
-  <div class="about">
-    <div class="photo"><img src="assets/erick-bardales.webp" alt="Erick S. Bardales, founder of Ervo" width="200" height="200"></div>
-    <div>
-      <h3>Erick S. Bardales</h3>
-      <p>Hi, I'm Erick, the founder of Ervo. I'm a Computer Science graduate from Texas State University, and I work in AI, helping make AI systems more accurate and reliable.</p>
-      <p>I started Ervo to build an AI helper that's genuinely useful and easy to trust: one that takes care of everyday tasks for people, supports businesses and their customers, and always keeps you in charge.</p>
+  <section class="founder" id="about">
+    <div class="photo"><img src="assets/erick-bardales.webp" alt="Erick S. Bardales, CEO of Ervo" width="200" height="200"></div>
+    <div class="founder-text">
+      <p class="role">CEO of Ervo</p>
+      <h2>Erick S. Bardales</h2>
+      <p class="lede">A young entrepreneur on a mission to build a revolutionary AI helper, one that works for businesses and everyday people alike and gives them back their time.</p>
+      <p>Erick holds a degree in Computer Science and works in AI, helping make AI systems more accurate and reliable. He started Ervo after watching the same small tasks eat into people's days: the appointment that needs moving, the return that needs starting, the customer still waiting on a reply. Ervo takes those off your plate while you stay in charge of every decision.</p>
+      <p>His vision is an AI you can hand real work to: one that does it quietly, asks before anything that matters, and makes life a little easier every day, whether you run a company or just a busy life.</p>
+      <ul class="facts">
+        <li><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Graduation%20cap/3D/graduation_cap_3d.png" alt="🎓" onerror="this.replaceWith(this.alt)"><span>Computer Science degree</span></li>
+        <li><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Brain/3D/brain_3d.png" alt="🧠" onerror="this.replaceWith(this.alt)"><span>Works on AI accuracy and reliability</span></li>
+        <li><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Rocket/3D/rocket_3d.png" alt="🚀" onerror="this.replaceWith(this.alt)"><span>Founded Ervo in 2026</span></li>
+        <li><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Round%20pushpin/3D/round_pushpin_3d.png" alt="📍" onerror="this.replaceWith(this.alt)"><span>Texas, United States</span></li>
+      </ul>
+      <blockquote class="motto">"Technology should hand you back your time, not take more of it."</blockquote>
+      <button class="btn btn-primary" type="button" data-contact="business">Get in touch with Erick</button>
     </div>
-  </div>
+  </section>
 </main>
 
 <footer class="site-footer">
@@ -59,5 +77,6 @@
   </div>
 </footer>
 <script src="js/theme.js?v=2"></script>
+<script src="js/contact.js?v=1"></script>
 </body>
 </html>
