@@ -1,15 +1,13 @@
 {
-  "version": "0.5.8",
+  "version": "0.5.9",
   "notes": [
-    "Switching to Business, or adding a company, can be cancelled: Back to Ervo Personal on the name and company steps, and the phone's back button returns to your chat",
-    "Plans has its own row in Settings: Free, Plus and Pro, with what each one includes",
-    "Ervo's Look has its own icon in Settings, and the Add a business button is easier to read",
-    "The password-reset link: when it opens in your browser, one tap hands it to the Ervo app",
-    "Ervo's own name is reserved in every form; your business name must be your own"
+    "The Business Psyche speaks business: it's the company's working profile (what you offer, hours, policies, pricing, customers, tools, team) and the company's voice, not a personal profile",
+    "Business style rows read Voice and Detail, with professional examples; no banter or jokes are learned for a company unless the owner asks for a playful brand voice",
+    "The Settings and Stats rows say Business Psyche on a business account, and the examples for changing something are business ones"
   ],
   "highlights": [
-    "Cancel a switch to Business and go straight back to your chat",
-    "Plans now has its own row in Settings",
-    "Password reset opens in the Ervo app"
+    "Business Psyche is now the company's profile and voice",
+    "Professional wording everywhere on a business account",
+    "Ervo won't learn banter or jokes for a business"
   ]
 }

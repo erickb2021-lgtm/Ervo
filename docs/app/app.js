@@ -2733,6 +2733,8 @@
     save(PROFILES_KEY, prof);
     $("open-switch").querySelector("b").textContent = acc.plan === "business" ? "Switch to Ervo Personal" : "Switch to Ervo for Business";
     $("open-switch").querySelector("small").textContent = acc.plan === "business" ? "Your own chats, Psyche and settings, kept apart from work" : "Your work Ervo, with its own chats and team";
+    $("open-psyche").querySelector("b").textContent = acc.plan === "business" ? "Business Psyche" : "Psyche";
+    $("open-psyche").querySelector("small").textContent = acc.plan === "business" ? "What Ervo knows about your business and how it writes for it" : "What Ervo knows about you";
     const p = PLAN[acc.plan];
     $("chat-avatar").src = lookSrc();
     $("menu-who").textContent = `${acc.name} · Ervo ${acc.plan === "business" ? "for Business" : "Personal"}${acc.team ? ` · ${acc.team.companyName}` : ""}`;
@@ -3089,6 +3091,8 @@
   const MEMORY_KEY = "ervo-memory"; // before 0.2.8: plain facts
   const PSYCHE_KEY = "ervo-psyche";
   const STYLE_NAMES = { tone: "Tone", length: "Length", emojis: "Emojis", humor: "Humor", language: "Language", other: "Also" };
+  // In a Business Psyche the style is the company's voice, not the person's personality
+  const BIZ_STYLE_NAMES = { tone: "Voice", length: "Detail", emojis: "Emojis", humor: "Humor", language: "Language", other: "Also" };
   const KIND_NAMES = { health: "Health", food: "Food", goal: "Goals", likes: "Likes", dislikes: "Dislikes", people: "People", places: "Places", work: "Work", routine: "Routine", money: "Money", music: "Music", other: "Other",
     company: "Company", product: "Products & services", policy: "Policies", customers: "Customers", finance: "Finance", tools: "Tools", schedule: "Schedule", team: "Team" };
   const KIND_ICON = { health: "health", food: "food", goal: "star", likes: "heart", dislikes: "brain", people: "people", places: "location", work: "clock", routine: "clock", money: "money", music: "music", other: "brain",
@@ -4720,8 +4724,13 @@
     box.innerHTML = "";
     const p = psyche();
     const styled = Object.keys(STYLE_NAMES).filter((k) => p.style[k]).length;
-    const sub = p.facts.length || styled ? `${p.facts.length} thing${p.facts.length === 1 ? "" : "s"} Ervo knows · ${styled ? "knows how you like to talk" : "still learning how you talk"}` : "Ervo is just getting to know you";
-    const r = row("brain", "Your Psyche", sub, "›");
+    const biz = account && account.plan === "business";
+    const co = biz && account.team ? account.team.companyName : "your business";
+    const n = p.facts.length;
+    const sub = biz
+      ? (n || styled ? `${n} detail${n === 1 ? "" : "s"} about ${co} · ${styled ? "knows the company's voice" : "still learning the company's voice"}` : `Ervo is getting to know ${co}`)
+      : (n || styled ? `${n} thing${n === 1 ? "" : "s"} Ervo knows · ${styled ? "knows how you like to talk" : "still learning how you talk"}` : "Ervo is just getting to know you");
+    const r = row("brain", biz ? "Business Psyche" : "Your Psyche", sub, "›");
     r.classList.add("compact", "tap");
     r.addEventListener("click", () => openPsyche());
     box.append(r);
@@ -4740,26 +4749,43 @@
     box.innerHTML = "";
     const biz = account && account.plan === "business";
     const co = biz && account.team ? account.team.companyName : "your business";
+    const n = p.facts.length;
+    const things = (w) => `${n} ${w}${n === 1 ? "" : "s"}`;
     $("psyche-title").textContent = biz ? "Business Psyche" : "Psyche";
     $("psyche-sub").textContent = biz
-      ? (p.facts.length ? `What Ervo knows about ${co}: ${p.facts.length} thing${p.facts.length === 1 ? "" : "s"}, from your chats. Nothing personal lives here.` : `Ervo is getting to know ${co}. Tell it what the company does, its hours and policies, and it remembers.`)
-      : (p.facts.length ? `Ervo knows ${p.facts.length} thing${p.facts.length === 1 ? "" : "s"} about you and keeps learning as you chat.` : "Ervo is just getting to know you. It learns as you chat.");
+      ? (n ? `Ervo's working profile of ${co}: ${things("detail")} from your chats. Customer replies, quotes and schedules follow them. Nothing personal lives here.` : `Ervo is building a working profile of ${co}: what it offers, who it serves, its hours, policies, pricing and tools. Share them in the chat and every answer follows them.`)
+      : (n ? `Ervo knows ${things("thing")} about you and keeps learning as you chat.` : "Ervo is just getting to know you. It learns as you chat.");
+    // The toggle and the "change something" card read differently for a company
+    const learnLabel = $("learn-on").closest("label").querySelector("span");
+    learnLabel.firstChild.textContent = biz ? "Learn about the business from our chats " : "Learn from our chats ";
+    learnLabel.querySelector("small").textContent = biz
+      ? "When this is off, Ervo keeps using the company profile it has, but doesn't add anything new."
+      : "When this is off, Ervo still uses what it already knows, but doesn't add anything new.";
+    $("psyche-tell-title").textContent = biz ? "Something changed at the company?" : "Want to change something?";
+    $("psyche-tell-sub").textContent = biz
+      ? "Tell Ervo in the chat, like \"We're closed on Sundays now\", \"Our refund window is 30 days\", \"Keep customer replies formal\" or \"Answer in Spanish\"."
+      : "Just tell Ervo in the chat, like \"I'm not allergic to peanuts anymore\", \"more banter\", \"use emojis\" or \"answer in Spanish\".";
     const section = (title, card) => { const h = document.createElement("h2"); h.textContent = title; box.append(h, card); };
     const card = () => { const c = document.createElement("div"); c.className = "card list"; return c; };
 
+    const names = biz ? BIZ_STYLE_NAMES : STYLE_NAMES;
     const style = card();
-    const keys = Object.keys(STYLE_NAMES).filter((k) => p.style[k]);
-    if (!keys.length) style.append(empty("Plain and simple for now. Ervo picks up how you write and matches it."));
+    const keys = Object.keys(names).filter((k) => p.style[k]);
+    if (!keys.length) style.append(empty(biz
+      ? `Clear and professional by default. Tell Ervo the voice ${co} uses with customers, how much detail you want, and the language, and it writes every reply that way.`
+      : "Plain and simple for now. Ervo picks up how you write and matches it."));
     keys.forEach((k) => {
-      const r = row(k === "language" ? "chat" : k === "emojis" ? "star" : "chat", STYLE_NAMES[k], "", p.style[k]);
+      const r = row(k === "language" ? "chat" : k === "emojis" ? "star" : "chat", names[k], "", p.style[k]);
       r.classList.add("compact", "style-row");
       style.append(r);
     });
-    section("How Ervo talks to you", style);
+    section(biz ? `How Ervo writes for ${co}` : "How Ervo talks to you", style);
 
     const byKind = {};
     p.facts.forEach((f) => { (byKind[f.kind] = byKind[f.kind] || []).push(f); });
-    if (!p.facts.length) section("What Ervo knows", (() => { const c = card(); c.append(empty("Things you mention, like an allergy, your team or your favorite store, show up here.")); return c; })());
+    if (!n) section(biz ? `What Ervo knows about ${co}` : "What Ervo knows", (() => { const c = card(); c.append(empty(biz
+      ? "The company profile builds up here as you chat: what you offer and charge, your hours, refund and cancellation policies, your customers, the tools you use, and who on the team handles what."
+      : "Things you mention, like an allergy, your team or your favorite store, show up here.")); return c; })());
     Object.keys(KIND_NAMES).forEach((k) => {
       if (!byKind[k]) return;
       const c = card();
@@ -4774,7 +4800,7 @@
     if (p.lessons.length) {
       const c = card();
       p.lessons.slice().reverse().forEach((l) => { const r = row("done", l, ""); r.classList.add("compact", "memory"); c.append(r); });
-      section("What Ervo has learned about helping you", c);
+      section(biz ? `What Ervo has learned about working with ${co}` : "What Ervo has learned about helping you", c);
     }
   }
 
@@ -5110,7 +5136,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.8"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.9"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
