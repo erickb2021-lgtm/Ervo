@@ -1,0 +1,126 @@
+/* Ervo website: depth and motion layer. Loaded after design.css.
+   Everything here adds the third dimension: the owl stage in the hero, lit and layered cards,
+   raised tiles and buttons. Colors, type and layout stay in design.css. */
+
+/* ---------- 1. Tokens ---------- */
+:root {
+  --lift-1: 0 1px 2px rgba(28, 18, 48, 0.06), 0 10px 24px -14px rgba(28, 18, 48, 0.22);
+  --lift-2: 0 2px 4px rgba(28, 18, 48, 0.05), 0 22px 44px -22px rgba(28, 18, 48, 0.3), 0 44px 80px -40px rgba(109, 40, 217, 0.22);
+  --lift-3: 0 4px 8px rgba(28, 18, 48, 0.06), 0 34px 70px -26px rgba(28, 18, 48, 0.4), 0 60px 120px -50px rgba(109, 40, 217, 0.35);
+  --edge-top: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --edge-bottom: inset 0 -1px 0 rgba(28, 18, 48, 0.06);
+  --tile-a: #ffffff; --tile-b: #ece6fb;
+  --stage-pool: rgba(139, 92, 246, 0.2); --stage-line: rgba(139, 92, 246, 0.34);
+  --podium-face-a: #ffffff; --podium-face-b: #e7defa; --podium-wall-a: #d9cdf3; --podium-wall-b: #b9a6e6; --podium-rim: rgba(255, 255, 255, 0.95);
+  --spot: rgba(124, 58, 237, 0.16);
+}
+[data-theme="dark"] {
+  --lift-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 28px -14px rgba(0, 0, 0, 0.8);
+  --lift-2: 0 2px 4px rgba(0, 0, 0, 0.5), 0 26px 50px -22px rgba(0, 0, 0, 0.9), 0 0 44px -6px rgba(124, 58, 237, 0.3);
+  --lift-3: 0 4px 10px rgba(0, 0, 0, 0.55), 0 40px 80px -26px rgba(0, 0, 0, 0.95), 0 0 70px -6px rgba(124, 58, 237, 0.42);
+  --edge-top: inset 0 1px 0 rgba(255, 255, 255, 0.13);
+  --edge-bottom: inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+  --tile-a: #2a2140; --tile-b: #130e20;
+  --stage-pool: rgba(139, 92, 246, 0.42); --stage-line: rgba(196, 181, 253, 0.5);
+  --podium-face-a: #4a3878; --podium-face-b: #1b1330; --podium-wall-a: #1d1533; --podium-wall-b: #07050d; --podium-rim: rgba(214, 200, 255, 0.75);
+  --spot: rgba(167, 139, 250, 0.2);
+}
+
+/* ---------- 2. Layout safety: nothing decorative can widen the page ---------- */
+main { overflow-x: clip; }
+
+/* ---------- 3. The hero stage: Classic Ervo in 3D on a lit podium ---------- */
+.owl-stage { --k: 0.94; position: relative; width: min(100%, 1000px); height: 380px; margin: 20px auto 0; -webkit-user-select: none; user-select: none; }
+/* The pool of light the podium stands in */
+.owl-stage::before { content: ""; position: absolute; left: 50%; bottom: -96px; width: 1240px; max-width: 100vw; height: 480px; transform: translateX(-50%); pointer-events: none; z-index: -1;
+  background: radial-gradient(42% 44% at 50% 80%, var(--stage-pool) 0%, rgba(139, 92, 246, 0.1) 46%, rgba(139, 92, 246, 0) 72%); }
+
+/* Two orbit rings lie flat on the floor around the podium; a point of light travels each one */
+.os-ring { position: absolute; left: 50%; bottom: calc(26px * var(--k)); width: calc(var(--d) * var(--k)); height: calc(var(--d) * var(--k)); margin: 0 0 calc(var(--d) * var(--k) * -0.5) calc(var(--d) * var(--k) * -0.5); transform: scaleY(0.13); pointer-events: none; }
+.os-ring::before, .os-ring::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); mask: radial-gradient(closest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); }
+.os-ring::before { background: var(--stage-line); opacity: 0.4; }
+.os-ring::after { background: conic-gradient(from 0deg, rgba(196, 181, 253, 0) 0deg, rgba(196, 181, 253, 0) 250deg, rgba(221, 210, 255, 0.95) 340deg, #ffffff 357deg, rgba(196, 181, 253, 0) 360deg); }
+:root:not([data-theme="dark"]) .os-ring::after { background: conic-gradient(from 0deg, rgba(109, 40, 217, 0) 0deg, rgba(109, 40, 217, 0) 250deg, rgba(124, 58, 237, 0.7) 340deg, #6d28d9 357deg, rgba(109, 40, 217, 0) 360deg); }
+.os-ring.r1 { --d: 500px; }
+.os-ring.r2 { --d: 780px; opacity: 0.6; }
+html.motion .os-ring::after { animation: os-orbit 9s linear infinite; }
+html.motion .os-ring.r2::after { animation-duration: 15s; animation-direction: reverse; }
+@keyframes os-orbit { to { transform: rotate(360deg); } }
+
+/* The podium: a low cylinder. The wall is drawn first, the lit top face over it. */
+.os-podium { position: absolute; left: 50%; bottom: calc(24px * var(--k)); width: calc(330px * var(--k)); height: calc(42px * var(--k)); transform: translateX(-50%); pointer-events: none; }
+.os-podium::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: calc(40px * var(--k)); border-radius: 0 0 50% 50% / 0 0 calc(21px * var(--k)) calc(21px * var(--k));
+  background: linear-gradient(90deg, var(--podium-wall-b) 0%, var(--podium-wall-a) 22%, var(--podium-wall-a) 50%, var(--podium-wall-b) 100%);
+  box-shadow: 0 26px 46px -8px var(--stage-pool), 0 12px 18px -8px rgba(0, 0, 0, 0.35); }
+.os-podium::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(70% 90% at 42% 30%, var(--podium-face-a) 0%, var(--podium-face-b) 78%);
+  box-shadow: inset 0 0 0 1.5px var(--podium-rim), inset 0 -6px 14px rgba(139, 92, 246, 0.35); }
+
+/* The owl: a still picture first, the 3D canvas over it once it has loaded */
+.os-owl { position: absolute; left: 50%; bottom: calc(15px * var(--k)); width: calc(420px * var(--k)); height: calc(420px * var(--k)); margin-left: calc(-210px * var(--k)); z-index: 2; }
+.os-owl::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: 4.6%; height: 6%; border-radius: 50%; background: radial-gradient(50% 50% at 50% 50%, rgba(10, 4, 24, 0.55), rgba(10, 4, 24, 0) 70%); z-index: -1; transition: opacity 0.3s ease; }
+.os-poster { position: absolute; left: 4.5%; bottom: 3.6%; width: 91%; height: auto; transform-origin: 50% 100%; filter: drop-shadow(0 14px 18px rgba(12, 4, 30, 0.35)); transition: opacity 0.28s ease, filter 0.28s ease, transform 0.28s var(--ease-out); }
+html.motion .os-poster { animation: os-rise 0.9s var(--ease-out) both; }
+@keyframes os-rise { from { transform: translateY(22px) scale(0.93); } }
+.os-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; touch-action: pan-y; cursor: grab; outline: none; -webkit-tap-highlight-color: transparent; }
+.is-3d .os-canvas { opacity: 1; pointer-events: auto; }
+.is-3d .os-poster { opacity: 0; filter: blur(6px); transform: scale(0.96); }
+.is-3d .os-owl::after { opacity: 0; }
+.os-owl.grabbing .os-canvas { cursor: grabbing; }
+
+/* How to play with it: shown once the 3D owl is on stage, gone after the first spin or hop */
+.os-hint { position: absolute; left: 50%; bottom: calc(-2px * var(--k)); z-index: 3; padding: 5px 11px; border-radius: 999px; white-space: nowrap; pointer-events: none;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.01em; color: var(--text-2); background: var(--glass); border: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.97); transition: opacity 0.3s ease, transform 0.3s var(--ease-out); }
+.hint-on .os-hint { opacity: 1; transform: translateX(-50%); }
+
+/* The example conversation floats around the owl as glass cards turned toward it */
+.os-cards { position: absolute; inset: 0; perspective: 1500px; pointer-events: none; }
+.os-card { position: absolute; width: 276px; text-align: left; font-family: var(--font); font-size: 13px; line-height: 1.42; color: var(--text); will-change: transform; }
+.os-card.c1 { right: calc(50% + 206px); top: 22px; rotate: y 16deg; }
+.os-card.c3 { right: calc(50% + 232px); top: 206px; width: 250px; rotate: y 20deg; }
+.os-card.c2 { left: calc(50% + 208px); top: 70px; width: 280px; rotate: y -16deg; }
+html.motion .os-card { animation: os-float 7s ease-in-out infinite; }
+html.motion .os-card.c2 { animation-delay: -2.6s; }
+html.motion .os-card.c3 { animation-delay: -4.4s; animation-duration: 8s; }
+@keyframes os-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.os-in { padding: 13px 14px; border-radius: 18px; background: var(--glass); border: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: var(--edge-top), var(--lift-2); }
+[data-theme="dark"] .os-in { border-color: var(--glass-edge); background: rgba(22, 16, 36, 0.62); }
+.os-in p { margin: 0; }
+.os-in p.me { width: fit-content; margin: 0 0 8px auto; padding: 8px 12px; border-radius: 16px 16px 5px 16px; color: #ffffff; background: linear-gradient(135deg, #7c4dff, #b44dff); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+.os-who { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.os-who img { width: 28px; height: 28px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 0 1px var(--glass-line); }
+.os-who b { font-size: 13.5px; }
+.os-who small { margin-left: auto; font-size: 11px; color: var(--text-3); }
+.os-h { display: block; margin-bottom: 6px; font-size: 13px; }
+.os-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.os-row i { flex: none; width: 18px; height: 18px; border-radius: 50%; background: rgba(139, 92, 246, 0.2); color: var(--brand); font-style: normal; font-size: 10px; font-weight: 800; display: grid; place-items: center; }
+[data-theme="dark"] .os-row i { color: #d9ccff; background: rgba(139, 92, 246, 0.3); }
+.os-row span { flex: 1; display: flex; justify-content: space-between; gap: 8px; }
+.os-row em { font-style: normal; color: var(--text-3); white-space: nowrap; }
+.os-acts { display: flex; gap: 6px; margin-top: 9px; }
+.os-acts span { flex: 1; text-align: center; padding: 7px 0; border-radius: 999px; font-weight: 700; font-size: 12px; color: #ffffff; background: #7c4dff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+.os-acts span.g { color: var(--text); background: transparent; box-shadow: inset 0 0 0 1px var(--glass-line); }
+/* Until the motion script has started the cards wait off stage; if it never starts they show anyway */
+html.motion:not(.motion-on) .os-in { animation: os-late 0.5s ease 3s both; }
+@keyframes os-late { from { opacity: 0; } }
+
+/* The sign-up plaque now sits under the podium instead of over the phone */
+.show .auth { margin-top: 14px; }
+
+@media (max-width: 1039px) {
+  .os-cards { display: none; }
+  .show .stage-note { display: none; }
+}
+@media (max-width: 760px) {
+  .owl-stage { --k: 0.74; height: 300px; margin-top: 12px; }
+  .os-ring.r2 { display: none; }
+  .show .auth { margin-top: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .os-poster, .os-canvas, .os-hint { transition: none; }
+}

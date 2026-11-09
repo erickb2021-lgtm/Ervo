@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ervo · Your AI helper</title>
-  <script>try{var t=localStorage.getItem("ervo-theme")}catch(e){}document.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")</script>
+  <script>try{var t=localStorage.getItem("ervo-theme")}catch(e){}document.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");if(!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("motion")</script>
   <meta name="description" content="Ervo is your AI helper, for your life or your business. It plans, shops and supports your customers, and checks with you before anything important.">
   <meta name="theme-color" content="#faf6f2">
   <link rel="icon" href="assets/ervo-symbol.svg" type="image/svg+xml">
@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="css/how.css?v=10">
   <link rel="stylesheet" href="css/contact.css?v=2">
   <link rel="stylesheet" href="css/design.css?v=9">
+  <link rel="stylesheet" href="css/depth.css?v=1">
 </head>
 <body>
 
@@ -61,35 +62,31 @@
       <div class="look-grid" id="look-grid"></div>
     </div>
 
-    <!-- The stage: Ervo at work on a phone, lit from below. An example conversation with a fictional person. -->
-    <div class="hp-spot" aria-hidden="true">
-      <span class="hp-orb o1"><img src="assets/sm/ervo-explorer.webp" alt=""></span>
-      <span class="hp-orb o2"><img src="assets/sm/ervo-chef.webp" alt=""></span>
-      <span class="hp-orb o3"><img src="assets/sm/ervo-business.webp" alt=""></span>
-      <span class="hp-orb o4"><img src="assets/sm/ervo-scholar.webp" alt=""></span>
-      <div class="hp-tilt" id="ph-tilt">
-        <div class="hp">
-          <div class="hp-scr">
-            <span class="hp-isl"></span>
-            <div class="hp-st"><span>9:41</span><span class="hp-sig"><i></i><i></i><i></i><b></b></span></div>
-            <div class="hp-top"><img src="assets/sm/ervo-classic.webp" alt=""><div><b>Ervo</b><small>Online · here to help</small></div><span class="hp-pill">Personal</span></div>
-            <div class="hp-msgs">
-              <div class="hp-m" style="--i:0">Morning, Morgan ☀️ Two things: your dentist moved to <b>Friday 4:00</b>, and the car is due for an oil change this month. Want me to find a slot this weekend?</div>
-              <div class="hp-m me" style="--i:1">Yes, Saturday morning please.</div>
-              <div class="hp-card" style="--i:2"><b>🔧 Saturday, near you</b>
-                <div class="hp-row"><i>1</i><span>Quick Lube, 9:00<em>$49 · 0.8 mi</em></span></div>
-                <div class="hp-row"><i>2</i><span>Main St Auto, 10:30<em>$55 · 1.2 mi</em></span></div>
-                <div class="hp-row"><i>3</i><span>Dealer, 11:15<em>$79 · 3 mi</em></span></div>
-                <div class="hp-acts"><span>Book 9:00</span><span class="g">Other times</span></div>
-              </div>
-              <div class="hp-typing" style="--i:3" aria-hidden="true"><i></i><i></i><i></i></div>
-              <div class="hp-m late" style="--i:4">Holding 9:00 for you. I'll confirm before anything is paid 👍</div>
-            </div>
-            <div class="hp-comp">Ask Ervo anything…<i>↑</i></div>
-          </div>
-        </div>
+    <!-- The stage: Classic Ervo in 3D on a lit podium, with an example conversation floating around it (a fictional person). -->
+    <div class="owl-stage" id="owl-stage" data-look="classic" aria-hidden="true">
+      <span class="os-ring r1"></span><span class="os-ring r2"></span>
+      <div class="os-cards">
+        <div class="os-card c1"><div class="os-in">
+          <div class="os-who"><img src="assets/sm/ervo-classic.webp" alt="" width="28" height="28"><b>Ervo</b><small>Online · here to help</small></div>
+          <p>Morning, Morgan ☀️ Two things: your dentist moved to <b>Friday 4:00</b>, and the car is due for an oil change this month. Want me to find a slot this weekend?</p>
+        </div></div>
+        <div class="os-card c3"><div class="os-in">
+          <p class="me">Yes, Saturday morning please.</p>
+          <p class="it">Holding 9:00 for you. I'll confirm before anything is paid 👍</p>
+        </div></div>
+        <div class="os-card c2"><div class="os-in">
+          <b class="os-h">🔧 Saturday, near you</b>
+          <div class="os-row"><i>1</i><span>Quick Lube, 9:00<em>$49 · 0.8 mi</em></span></div>
+          <div class="os-row"><i>2</i><span>Main St Auto, 10:30<em>$55 · 1.2 mi</em></span></div>
+          <div class="os-row"><i>3</i><span>Dealer, 11:15<em>$79 · 3 mi</em></span></div>
+          <div class="os-acts"><span>Book 9:00</span><span class="g">Other times</span></div>
+        </div></div>
       </div>
-      <span class="hp-floor"></span>
+      <span class="os-podium"></span>
+      <div class="os-owl" id="os-owl">
+        <img class="os-poster" id="os-poster" src="assets/ervo-classic.webp" width="434" height="434" alt="" fetchpriority="high">
+      </div>
+      <span class="os-hint" id="os-hint">Drag to spin · tap to hop</span>
     </div>
     <!-- Sign up: looks like the app's own sign-in screen -->
     <div class="auth app-look" id="auth">
@@ -662,7 +659,8 @@
 
 <script src="app/config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-<script src="js/app.js?v=16"></script>
+<script src="js/app.js?v=17"></script>
+<script src="js/hero.js?v=1"></script>
 <script src="js/how.js?v=10"></script>
 <script src="js/theme.js?v=4"></script>
 <script src="js/contact.js?v=1"></script>

@@ -474,25 +474,3 @@ fetch("app/version.json", { cache: "no-store" }).then((r) => r.json()).then((v) 
   if (!v || !v.version) return;
   document.querySelectorAll(".dl-note").forEach((n) => { n.textContent = `Free preview, version ${v.version}. Not on the App Store or Google Play yet.`; });
 }).catch(() => {});
-
-// Hero phone: leans a few degrees toward the pointer, eased each frame so it feels weighted, not stuck to the cursor.
-// Only for a fine pointer; touch devices and reduced-motion users see it still.
-(function () {
-  const tilt = document.getElementById("ph-tilt");
-  const spot = tilt && tilt.closest(".spot");
-  if (!spot || !matchMedia("(hover: hover) and (pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0;
-  function frame() {
-    cx += (tx - cx) * 0.12; cy += (ty - cy) * 0.12;
-    tilt.style.transform = `perspective(1200px) rotateX(${(4 + cy).toFixed(2)}deg) rotateY(${(-9 + cx).toFixed(2)}deg) translateZ(0)`;
-    raf = (Math.abs(tx - cx) > 0.01 || Math.abs(ty - cy) > 0.01) ? requestAnimationFrame(frame) : 0;
-  }
-  const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
-  spot.addEventListener("pointermove", (e) => {
-    const r = spot.getBoundingClientRect();
-    tx = ((e.clientX - r.left) / r.width - 0.5) * 10;
-    ty = ((e.clientY - r.top) / r.height - 0.5) * -6;
-    kick();
-  });
-  spot.addEventListener("pointerleave", () => { tx = 0; ty = 0; kick(); });
-})();
