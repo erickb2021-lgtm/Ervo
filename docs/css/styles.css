@@ -904,3 +904,20 @@ section.block, section.cta { min-height: 620px; display: flex; flex-direction: c
 /* Keep the video and the big cards on their own layers so their glow isn't repainted on every frame */
 .stage, .plan-card, .cmp-chat, .phone { contain: paint; }
 .stage, .phone { will-change: transform; }
+
+/* Download menu: a glass material in the spirit of Apple's Human Interface Guidelines. Translucent and
+   blurred so the page shows through, a thin bright edge on top (the specular highlight), a soft inner
+   light, and a deep shadow so it clearly floats above the page. */
+.dl-menu .download { overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(46, 42, 56, 0.72) 0%, rgba(26, 24, 32, 0.8) 100%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%); backdrop-filter: blur(28px) saturate(180%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), inset 0 -1px 0 rgba(0, 0, 0, 0.35), 0 30px 70px rgba(0, 0, 0, 0.45), 0 0 50px rgba(122, 75, 224, 0.18); }
+[data-theme="dark"] .dl-menu .download { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), inset 0 -1px 0 rgba(0, 0, 0, 0.35), 0 30px 70px rgba(0, 0, 0, 0.6), 0 0 50px rgba(122, 75, 224, 0.22); }
+.dl-menu .download::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(120% 55% at 50% -12%, rgba(255, 255, 255, 0.2), transparent 60%), linear-gradient(160deg, rgba(255, 255, 255, 0.09) 0%, transparent 38%, rgba(255, 255, 255, 0.04) 100%); }
+.dl-menu .download > * { position: relative; }
+.dl-menu .dl-tabs { background: rgba(0, 0, 0, 0.28); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 3px rgba(0, 0, 0, 0.4); }
+.dl-menu .dl-tabs button[aria-selected="true"] { background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 2px 8px rgba(0, 0, 0, 0.35); }
+.dl-menu .dl-panel .qr { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 10px 26px rgba(0, 0, 0, 0.35); }
+.dl-menu .dl-btn { background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.1); }
+.dl-menu .dl-btn:hover { background: rgba(255, 255, 255, 0.18); }

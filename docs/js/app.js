@@ -471,3 +471,10 @@ document.addEventListener("click", (e) => {
   }, { threshold: 0.15 });
   els.forEach((el) => io.observe(el));
 })();
+
+// The version line always comes from the app's own version.json, so the website shows the right
+// version automatically every time the app is updated (no hand edit needed here).
+fetch("app/version.json", { cache: "no-store" }).then((r) => r.json()).then((v) => {
+  if (!v || !v.version) return;
+  document.querySelectorAll(".dl-note").forEach((n) => { n.textContent = `Free preview, version ${v.version}. Not on the App Store or Google Play yet.`; });
+}).catch(() => {});
