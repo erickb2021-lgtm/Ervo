@@ -12,7 +12,7 @@
   --tile-a: #ffffff; --tile-b: #ece6fb;
   --stage-pool: rgba(139, 92, 246, 0.2); --stage-line: rgba(139, 92, 246, 0.34);
   --podium-face-a: #ffffff; --podium-face-b: #e7defa; --podium-wall-a: #d9cdf3; --podium-wall-b: #b9a6e6; --podium-rim: rgba(255, 255, 255, 0.95);
-  --spot: rgba(124, 58, 237, 0.16);
+  --spot: rgba(124, 58, 237, 0.1); --glare: rgba(255, 255, 255, 0.55);
 }
 [data-theme="dark"] {
   --lift-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 28px -14px rgba(0, 0, 0, 0.8);
@@ -23,7 +23,7 @@
   --tile-a: #2a2140; --tile-b: #130e20;
   --stage-pool: rgba(139, 92, 246, 0.42); --stage-line: rgba(196, 181, 253, 0.5);
   --podium-face-a: #4a3878; --podium-face-b: #1b1330; --podium-wall-a: #1d1533; --podium-wall-b: #07050d; --podium-rim: rgba(214, 200, 255, 0.75);
-  --spot: rgba(167, 139, 250, 0.2);
+  --spot: rgba(167, 139, 250, 0.14); --glare: rgba(255, 255, 255, 0.1);
 }
 
 /* ---------- 2. Layout safety: nothing decorative can widen the page ---------- */
@@ -124,3 +124,22 @@ html.motion:not(.motion-on) .os-in { animation: os-late 0.5s ease 3s both; }
 @media (prefers-reduced-motion: reduce) {
   .os-poster, .os-canvas, .os-hint { transition: none; }
 }
+
+/* ---------- 4. Motion support (js/motion.js) ---------- */
+/* Smooth scrolling (Lenis). These are its own few rules, kept here so no extra stylesheet has to load. */
+html.lenis, html.lenis body { height: auto; }
+.lenis:not(.lenis-autoToggle).lenis-stopped { overflow: clip; }
+.lenis [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-smooth iframe { pointer-events: none; }
+/* Headings that rise line by line: room for letters that hang below the line (g, y, p) */
+.split-line-mask { padding-bottom: 0.14em; margin-bottom: -0.14em; }
+/* Plan cards lean toward the pointer; the glare follows it */
+.tilt-glare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.3s ease;
+  background: radial-gradient(460px circle at var(--gx, 50%) var(--gy, 0%), var(--glare), transparent 62%); }
+.plan-card.tilting .tilt-glare { opacity: 1; }
+.plan-card.tilting { will-change: transform; }
+/* Glass cards catch the light where the pointer is */
+.has-spot { position: relative; }
+.spot-glow { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.3s ease;
+  background: radial-gradient(260px circle at var(--gx, 50%) var(--gy, 50%), var(--spot), transparent 66%); }
+.has-spot:hover > .spot-glow { opacity: 1; }

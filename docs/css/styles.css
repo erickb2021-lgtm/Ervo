@@ -22,7 +22,7 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html:not(.lenis) { scroll-behavior: smooth; }
 body {
   margin: 0;
   background: var(--bg);
