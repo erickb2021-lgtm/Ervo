@@ -172,6 +172,7 @@
   const steps = document.querySelectorAll(".step");
   function step(name) {
     steps.forEach((s) => s.classList.toggle("active", s.dataset.step === name));
+    if (name === "team" || name === "name") syncCancel(); // a way back when this is a switch, not a first sign-in
     const input = document.querySelector(`.step[data-step="${name}"] input:not([type="radio"])`);
     if (input) setTimeout(() => input.focus(), 50);
   }
@@ -496,6 +497,31 @@
     $("team-go").textContent = r === "owner" ? "Create my company" : "Join my company";
   }
   document.querySelectorAll('input[name="teamrole"]').forEach((x) => x.addEventListener("change", () => setTeamRole(x.value)));
+  // Switching to Business (or adding a company) can be cancelled: back to the Ervo that was open,
+  // or to the other profile on this sign-in. A first sign-in has nowhere to go back to, so no button.
+  function backTarget() {
+    if (account && (account.plan === "personal" || (account.team && account.team.companyId))) return account;
+    const prof = load(PROFILES_KEY) || {};
+    if (prof.personal && prof.personal.name) return prof.personal;
+    if (userMeta && userMeta.profiles && userMeta.profiles.personal && userMeta.profiles.personal.name) return { plan: "personal", name: userMeta.profiles.personal.name, contact: contact || (account && account.contact) || "", id: account && account.id };
+    return null;
+  }
+  function syncCancel() {
+    const t = backTarget();
+    ["team-cancel", "name-cancel"].forEach((id) => { const b = $(id); b.hidden = !t; if (t) b.textContent = `Back to Ervo ${t.plan === "business" ? "for Business" : "Personal"}`; });
+  }
+  function cancelSetup() {
+    const t = backTarget();
+    if (!t) return;
+    switching = false;
+    pendingAcc = null;
+    $("team-error").textContent = ""; $("name-error").textContent = "";
+    setPlan(t.plan);
+    if (account && account.plan === t.plan && account.name === t.name) { setNS(t.plan, t.team && t.team.companyId); show("chat"); return; }
+    curtain(t.plan, () => switchInto(t, false));
+  }
+  $("team-cancel").addEventListener("click", cancelSetup);
+  $("name-cancel").addEventListener("click", cancelSetup);
   clearOnType($("team-company"), "team-error");
   clearOnType($("team-code"), "team-error");
   document.querySelector('[data-step="team"]').addEventListener("submit", async (e) => {
@@ -5738,6 +5764,8 @@
   // Android back button: close whatever is open first, then go back to the chat
   window.ervoBack = function () {
     if (OVERLAY) { closeVoice(); return true; }
+    // Setting up a switch to Business (or a new company): back returns to the Ervo that was open
+    if ($("welcome").classList.contains("active") && document.querySelector('.step.active[data-step="team"], .step.active[data-step="name"]') && !$("team-cancel").hidden) { cancelSetup(); return true; }
     if (document.querySelector(".msg-menu")) { closeMsgMenu(); return true; }
     if (!$("confirm").hidden) { $("confirm").hidden = true; return true; }
     if (!$("perm").hidden) { answerPermission(false); return true; }
