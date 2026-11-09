@@ -285,3 +285,22 @@ main.doc::after { content: ""; position: fixed; z-index: -1; pointer-events: non
   main.doc::after { width: 460px; height: 460px; top: -160px; right: -160px; }
   :root .cc-ico { transform: none; }
 }
+
+/* ---------- 7. Phones: nothing you can press is smaller than 44px ---------- */
+@media (max-width: 860px) {
+  .site-header .brand { min-width: 44px; min-height: 44px; }
+  .site-header .btn-ghost { min-width: 44px; }
+  .seg span { height: 44px; }
+  .site-footer nav a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+  .doc .toc a { display: inline-flex; align-items: center; min-height: 44px; }
+}
+/* The permission switches keep their size; the pressable area around each one grows to 54 by 44 */
+.toggle input { inset: auto; top: -8px; left: -4px; width: calc(100% + 8px); height: calc(100% + 16px); }
+/* The hero keeps the page gutter on narrow screens (its padding shorthand had dropped it), so the words and the
+   sign-up card no longer touch the glass. The owl's stage still runs edge to edge. */
+.hero.show { --gut: 24px; }
+@media (max-width: 480px) { .hero.show { --gut: 16px; } }
+@media (max-width: 1247px) { .hero.show { padding-left: var(--gut); padding-right: var(--gut); } }
+@media (max-width: 760px) {
+  .hero.show .owl-stage { width: calc(100% + 2 * var(--gut)); margin-left: calc(-1 * var(--gut)); margin-right: calc(-1 * var(--gut)); }
+}

@@ -23,7 +23,7 @@
   const root = document.createElement("div");
   root.className = "ct";
   root.innerHTML = `
-    <button class="ct-fab" id="ct-fab" type="button" aria-expanded="false" aria-controls="ct-panel">
+    <button class="ct-fab" id="ct-fab" type="button" aria-label="Contact" aria-expanded="false" aria-controls="ct-panel">
       <img src="assets/sm/ervo-classic.webp" alt=""><span>Contact</span>
     </button>
     <section class="ct-panel" id="ct-panel" role="dialog" aria-modal="false" aria-labelledby="ct-title" hidden>

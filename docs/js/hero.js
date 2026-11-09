@@ -32,16 +32,16 @@
     sync();
   }
 
-  function canWebGL() {
-    try { return !!document.createElement("canvas").getContext("webgl2"); } catch (e) { return false; }
-  }
+  // Only asks whether the browser has WebGL 2 at all. Making a test canvas here would cost as much as the real one;
+  // if the real one cannot start, mountOwl throws and the picture stays.
+  function canWebGL() { return "WebGL2RenderingContext" in window; }
 
   async function load() {
     if (api || loading || failed || reduce.matches || saveData || look !== "classic") return;
     if (!canWebGL()) { failed = true; return; }
     loading = true;
     try {
-      const mod = await import("./owl3d.js?v=1");
+      const mod = await import("./owl3d.js?v=2");
       api = await mod.mountOwl(host, { onTap: hideHint, onSpin: hideHint, onFail: () => { failed = true; sync(); } });
       api.setTheme(root.dataset.theme === "dark");
       // Two frames so the first picture is on the canvas before the still fades out.
@@ -68,8 +68,8 @@
     .observe(root, { attributes: true, attributeFilter: ["data-theme"] });
   reduce.addEventListener("change", () => { sync(); if (!reduce.matches && started) load(); });
 
-  // Load the 3D after the page has finished: right away on computers, and on phones at the first
-  // touch or scroll (or a few seconds in), so it never competes with the page itself.
+  // Load the 3D after the page has finished, at the first sign of the visitor (a pointer move, touch, scroll
+  // or key) or a few seconds in, so it never competes with the page itself.
   function start() {
     if (started) return;
     started = true;
@@ -77,12 +77,10 @@
     idle(() => load(), { timeout: 1500 });
   }
   function arm() {
-    if (!coarse) { start(); return; }
-    const once = () => { start(); removeEventListener("pointerdown", once); removeEventListener("scroll", once); removeEventListener("keydown", once); };
-    addEventListener("pointerdown", once, { passive: true });
-    addEventListener("scroll", once, { passive: true });
-    addEventListener("keydown", once);
-    setTimeout(start, 3500);
+    const signs = ["pointermove", "pointerdown", "scroll", "keydown"];
+    const once = () => { signs.forEach((type) => removeEventListener(type, once)); start(); };
+    signs.forEach((type) => addEventListener(type, once, { passive: true }));
+    setTimeout(once, 3500);
   }
   if (document.readyState === "complete") arm(); else addEventListener("load", arm, { once: true });
 

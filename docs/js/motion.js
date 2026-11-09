@@ -12,16 +12,16 @@
   ["download", "look-picker", "ct-panel"].forEach((id) => { const el = $(id); if (el) el.setAttribute("data-lenis-prevent", ""); });
   document.querySelectorAll("textarea, .cmp-chat").forEach((el) => el.setAttribute("data-lenis-prevent", ""));
 
-  // The demo's music is not downloaded with the page. Fetch it when the player comes near.
-  const music = $("music"), how = $("how");
-  if (music && how && "IntersectionObserver" in window) {
+  // The demo's music is not downloaded with the page. It is fetched once the visitor has scrolled and the
+  // player is near the screen. Pressing play before that fetches it too.
+  const music = $("music"), player = $("player");
+  if (music && player && "IntersectionObserver" in window) {
     const io = new IntersectionObserver((entries) => {
       if (!entries.some((e) => e.isIntersecting)) return;
       io.disconnect();
-      music.preload = "auto";
-      try { music.load(); } catch (e) {}
-    }, { rootMargin: "600px 0px" });
-    io.observe(how);
+      music.preload = "auto"; // the browser starts the download by itself; calling load() too would fetch it twice
+    }, { rootMargin: "300px 0px" });
+    addEventListener("scroll", () => io.observe(player), { once: true, passive: true });
   }
 
   if (reduce) return;
@@ -44,14 +44,18 @@
     })));
   }
 
-  // Computers get the motion right away (the hero cards are waiting for it). Phones get it once the page has
-  // finished loading, so it never slows the first view.
+  // Computers get the motion right away (the hero cards are waiting for it). Phones get it in a quiet moment
+  // after the page has finished loading, so it never slows the first view.
   const begin = () => loadAll().then(init).catch(() => root.classList.add("motion-on"));
+  const quiet = () => (window.requestIdleCallback ? requestIdleCallback(begin, { timeout: 2000 }) : setTimeout(begin, 300));
   if (fine) begin();
-  else if (document.readyState === "complete") setTimeout(begin, 300);
-  else addEventListener("load", () => setTimeout(begin, 300), { once: true });
+  else if (document.readyState === "complete") setTimeout(quiet, 300);
+  else addEventListener("load", () => setTimeout(quiet, 300), { once: true });
 
-  function init() {
+  // The set-up runs in short steps with a breath between them, so the page stays responsive while it happens.
+  const breath = () => new Promise((done) => setTimeout(done, 0));
+
+  async function init() {
     const { gsap, ScrollTrigger, SplitText, Lenis } = window;
     if (!gsap || !ScrollTrigger) { root.classList.add("motion-on"); return; }
     gsap.registerPlugin(ScrollTrigger);
@@ -100,10 +104,11 @@
     const below = (el) => el.getBoundingClientRect().top > window.innerHeight * 0.92;
 
     // ---- section headings rise line by line ----
-    const splitHeadings = () => {
+    const splitHeadings = async () => {
       if (!SplitText) return;
-      document.querySelectorAll("main section:not(.hero) h2").forEach((h) => {
-        if (!below(h)) return;
+      const heads = [...document.querySelectorAll("main section:not(.hero) h2")].filter(below);
+      for (const h of heads) {
+        await breath();
         SplitText.create(h, {
           type: "lines", mask: "lines", autoSplit: true, linesClass: "split-line",
           onSplit(self) {
@@ -113,22 +118,15 @@
             });
           },
         });
-      });
+      }
     };
-    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(splitHeadings);
 
     // ---- section reveals ----
-    const reveal = (sel, from, stagger) => {
-      const els = gsap.utils.toArray(sel).filter(below);
-      if (!els.length) return;
-      // Back to rest: only the properties this reveal moved, so a tile that is meant to be half see-through stays so.
-      const rest = { duration: 0.9, stagger: stagger || 0.1, overwrite: true, clearProps: "transform" + ("opacity" in from ? ",opacity" : "") };
-      Object.keys(from).forEach((k) => { if (!k.startsWith("transform")) rest[k] = k === "opacity" || k === "scale" ? 1 : 0; });
-      // While GSAP moves an element, its own CSS transition must not ease the same property a second time.
-      els.forEach((el) => el.classList.add("gs-anim"));
-      gsap.set(els, from);
-      ScrollTrigger.batch(els, { start: "top 88%", once: true, onEnter: (batch) => gsap.to(batch, { ...rest, onComplete: () => batch.forEach((el) => el.classList.remove("gs-anim")) }) });
-    };
+    // Every reveal is listed first; then everything is measured, and only then changed, so the page is laid out
+    // once. One watcher starts them as they scroll into view. Its top edge reaches far above the screen, so a
+    // jump down the page (a link, the End key, a fast fling) still shows everything it passed.
+    const jobs = [];
+    const reveal = (sel, from, stagger) => jobs.push({ els: gsap.utils.toArray(sel), from, stagger: stagger || 0.1 });
     const up = { opacity: 0, y: 34 };
     reveal("#how .section-head > p, #choose .section-head > p, #compare .section-head > p, #learn .section-head > p", { opacity: 0, y: 16 });
     reveal("#choose .plan-card", { opacity: 0, y: 46, rotationX: 9, transformPerspective: 1100, transformOrigin: "50% 100%" }, 0.14);
@@ -143,6 +141,38 @@
     reveal(".apps .app", { y: 26, scale: 0.78 }, 0.045);
     reveal(".closing .closing-line, .closing .closing-sub", up, 0.12);
     reveal(".cta .hello-owl, .cta .stack", { opacity: 0, y: 24 }, 0.1);
+
+    await breath();
+    if ("IntersectionObserver" in window) {
+      jobs.forEach((job) => { job.els = job.els.filter(below); });
+      const watcher = new IntersectionObserver((entries) => {
+        const seen = new Set(entries.filter((e) => e.isIntersecting).map((e) => e.target));
+        if (!seen.size) return;
+        jobs.forEach((job) => {
+          const batch = job.els.filter((el) => seen.has(el));
+          if (!batch.length) return;
+          job.els = job.els.filter((el) => !seen.has(el));
+          batch.forEach((el) => watcher.unobserve(el));
+          gsap.to(batch, { ...job.rest, onComplete: () => batch.forEach((el) => el.classList.remove("gs-anim")) });
+        });
+      }, { rootMargin: "99999px 0px -12% 0px" });
+      jobs.forEach((job) => {
+        if (!job.els.length) return;
+        const from = job.from;
+        // Back to rest: only the properties this reveal moved, so a tile that is meant to be half see-through stays so.
+        job.rest = { duration: 0.9, stagger: job.stagger, overwrite: true, clearProps: "transform" + ("opacity" in from ? ",opacity" : "") };
+        Object.keys(from).forEach((k) => { if (!k.startsWith("transform")) job.rest[k] = k === "opacity" || k === "scale" ? 1 : 0; });
+        // While GSAP moves an element, its own CSS transition must not ease the same property a second time.
+        job.els.forEach((el) => el.classList.add("gs-anim"));
+        gsap.set(job.els, from);
+        job.els.forEach((el) => watcher.observe(el));
+      });
+    }
+
+    await breath();
+    await (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve());
+    await splitHeadings();
+    await breath();
 
     // ---- the one scroll-linked piece: the demo player tips up from the table as it arrives ----
     const mm = gsap.matchMedia();
@@ -205,6 +235,7 @@
     }
 
     // Pictures and fonts that arrive late change the page height; measure again once they are in.
-    addEventListener("load", () => ScrollTrigger.refresh(), { once: true });
+    if (document.readyState === "complete") ScrollTrigger.refresh();
+    else addEventListener("load", () => ScrollTrigger.refresh(), { once: true });
   }
 })();

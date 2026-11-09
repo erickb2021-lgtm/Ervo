@@ -259,6 +259,8 @@ function buildOwl() {
   return { turn, body, head, eyes, wings, materials: M };
 }
 
+// The build is split into short steps with a breath between them, so the page never freezes while the owl arrives.
+const breath = () => new Promise((done) => setTimeout(done, 0));
 export async function mountOwl(host, opts = {}) {
   const coarse = matchMedia("(pointer: coarse)").matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
@@ -270,8 +272,10 @@ export async function mountOwl(host, opts = {}) {
   canvas.className = "os-canvas";
   canvas.setAttribute("aria-hidden", "true");
 
+  await breath();
   const scene = new THREE.Scene();
   scene.environment = studio(renderer);
+  await breath();
   scene.environmentIntensity = 0.75;
   const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 40);
   camera.position.set(0, 1.05, 8.3);
@@ -283,6 +287,7 @@ export async function mountOwl(host, opts = {}) {
   const under = new THREE.PointLight(0xb48cff, 6, 9, 1.6); under.position.set(0, -2.3, 2.6); scene.add(under);
 
   const owl = buildOwl();
+  await breath();
   const root = new THREE.Group();
   root.add(owl.turn);
   scene.add(root);
@@ -299,6 +304,7 @@ export async function mountOwl(host, opts = {}) {
   let grow = opts.introSpin === undefined ? 0.88 : 1, growV = 0;
   let t = 0, last = 0, raf = 0, visible = true, active = true, dragging = false, moved = false, lastX = 0, lastT = 0, pointerSeen = false;
   let nextBlink = 1.6, blinkAt = -1, blinks = 1;
+  let ready = false; // nothing is drawn until the shaders are compiled
 
   function spring(x, v, target, k, c, dt) { const a = -k * (x - target) - c * v; v += a * dt; return [x + v * dt, v]; }
 
@@ -346,14 +352,14 @@ export async function mountOwl(host, opts = {}) {
     renderer.render(scene, camera);
     if (visible && active && !document.hidden) raf = requestAnimationFrame(frame);
   }
-  function wake() { if (!raf && visible && active && !document.hidden) { last = 0; raf = requestAnimationFrame(frame); } }
+  function wake() { if (ready && !raf && visible && active && !document.hidden) { last = 0; raf = requestAnimationFrame(frame); } }
 
   function resize() {
     const w = host.clientWidth || 1, h = host.clientHeight || 1;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    if (!raf) renderer.render(scene, camera);
+    if (ready && !raf) renderer.render(scene, camera);
   }
   const ro = new ResizeObserver(resize); ro.observe(host);
   const io = new IntersectionObserver((e) => { visible = e[0].isIntersecting; wake(); }, { rootMargin: "80px" }); io.observe(host);
@@ -402,9 +408,12 @@ export async function mountOwl(host, opts = {}) {
   canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); active = false; if (opts.onFail) opts.onFail(); });
 
   host.appendChild(canvas);
-  resize();
-  renderer.compile(scene, camera);
-  renderer.render(scene, camera);
+  await breath();
+  // Where the browser can, the shaders are compiled in the background before the first picture is drawn.
+  try { await renderer.compileAsync(scene, camera); } catch (e) { /* the first draw compiles them instead */ }
+  await breath();
+  ready = true;
+  resize(); // sizes the canvas and draws the first picture
   wake();
 
   return {
