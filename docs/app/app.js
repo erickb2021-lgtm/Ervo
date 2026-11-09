@@ -5238,6 +5238,10 @@
   // ---------- menu ----------
   const menu = { get hidden() { return !$("settings").classList.contains("active"); } };
   function openSettings() { $("set-owl").src = lookSrc(); show("settings"); }
+  // Warm the settings icons once the app is idle, so the first open doesn't wait on 16 downloads
+  (window.requestIdleCallback || ((fn) => setTimeout(fn, 1500)))(() => {
+    document.querySelectorAll("#settings-list .app-ico img").forEach((img) => { if (!img.complete) { const i = new Image(); i.decoding = "async"; i.src = img.src; } });
+  });
   function toggleMenu(open) { if (open) openSettings(); } // closing is Back
   $("menu-btn").addEventListener("click", openSettings);
   $("open-switch").addEventListener("click", switchProfile);
