@@ -2534,7 +2534,7 @@
     const choosing = opts.choices && opts.choices.length;
     if (choosing) showChoices(opts.choices);
     setChips(choosing ? [] : opts.chips || null);
-    if (opts.ai && said) feedbackRow(opts.asked || "", said);
+    if (opts.ai && said) feedbackRow(opts.asked || "", said, opts.model || "");
     toBottom();
     if (speakIt) speak(said);
     if (OVERLAY && !voice.hidden && !listening) { voice.classList.remove("thinking"); $("voice-status").textContent = "Tap the mic or type to ask more"; }
@@ -4437,7 +4437,8 @@
     setTimeout(() => checkMilestones(false), 2500);
     // Feedback on the last answer goes to the AI as a lesson, then a corrected answer
     if (feedbackFor !== null) {
-      const about = feedbackFor;
+      const about = feedbackFor.asked;
+      sendFeedback("down", v, about, feedbackFor.said, feedbackFor.model);
       feedbackFor = null;
       $("message").placeholder = "Message Ervo";
       return askAI(understand(`Feedback on your last answer${about ? ` to "${about.slice(0, 120)}"` : ""}: ${v}. Save a short lesson with update_psyche so it doesn't happen again, say in one sentence what you'll do differently, then give the corrected answer.`));
@@ -5225,7 +5226,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.9"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.10"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -6170,14 +6171,30 @@
   }
 
   // ---------- was that helpful? (guidelines 15 and 16) ----------
-  function feedbackRow(asked, said) {
+  // Every thumbs up or down also goes to Ervo's server (the question, the answer, which model wrote it, and why),
+  // so Ervo's maker can read what went wrong and fix the instructions. No name travels with it.
+  function sendFeedback(vote, reason, question, answer, model) {
+    if (!AI_URL || !account) return;
+    (async () => {
+      try {
+        const token = await freshToken();
+        await fetch(`${AI_URL}/feedback`, {
+          method: "POST",
+          headers: Object.assign({ "content-type": "application/json" }, token ? { Authorization: `Bearer ${token}` } : {}),
+          body: JSON.stringify({ plan: account.plan, team: teamForAI(), deviceId: deviceId(), messages: [], feedback: { vote, reason: String(reason || "").slice(0, 300), question: String(question || "").slice(0, 600), answer: String(answer || "").slice(0, 1500), model: String(model || "").slice(0, 40) } }),
+          signal: AbortSignal.timeout(8000),
+        });
+      } catch (e) { /* offline; the lesson still saved on the phone */ }
+    })();
+  }
+  function feedbackRow(asked, said, model) {
     const row = document.createElement("div");
     row.className = "fb";
     row.setAttribute("role", "group");
     row.setAttribute("aria-label", "Was this helpful?");
     const btn = (txt, label, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = txt; b.setAttribute("aria-label", label); b.addEventListener("click", fn); return b; };
     const thanks = (msg) => { row.innerHTML = ""; row.append(msg); setTimeout(() => row.remove(), 4000); };
-    const up = btn("👍", "Good answer", () => { buzz("tick"); thanks("Thanks! Glad that helped."); });
+    const up = btn("👍", "Good answer", () => { buzz("tick"); sendFeedback("up", "", asked, said, model); thanks("Thanks! Glad that helped."); });
     const down = btn("👎", "Not helpful", () => {
       buzz("tick");
       row.innerHTML = "";
@@ -6194,13 +6211,14 @@
         ["Too short", () => { learn({ style: { length: "more detail when it helps" } }); return ["Got it. I'll give more detail from now on. You'll see it in Psyche.", false]; }],
       ].forEach(([label, fn]) => why.append(btn(label, label, () => {
         const [msg, retry] = fn();
+        sendFeedback("down", label, asked, said, model);
         row.remove();
         ervoSays(msg, { acts: retry && asked ? [{ label: "Try Again", icon: "undo", onClick: () => send(asked) }] : null });
       })));
       // Say it in your own words: Ervo learns from it and answers again
       const tell = btn("Tell Ervo…", "Tell Ervo what was off", () => {
         row.remove();
-        feedbackFor = asked || "";
+        feedbackFor = { asked: asked || "", said, model };
         $("message").placeholder = "What was off? I'll learn from it";
         $("message").focus();
       });

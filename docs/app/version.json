@@ -1,15 +1,13 @@
 {
-  "version": "0.5.9",
+  "version": "0.5.10",
   "notes": [
-    "Live package tracking: share a tracking number (Amazon, UPS, USPS, FedEx, DHL and more), allow Order tracking once, and Ervo checks the carrier for you, shows the latest scan on the card, and notifies you when it ships, is out for delivery and is delivered, even with Ervo closed",
-    "The Business Psyche speaks business: it's the company's working profile (what you offer, hours, policies, pricing, customers, tools, team) and the company's voice, not a personal profile; no banter or jokes are learned for a company",
-    "Drafts for customers, emails and texts: Ervo asks what happened before writing, never invents names, orders or credits, signs with your name (and company), and learns from the edits you make with the new Edit draft button",
-    "One Plans sheet: everyone is on Free for now with the other plans marked coming soon; only the owner's personal account can try a plan",
-    "Settings: the Switch row is centered with a new icon and breathing room under the Ervo card; pop-up sheets no longer scroll or drag the page unless they need to"
+    "Your thumbs up or down now reaches Ervo's maker: the question, the answer, which model wrote it and what was off, with no name attached, so repeated mistakes get fixed for everyone",
+    "Ervo says each thing once: no repeated sentences or the same question asked twice in one reply",
+    "Only Ervo's owner can call a business Ervo; anyone else is told the name is Ervo's own and asked for their real company name"
   ],
   "highlights": [
-    "Live package tracking with notifications at every step",
-    "Business Psyche is now the company's profile and voice",
-    "Drafts ask what happened first, end with your name, and learn from your edits"
+    "Thumbs up or down helps fix Ervo for everyone",
+    "No more repeated questions in one reply",
+    "Nobody but the owner can claim the name Ervo"
   ]
 }

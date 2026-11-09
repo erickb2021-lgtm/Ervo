@@ -10,7 +10,7 @@
   </picture>
 </p>
 
-<p align="center"><b>Your AI helper, for your life and your business.</b><br>Version 0.5.9 (preview)</p>
+<p align="center"><b>Your AI helper, for your life and your business.</b><br>Version 0.5.10 (preview)</p>
 
 <p align="center">
   <a href="https://ervo.company/">Website</a> ·
