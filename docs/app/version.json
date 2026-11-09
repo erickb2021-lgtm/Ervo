@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.5.5",
   "notes": [
     "Businesses: a company is its name plus its location, so two shops with the same name in different cities both fit. The owner gives a first and last name",
     "My Businesses in Settings: switch between your companies, add another, join one with an ID, verify yours with your work email and website, or delete one (type its name)",

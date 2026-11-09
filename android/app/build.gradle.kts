@@ -12,7 +12,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 35
-        versionName = "0.6.0"
+        versionName = "0.5.5"
     }
 
     // Every update must be signed with the same key, or phones refuse to install it.
