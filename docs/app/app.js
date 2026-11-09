@@ -2965,12 +2965,12 @@
     if (/\b(song|songs|music|playlist|album|concert|artist)\b/.test(t)) return ["🎵", "Finding music"];
     if (/\b(gift|present)s?\b/.test(t)) return ["🎁", "Finding gift ideas"];
     if (d.intent === "plan") return ["🗓️", "Planning your day"];
-    if (/(reserv\w*|book (a )?table|table for|appointment)/.test(t) || d.intent === "reserve") return ["🍽️", "Planning your reservation"];
-    if (/(email|e-mail|text message|draft|reply|message to|write (a|an|the))/.test(t)) return ["✏️", "Writing a draft"];
-    if (/(weather|forecast|rain|umbrella)/.test(t)) return ["🌤️", "Checking the weather"];
-    if (/(remind|reminder|alarm|timer)/.test(t)) return ["⏰", "Setting a reminder"];
-    if (/(invoice|payment|bill|tax|bookkeeping|budget)/.test(t)) return ["💵", "Working on the numbers"];
-    if (/(schedule|calendar|meeting|plan (my|the|a) (week|month))/.test(t) || d.intent === "event") return ["📅", "Planning"];
+    if (/\b(reserv\w*|book (a )?table|table for|appointment)\b/.test(t) || d.intent === "reserve") return ["🍽️", "Planning your reservation"];
+    if (/\b(email|e-mail|text message|draft|reply|message to|write (a|an|the))\b/.test(t)) return ["✏️", "Writing a draft"];
+    if (/\b(weather|forecast|rain|umbrella)\b/.test(t)) return ["🌤️", "Checking the weather"];
+    if (/\b(remind|reminder|alarm|timer)\b/.test(t)) return ["⏰", "Setting a reminder"];
+    if (/\b(invoice|payment|bill|tax|bookkeeping|budget)\b/.test(t)) return ["💵", "Working on the numbers"];
+    if (/\b(schedule|calendar|meeting|plan (my|the|a) (week|month))\b/.test(t) || d.intent === "event") return ["📅", "Planning"];
     if (NEAR_RE.test(t)) return ["📍", "Looking near you"];
     if (d.intent === "shop") return wantsAdvice(shopItem(d.raw) || "", d.t) ? ["🔍", "Researching options"] : ["🛍️", "Finding options"];
     if (/\b(how|what|why|when|where|who|which|best|recommend|compare)\b/.test(d.t)) return ["🔎", "Looking it up"];
