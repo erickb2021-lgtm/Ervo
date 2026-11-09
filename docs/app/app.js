@@ -4498,7 +4498,7 @@
   }
   // Plans: what each one gives (no payments yet; they arrive with Google Play Billing and Stripe)
   const PLAN_ROWS = {
-    personal: [["free", "Free", "Free", "10 chats a day · 3 research and 3 pictures a month"], ["plus", "Plus", "$9.99/mo", "25 chats a day · 15 research and 30 pictures a month"], ["pro", "Pro", "$19.99/mo", "50 chats a day · 40 research and 100 pictures a month"]],
+    personal: [["free", "Free", "Free", "10 chats a day · 3 research and 3 pictures a month"], ["plus", "Plus", "$9.99/mo", "25 chats a day · 15 research and 30 pictures a month"], ["pro", "Pro", "$19.99/mo", "40 chats a day · 40 research and 100 pictures a month"]],
     business: [["starter", "Business Starter", "", "1,000 customer chats a month for the whole team"], ["growth", "Business Growth", "", "5,000 customer chats a month"]],
   };
   function openPlans() {
@@ -4528,7 +4528,7 @@
     const box = $("testplan-list");
     box.innerHTML = "";
     const tp = testPlan();
-    [["", "Off", "Owner account, no limits (Sonnet answers)"], ["free", "Free", "Haiku answers · 10 chats a day"], ["plus", "Plus", "Sonnet answers · 25 chats a day"], ["pro", "Pro", "Sonnet answers · 50 chats a day"]].forEach(([key, name, sub]) => {
+    [["", "Off", "Owner account, no limits (Sonnet answers)"], ["free", "Free", "Haiku answers · 10 chats a day"], ["plus", "Plus", "Sonnet answers · 25 chats a day"], ["pro", "Pro", "Sonnet answers · 40 chats a day"]].forEach(([key, name, sub]) => {
       const r = row("star", name, sub, key === tp ? "Current" : "");
       r.classList.add("tap");
       if (key === tp) r.classList.add("current");
