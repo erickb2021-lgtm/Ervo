@@ -1644,3 +1644,5 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 .row .side.plan-price { color: var(--tint); font-weight: 800; }
 .mini-stats:has(> div:nth-child(3)) { grid-template-columns: repeat(3, 1fr); }
 .mini-stats:has(> div:nth-child(3)) b { font-size: 1.05rem; }
+/* My Businesses: the purple Add button reads white, not purple on purple */
+#biz-add.ideas-refresh { color: #fff !important; }

@@ -628,7 +628,7 @@
     "👕": "T-shirt", "👖": "Jeans", "🧘": "Person in lotus position*", "👜": "Handbag", "🍔": "Hamburger", "🍱": "Bento box", "🥡": "Takeout box", "🥕": "Carrot",
     "🛵": "Motor scooter", "🥦": "Broccoli", "🍕": "Pizza", "☕": "Hot beverage", "🌯": "Burrito", "🍟": "French fries", "🍗": "Poultry leg", "🥘": "Shallow pan of food",
     "💊": "Pill", "📱": "Mobile phone", "💄": "Lipstick", "🪑": "Chair", "🛋️": "Couch and lamp", "🐾": "Paw prints", "🔨": "Hammer", "🔧": "Wrench", "🏷️": "Label",
-    "✂️": "Scissors", "🧹": "Broom", "🎬": "Clapper board", "🎂": "Birthday cake", "🔎": "Magnifying glass tilted right",
+    "✂️": "Scissors", "🧹": "Broom", "🎬": "Clapper board", "🎂": "Birthday cake", "🔎": "Magnifying glass tilted right", "😎": "Smiling face with sunglasses",
   };
   function e3d(ch) {
     const key = String(ch || "").trim();
@@ -646,7 +646,7 @@
   const ICON_3D = {
     calendar: "📅", shop: "🛍️", health: "🫀", location: "📍", mail: "✉️", done: "✅", food: "🍽️", undo: "↩️", open: "🔗", phone: "📞", clock: "⏰",
     mic: "🎙️", stats: "📊", chat: "💬", map: "🗺️", plane: "✈️", heart: "❤️", home: "🏠", ball: "⚽", book: "📚", tooth: "🦷", doctor: "🩺", money: "💵",
-    star: "⭐", camera: "📷", music: "🎵", car: "🚗", sun: "☀️", people: "👥", brain: "🧠",
+    star: "⭐", camera: "📷", music: "🎵", car: "🚗", sun: "☀️", people: "👥", brain: "🧠", look: "😎", gem: "💎",
   };
   // A row's icon: the 3D picture when we have one (and it loads), else the flat coloured square
   function setRowIcon(el, ico) {
@@ -671,7 +671,7 @@
       ["open-switch", "undo", "#5e5ce6", "Switch to Ervo for Business", "Same email, separate chats and settings"],
     ]],
     ["Ervo", [
-      ["open-look", "people", "#7a4be0", "Ervo's Look", "Pick an outfit"],
+      ["open-look", "look", "#7a4be0", "Ervo's Look", "Pick an outfit"],
       ["open-wake", "mic", "#30d158", "Hey Ervo", "Hands-free"],
     ]],
     ["Work", [
@@ -683,6 +683,7 @@
       ["open-psyche", "brain", "#bf5af2", "Psyche", "What Ervo knows about you"],
       ["open-stats", "stats", "#ff375f", "Ervo Stats", "Steps, upcoming, activity"],
       ["open-apps", "open", "#5e5ce6", "Connected Apps", "Calendar, Health, Location, stores"],
+      ["open-plans", "gem", "#ffd60a", "Plans", "Free, Plus and Pro"],
       ["open-chats", "chat", "#64d2ff", "Chats", "Side chats"],
     ]],
     ["Sign-in", [
@@ -5700,6 +5701,7 @@
     setTimeout(() => $("message").focus(), 300);
   });
   $("open-stats").addEventListener("click", () => openStats(false));
+  $("open-plans").addEventListener("click", () => { fetchUsage(); openPlans(); });
   function openApps() { toggleMenu(false); renderApps(); show("appsPage"); }
   $("open-apps").addEventListener("click", openApps);
   $("apps-back").addEventListener("click", () => show(backTo("appsPage")));
