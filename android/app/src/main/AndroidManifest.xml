@@ -475,6 +475,16 @@
             </intent-filter>
         </receiver>
 
+        <!-- Live tracking: asks Ervo's server about open packages about once an hour and notifies at each step -->
+        <receiver
+            android:name=".TrackCheckReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Shares a downloaded update with Android's installer -->
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -643,6 +643,10 @@ open class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun cancelNotice(id: String) { if (id.isNotBlank()) OrderNotice.cancel(applicationContext, id.take(60)) }
 
+        /** Live tracking: the cards to keep checking while Ervo is closed (TrackCheck asks the server hourly and notifies). */
+        @JavascriptInterface
+        fun syncTrackers(json: String) { TrackCheck.sync(applicationContext, json.take(20000)) }
+
         /** Share text with any app (Notes, Keep, Messages, email...) through Android's share sheet */
         @JavascriptInterface
         fun shareText(title: String, text: String) = runOnUiThread {

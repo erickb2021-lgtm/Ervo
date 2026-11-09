@@ -1,13 +1,15 @@
 {
   "version": "0.5.9",
   "notes": [
-    "The Business Psyche speaks business: it's the company's working profile (what you offer, hours, policies, pricing, customers, tools, team) and the company's voice, not a personal profile",
-    "Business style rows read Voice and Detail, with professional examples; no banter or jokes are learned for a company unless the owner asks for a playful brand voice",
-    "The Settings and Stats rows say Business Psyche on a business account, and the examples for changing something are business ones"
+    "Live package tracking: share a tracking number (Amazon, UPS, USPS, FedEx, DHL and more), allow Order tracking once, and Ervo checks the carrier for you, shows the latest scan on the card, and notifies you when it ships, is out for delivery and is delivered, even with Ervo closed",
+    "The Business Psyche speaks business: it's the company's working profile (what you offer, hours, policies, pricing, customers, tools, team) and the company's voice, not a personal profile; no banter or jokes are learned for a company",
+    "Drafts for customers, emails and texts: Ervo asks what happened before writing, never invents names, orders or credits, signs with your name (and company), and learns from the edits you make with the new Edit draft button",
+    "One Plans sheet: everyone is on Free for now with the other plans marked coming soon; only the owner's personal account can try a plan",
+    "Settings: the Switch row is centered with a new icon and breathing room under the Ervo card; pop-up sheets no longer scroll or drag the page unless they need to"
   ],
   "highlights": [
+    "Live package tracking with notifications at every step",
     "Business Psyche is now the company's profile and voice",
-    "Professional wording everywhere on a business account",
-    "Ervo won't learn banter or jokes for a business"
+    "Drafts ask what happened first, end with your name, and learn from your edits"
   ]
 }

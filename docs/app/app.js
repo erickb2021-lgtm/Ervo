@@ -629,6 +629,7 @@
     "🛵": "Motor scooter", "🥦": "Broccoli", "🍕": "Pizza", "☕": "Hot beverage", "🌯": "Burrito", "🍟": "French fries", "🍗": "Poultry leg", "🥘": "Shallow pan of food",
     "💊": "Pill", "📱": "Mobile phone", "💄": "Lipstick", "🪑": "Chair", "🛋️": "Couch and lamp", "🐾": "Paw prints", "🔨": "Hammer", "🔧": "Wrench", "🏷️": "Label",
     "✂️": "Scissors", "🧹": "Broom", "🎬": "Clapper board", "🎂": "Birthday cake", "🔎": "Magnifying glass tilted right", "😎": "Smiling face with sunglasses",
+    "🔄": "Counterclockwise arrows button",
   };
   function e3d(ch) {
     const key = String(ch || "").trim();
@@ -646,7 +647,7 @@
   const ICON_3D = {
     calendar: "📅", shop: "🛍️", health: "🫀", location: "📍", mail: "✉️", done: "✅", food: "🍽️", undo: "↩️", open: "🔗", phone: "📞", clock: "⏰",
     mic: "🎙️", stats: "📊", chat: "💬", map: "🗺️", plane: "✈️", heart: "❤️", home: "🏠", ball: "⚽", book: "📚", tooth: "🦷", doctor: "🩺", money: "💵",
-    star: "⭐", camera: "📷", music: "🎵", car: "🚗", sun: "☀️", people: "👥", brain: "🧠", look: "😎", gem: "💎",
+    star: "⭐", camera: "📷", music: "🎵", car: "🚗", sun: "☀️", people: "👥", brain: "🧠", look: "😎", gem: "💎", swap: "🔄",
   };
   // A row's icon: the 3D picture when we have one (and it loads), else the flat coloured square
   function setRowIcon(el, ico) {
@@ -668,7 +669,7 @@
   // ---------- Settings page: compact rows grouped like the phone's Settings ----------
   const SETTINGS = [
     ["", [
-      ["open-switch", "undo", "#5e5ce6", "Switch to Ervo for Business", "Same email, separate chats and settings"],
+      ["open-switch", "swap", "#5e5ce6", "Switch to Ervo for Business", "Same email, separate chats and settings", "switch"],
     ]],
     ["Ervo", [
       ["open-look", "look", "#7a4be0", "Ervo's Look", "Pick an outfit"],
@@ -683,15 +684,12 @@
       ["open-psyche", "brain", "#bf5af2", "Psyche", "What Ervo knows about you"],
       ["open-stats", "stats", "#ff375f", "Ervo Stats", "Steps, upcoming, activity"],
       ["open-apps", "open", "#5e5ce6", "Connected Apps", "Calendar, Health, Location, stores"],
-      ["open-plans", "gem", "#ffd60a", "Plans", "Free, Plus and Pro"],
+      ["open-plans", "gem", "#ffd60a", "Plans", "Free for now · more plans coming soon"],
       ["open-chats", "chat", "#64d2ff", "Chats", "Side chats"],
     ]],
     ["Sign-in", [
       ["open-keep", "done", "#30d158", "Keep me logged in", "On: you stay signed in until you sign out"],
       ["open-bio", "star", "#0a84ff", "Unlock with fingerprint or face", "Off"],
-    ]],
-    ["Testing", [
-      ["open-testplan", "star", "#ff9f0a", "Try a plan", "Owner: no limits"],
     ]],
     ["About", [
       ["open-intro", "book", "#8e8e93", "How Ervo Works"],
@@ -750,7 +748,7 @@
     },
     orders: {
       name: "Order tracking", ico: "shop",
-      does: ["Keep a card for each order, return and refund you tell Ervo about, with a progress bar", "Look up tracking numbers you share and remind you the day before and the day it should arrive", "Stores don't let Ervo see inside your account, so Ervo tracks what you share"],
+      does: ["Keep a card for each order, return and refund you tell Ervo about, with a progress bar", "Check the carrier for live updates on tracking numbers you share (Amazon, UPS, USPS, FedEx and more), and notify you when a package ships, is out for delivery and is delivered", "Stores don't let Ervo see inside your account, so Ervo tracks the numbers and details you share"],
       note: "Everything stays in Ervo. Nothing opens unless you tap a card's button.",
     },
     health: {
@@ -827,6 +825,20 @@
   function openOutside(url) {
     if (native && native.openUrl) native.openUrl(url);
     else window.open(url, "_blank", "noopener");
+  }
+  // The message inside a mailto: or sms: link Ervo made, so it can be edited before sending
+  function draftBodyOf(links) {
+    for (const l of links || []) {
+      const u = String((l && l.url) || "");
+      if (!/^(mailto:|sms:)/.test(u)) continue;
+      try { const body = new URL(u).searchParams.get("body"); if (body && body.trim().length > 20) return body.trim(); } catch (e) { /* not a link we can read */ }
+    }
+    return "";
+  }
+  function editDraft(body) {
+    show("chat");
+    $("message").value = `Here's my edited version of your draft. Use this one, and learn from what I changed for next time:\n\n${body}`;
+    setTimeout(() => { $("message").focus(); syncComposer(); }, 100);
   }
 
   // ---------- Allow / Deny ----------
@@ -2739,6 +2751,7 @@
     $("chat-avatar").src = lookSrc();
     $("menu-who").textContent = `${acc.name} · Ervo ${acc.plan === "business" ? "for Business" : "Personal"}${acc.team ? ` · ${acc.team.companyName}` : ""}`;
     applyTeamUI();
+    setTimeout(() => { syncNativeTrackers(); refreshAllTrackers(false); }, 2500);
     if (acc.plan === "business" && realAuth) setTimeout(syncTeam, 800);
     thread.innerHTML = "";
     lastDay = "";
@@ -3302,8 +3315,11 @@
           confirming = true;
           out.chips = ["Yes", "No"];
         } else if (a.type === "show_links" && Array.isArray(a.links)) {
-          out.acts = a.links.filter((l) => l && /^https:\/\//.test(String(l.url))).slice(0, 4)
-            .map((l) => ({ label: String(l.title || "Open").slice(0, 60), icon: "open", href: String(l.url) }));
+          out.acts = a.links.filter((l) => l && /^(https:\/\/|mailto:|sms:)/.test(String(l.url))).slice(0, 4)
+            .map((l) => { const u = String(l.url); return { label: String(l.title || "Open").slice(0, 60), icon: /^mailto:/.test(u) ? "mail" : /^sms:/.test(u) ? "chat" : "open", href: u }; });
+          // A draft in an email or text link can be edited here first; Ervo learns from the changes
+          const draft = draftBodyOf(a.links);
+          if (draft) out.acts.push({ label: "Edit draft", icon: "chat", onClick: () => editDraft(draft) });
         } else if (a.type === "set_timer" && !(Number(a.seconds) >= 1 && Number(a.seconds) <= 86400)) {
           // a bad length (negative, zero, more than a day) never reaches the phone
         } else if (a.type === "set_alarm" && !(Number.isInteger(Number(a.hour)) && Number(a.hour) >= 0 && Number(a.hour) <= 23 && Number.isInteger(Number(a.minute || 0)) && Number(a.minute || 0) >= 0 && Number(a.minute || 0) <= 59)) {
@@ -3939,21 +3955,10 @@
         const url = "https://www.amazon.com/gp/css/order-history";
         return ervoSays(`I can't reach my AI right now. Your Amazon orders page has the live ${d.intent === "track" ? "tracking" : "return options"}.`, { acts: [{ label: "Your orders", icon: "shop", href: url }] });
       }
-      case "refund":
-        pending = {
-          yes: "Refund sent ✅ $64.00 back to the customer's card, and I emailed them a return label. Ticket closed.", no: "Okay, I've left it for your team to review.",
-          log: { kind: "refund", ico: "done", title: "Refunded order #5512", detail: "$64.00 · damaged on arrival" },
-        };
-        return ervoSays("Order #5512: a blender that arrived cracked, $64.00, delivered 4 days ago.\nYour policy: damaged on arrival → full refund ✓\n\nShould I issue the refund and reply to the customer?", { chips: ["Yes, refund it", "Send to my team"] });
-      case "tickets":
-        return ervoSays("Today so far (sample):\n• 42 customer tickets\n• 38 resolved by me, average 41 seconds\n• 4 sent to your team (2 bulk orders, 1 billing question, 1 upset customer)", {  });
-      case "email": {
-        const body = "Hi Jordan,\n\nI'm really sorry your order arrived late. I've refunded your shipping and added a 15% credit to your account. If there's anything else I can do, just reply here.\n\nThanks for your patience.";
-        const mail = `mailto:?subject=${encodeURIComponent("About your order")}&body=${encodeURIComponent(body)}`;
-        return ervoSays(`Here's a draft:\n\n"${body}"\n\nWant to send it from your email?`, {
-          acts: [{ label: "Open in email", icon: "mail", onClick: () => ensure("mail", "Open this draft in your email").then((ok) => { if (ok) { logActivity({ kind: "email", ico: "mail", title: "Drafted a customer reply" }); openOutside(mail); } }) }],
-        });
-      }
+      case "refund": case "tickets": case "email":
+        // Customer work is real work: Ervo's AI asks what happened and drafts from the Business Psyche. No sample replies.
+        if (AI_URL) return askAI(d);
+        return ervoSays("I can't reach my AI right now, so I can't work on that yet. Try again in a moment.");
       default:
         return ervoSays(biz
           ? "I want to make sure I get this right. Is it about a customer, a refund, or a meeting?"
@@ -4120,7 +4125,66 @@
   const CARRIERS = window.ERVO_CARRIERS || [];
   const STEPS = { order: ["Ordered", "Shipped", "Out for delivery", "Delivered"], return: ["Requested", "Label sent", "Dropped off", "Refunded"], refund: ["Requested", "Approved", "Refunded"] };
   const trackers = () => load(TRACK_KEY) || [];
-  const saveTrackers = (list) => save(TRACK_KEY, list.slice(-60));
+  const saveTrackers = (list) => { save(TRACK_KEY, list.slice(-60)); syncNativeTrackers(); };
+  // ---------- live tracking: the server asks the carrier (17TRACK) by the tracking number ----------
+  // The app checks when it opens and every half hour while open; Android keeps checking in the background
+  // (TrackCheck.kt) and notifies at each step. Nothing is checked until Order tracking is allowed.
+  const LIVE_STEP = { ordered: 0, shipped: 1, out: 2, delivered: 3 };
+  async function refreshTracker(t, opts) {
+    opts = opts || {};
+    if (!AI_URL || !t || !t.tracking || t.done || t.kind !== "order") return null;
+    if (!opts.force && t.liveAt && Date.now() - new Date(t.liveAt).getTime() < 30 * 60000) return null;
+    let r;
+    try {
+      const res = await fetch(`${AI_URL}/track`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ number: t.tracking, carrier: t.carrier || "" }), signal: AbortSignal.timeout(12000) });
+      r = await res.json();
+    } catch (e) { return null; }
+    const list = trackers();
+    const live = list.find((x) => x.id === t.id);
+    if (!live) return r;
+    live.liveAt = new Date().toISOString();
+    if (r && r.ok) {
+      const before = live.step;
+      const step = r.step in LIVE_STEP ? LIVE_STEP[r.step] : live.step;
+      live.step = Math.max(live.step, step);
+      live.done = live.step >= live.steps.length - 1;
+      live.source = "carrier";
+      live.checkedAt = live.liveAt;
+      live.updatedAt = live.liveAt;
+      live.liveNote = "";
+      live.last = { text: String(r.text || "").slice(0, 160), place: String(r.place || "").slice(0, 80), at: String(r.at || ""), status: String(r.status || ""), trouble: !!r.trouble };
+      if (r.carrier) live.carrierName = String(r.carrier).slice(0, 40);
+      if (r.eta) { live.etaDate = r.eta; live.eta = new Date(`${r.eta}T12:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); }
+      saveTrackers(list);
+      scheduleTrackerNotices(live);
+      document.querySelectorAll(`.tracker[data-id="${live.id}"]`).forEach((el) => el.replaceWith(trackerEl(live)));
+      if (live.step > before || (live.last.trouble && !opts.quiet)) noticeNow(live);
+    } else {
+      live.liveNote = r && r.message ? String(r.message).slice(0, 120) : "";
+      saveTrackers(list);
+      document.querySelectorAll(`.tracker[data-id="${live.id}"]`).forEach((el) => el.replaceWith(trackerEl(live)));
+    }
+    return r;
+  }
+  // A step the carrier just reported: a phone notification when Ervo is in the background, a line in the chat otherwise
+  function noticeNow(t) {
+    const title = `${t.title}: ${t.last.status || t.steps[t.step]}`;
+    const text = `${t.last.text}${t.last.place ? ` · ${t.last.place}` : ""}`;
+    if (native && native.scheduleNotice && document.hidden) native.scheduleNotice(`${t.id}-live-${t.step}`, Date.now() + 1500, title, text);
+    else if ($("chat").classList.contains("active")) { ervoSays(`${title}. ${text}`, { instant: true }); buzz("confirm"); }
+  }
+  async function refreshAllTrackers(force) {
+    if (!AI_URL || !account || !allowed("orders")) return;
+    for (const t of trackers().filter((x) => !x.done && x.tracking && x.kind === "order")) await refreshTracker(t, { force, quiet: true });
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshAllTrackers(false); });
+  setInterval(() => { if (!document.hidden) refreshAllTrackers(false); }, 30 * 60000);
+  // Android keeps a copy of the live cards so it can check the carrier and notify while Ervo is closed
+  function syncNativeTrackers() {
+    if (!native || !native.syncTrackers || !AI_URL) return;
+    const list = allowed("orders") ? trackers().filter((t) => !t.done && t.tracking && t.kind === "order").map((t) => ({ id: t.id, number: t.tracking, carrier: t.carrier || "", title: t.title, step: t.step, text: (t.last && t.last.text) || "", server: AI_URL, origin: location.origin })) : [];
+    try { native.syncTrackers(JSON.stringify(list)); } catch (e) { /* older Ervo */ }
+  }
   function storeKey(name) {
     const n = String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
     if (!n) return "";
@@ -4248,9 +4312,13 @@
   function trackNumberReply(num, car) {
     const run = () => {
       const t = upsertTracker({ kind: "order", title: "Package", tracking: num, carrier: car.name, status: "shipped", source: "you" });
-      return ervoSays(`That's a ${car.name} tracking number. I made a card for it (it's under Files too); tap Track package for ${car.name}'s live details, or tell me what's in it and I'll name the card.`, { trackers: [t], instant: true });
+      const out = ervoSays(AI_URL
+        ? `That's a ${car.name} tracking number. I made a card for it (it's under Files too) and I'm checking ${car.name} now. I'll notify you when it ships, is out for delivery and lands. Tell me what's in it and I'll name the card.`
+        : `That's a ${car.name} tracking number. I made a card for it (it's under Files too); tap Track package for ${car.name}'s live details, or tell me what's in it and I'll name the card.`, { trackers: [t], instant: true });
+      refreshTracker(t, { force: true });
+      return out;
     };
-    return ensure("orders", "Keep a card for your orders, returns and refunds").then((ok) => (ok ? run() : null));
+    return ensure("orders", "Keep a live card for this package").then((ok) => (ok ? run() : null));
   }
   function trackerEl(t) {
     const store = STORES_DIR[t.store];
@@ -4274,12 +4342,15 @@
     // Honest about what's live: a card from their words is an estimate, not a tracking update
     const src = el.querySelector(".tk-source");
     const when = t.checkedAt ? new Date(t.checkedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
-    if (t.done) src.textContent = `Marked ${t.steps[t.steps.length - 1].toLowerCase()} ${when}`;
-    else if (t.source === "carrier") { src.textContent = `${car ? car.name : "Carrier"} update · ${when}`; src.classList.add("live"); }
+    if (t.done && t.source === "carrier") { src.textContent = `${t.carrierName || (car ? car.name : "Carrier")} confirmed ${t.steps[t.steps.length - 1].toLowerCase()} · ${when}`; src.classList.add("live"); }
+    else if (t.done) src.textContent = `Marked ${t.steps[t.steps.length - 1].toLowerCase()} ${when}`;
+    else if (t.source === "carrier") { src.textContent = `${t.carrierName || (car ? car.name : "Carrier")} live update · ${when} · Ervo keeps checking`; src.classList.add("live"); }
+    else if (t.liveNote && t.tracking) src.textContent = `Checking the carrier · ${t.liveNote}`;
     else if (t.source === "store") src.textContent = `From your ${t.storeName || "store"} order details · ${when}`;
     else src.textContent = "From what you told Ervo · not a live update";
     const rows = el.querySelector(".tk-rows");
     const row = (emoji, label, value) => { const r = document.createElement("div"); r.className = "tk-row"; r.innerHTML = `<span class="tk-remoji">${e3d(emoji)}</span><span class="tk-rlabel"></span><span class="tk-rvalue"></span>`; r.querySelector(".tk-rlabel").textContent = label; r.querySelector(".tk-rvalue").textContent = value; rows.append(r); return r; };
+    if (t.last && t.last.text) row(t.last.trouble ? "⚠️" : "📍", t.last.trouble ? "Heads-up" : "Latest", `${t.last.text}${t.last.place ? ` · ${t.last.place}` : ""}`);
     if (t.eta) row(t.kind === "order" ? "🚚" : "💵", t.kind === "order" ? (t.done ? "Delivered" : "Arrives") : "Refund", t.eta);
     if (t.orderNo) { const r = row("🧾", "Order #", t.orderNo); r.classList.add("tap"); r.title = "Copy"; r.addEventListener("click", async () => { toast((await copyText(t.orderNo)) ? "Order number copied" : "Couldn't copy"); }); }
     if (t.tracking) { const r = row("🔎", car ? car.name : "Tracking", t.tracking); r.classList.add("tap"); r.title = "Copy"; r.addEventListener("click", async () => { toast((await copyText(t.tracking)) ? "Tracking number copied" : "Couldn't copy"); }); }
@@ -4289,7 +4360,17 @@
     const act = (label, cls, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = `pill ${cls || "ghost"}`; b.textContent = label; b.addEventListener("click", fn); acts.append(b); };
     if (store) act(`Open ${store.name}`, "ghost", () => { logActivity({ kind: "track", ico: "shop", title: `Opened ${store.name} orders` }); openOutside(t.kind === "order" ? store.orders : store.returns); });
     if (t.tracking && car) act("Track package", "ghost", () => openOutside(car.url(t.tracking)));
-    if (!t.done) act("Check status", "ghost", () => send(`Check the status of my ${t.storeName || ""} ${t.kind}: ${t.title}${t.tracking ? ` (tracking ${t.tracking})` : ""}`.replace(/\s+/g, " ")));
+    if (!t.done) act("Check status", "ghost", async (e) => {
+      if (!(t.tracking && t.kind === "order" && AI_URL)) return send(`Check the status of my ${t.storeName || ""} ${t.kind}: ${t.title}${t.tracking ? ` (tracking ${t.tracking})` : ""}`.replace(/\s+/g, " "));
+      // Straight to the carrier, no chat needed; the card redraws itself with the live status
+      const b = e.currentTarget;
+      b.textContent = "Checking…";
+      b.disabled = true;
+      const ok = await ensure("orders", "Keep a live card for this package");
+      const r = ok ? await refreshTracker(t, { force: true }) : null;
+      if (!r) { b.textContent = "Check status"; b.disabled = false; if (ok) toast("Couldn't reach the carrier just now"); }
+      else if (!r.ok) toast(r.message || "No live update yet");
+    });
     if (!t.done) act(t.step >= t.steps.length - 2 ? (t.kind === "order" ? "It arrived" : "Refund received") : "Next step", "", () => advanceTracker(t.id));
     if (t.done) act("Remove", "ghost", () => removeTracker(t.id));
     return el;
@@ -4548,55 +4629,63 @@
     $("usage-note").textContent = "Your plan's exact numbers show after your next chat.";
   }
   // Plans: what each one gives (no payments yet; they arrive with Google Play Billing and Stripe)
+  // Everyone is on Free for now; the other plans show as coming soon until payments arrive (Google Play Billing and Stripe).
+  // Only the owner's personal account can tap a plan to try it: the server then answers with that plan's model and limits.
   const PLAN_ROWS = {
     personal: [["free", "Free", "Free", "10 chats a day · 3 research and 3 pictures a month"], ["plus", "Plus", "$9.99/mo", "25 chats a day · 15 research and 30 pictures a month"], ["pro", "Pro", "$19.99/mo", "40 chats a day · 40 research and 100 pictures a month"]],
-    business: [["starter", "Business Starter", "", "1,000 customer chats a month for the whole team"], ["growth", "Business Growth", "", "5,000 customer chats a month"]],
+    business: [["free", "Free", "Free", "10 chats a day · 3 research and 3 pictures a month, shared by the team"], ["starter", "Business Starter", "", "1,000 customer chats a month for the whole team"], ["growth", "Business Growth", "", "5,000 customer chats a month"]],
   };
+  const testPlan = () => { if (!isOwner()) return ""; const p = load(TEST_PLAN_KEY); return ["free", "plus", "pro"].includes(p) ? p : ""; };
+  // The owner is the owner on Ervo Personal only; a business account, even the owner's, is a normal Free account
+  const isOwner = () => !!load(OWNER_KEY) && !!account && account.plan !== "business";
   function openPlans() {
-    const cur = (load(SERVER_USAGE_KEY) || {}).plan;
+    const biz = account && account.plan === "business";
+    const owner = isOwner();
+    const tp = testPlan();
+    const cur = owner ? tp || "owner" : ((load(SERVER_USAGE_KEY) || {}).plan || "free");
     const box = $("plans-list");
     box.innerHTML = "";
-    PLAN_ROWS[account && account.plan === "business" ? "business" : "personal"].forEach(([key, name, price, sub]) => {
-      const r = row("star", name, sub, key === cur ? "Current" : price || "Coming soon");
-      if (key === cur) r.classList.add("current"); else if (price) r.querySelector(".side").classList.add("plan-price");
+    $("plans-sub").textContent = owner
+      ? "Your account has no limits. Tap a plan to try it: Ervo answers with that plan's model, limits and replies, and each reply shows which model wrote it."
+      : "Chats are everyday messages. Research is when Ervo searches the web or digs into something. Pictures are the ones Ervo draws for you.";
+    $("plans-note").textContent = owner ? "" : biz
+      ? "Teams are on Free while the Business plans are being finished. Your limits reset on their own."
+      : "Everyone is on Free while Plus and Pro are being finished. Your limits reset on their own.";
+    $("plans-note").hidden = owner;
+    const rows = PLAN_ROWS[biz ? "business" : "personal"].slice();
+    if (owner) rows.unshift(["owner", "Owner", "", "No limits · Sonnet answers"]);
+    rows.forEach(([key, name, price, sub]) => {
+      const mine = key === cur;
+      const side = mine ? (owner && key !== "owner" ? "Trying" : "Your plan") : owner ? price : "Coming soon";
+      const r = row("star", name, sub, side);
+      if (mine) r.classList.add("current");
+      else if (owner) { if (price) r.querySelector(".side").classList.add("plan-price"); }
+      else r.classList.add("locked");
+      if (owner) {
+        r.classList.add("tap");
+        r.addEventListener("click", () => {
+          if (key === "owner") drop(TEST_PLAN_KEY); else save(TEST_PLAN_KEY, key);
+          $("plans").hidden = true;
+          syncTestPlanRow();
+          fetchUsage(true);
+          toast(key === "owner" ? "Back to your own account" : `Trying ${name}. Each reply shows which model wrote it.`);
+        });
+      }
       box.append(r);
     });
     $("plans").hidden = false;
   }
   $("plans-done").addEventListener("click", () => { $("plans").hidden = true; });
   $("plans").addEventListener("click", (e) => { if (e.target === $("plans")) $("plans").hidden = true; });
-  $("plans-upgrade").addEventListener("click", () => { toast("Upgrading opens with the app stores. Your limits reset on their own until then."); });
-  // The owner can try each plan: the server then answers with that plan's model and limits
-  const testPlan = () => { const p = load(TEST_PLAN_KEY); return ["free", "plus", "pro"].includes(p) ? p : ""; };
-  const isOwner = () => !!load(OWNER_KEY);
+  // The Plans row in Settings says where this account stands
   function syncTestPlanRow() {
-    document.querySelectorAll('[data-group="Testing"]').forEach((el) => { el.hidden = !isOwner(); });
     const tp = testPlan();
-    $("open-testplan").querySelector("small").textContent = tp ? `Trying ${PLAN_NAMES[tp]}: its model, limits and replies` : "Owner: no limits";
-    $("open-testplan").classList.toggle("on", !!tp);
+    const biz = account && account.plan === "business";
+    $("open-plans").querySelector("small").textContent = isOwner()
+      ? (tp ? `Trying ${PLAN_NAMES[tp]} · tap to change` : "Owner: no limits · tap to try a plan")
+      : biz ? "Free for now · Business plans coming soon" : "Free for now · Plus and Pro coming soon";
+    $("open-plans").classList.toggle("on", !!tp);
   }
-  function openTestPlan() {
-    const box = $("testplan-list");
-    box.innerHTML = "";
-    const tp = testPlan();
-    [["", "Off", "Owner account, no limits (Sonnet answers)"], ["free", "Free", "Haiku answers · 10 chats a day"], ["plus", "Plus", "Sonnet answers · 25 chats a day"], ["pro", "Pro", "Sonnet answers · 40 chats a day"]].forEach(([key, name, sub]) => {
-      const r = row("star", name, sub, key === tp ? "Current" : "");
-      r.classList.add("tap");
-      if (key === tp) r.classList.add("current");
-      r.addEventListener("click", () => {
-        if (key) save(TEST_PLAN_KEY, key); else drop(TEST_PLAN_KEY);
-        $("testplan").hidden = true;
-        syncTestPlanRow();
-        fetchUsage(true);
-        toast(key ? `Trying ${name}. Each reply shows which model wrote it.` : "Back to your own account");
-      });
-      box.append(r);
-    });
-    $("testplan").hidden = false;
-  }
-  $("open-testplan").addEventListener("click", openTestPlan);
-  $("testplan-done").addEventListener("click", () => { $("testplan").hidden = true; });
-  $("testplan").addEventListener("click", (e) => { if (e.target === $("testplan")) $("testplan").hidden = true; });
   function noteUsage(u) {
     save(SERVER_USAGE_KEY, Object.assign({ at: new Date().toISOString() }, u));
     if (u.plan === "owner") save(OWNER_KEY, true);
@@ -5814,7 +5903,6 @@
     if (!$("newid").hidden) { $("newid").hidden = true; return true; }
     if (!$("calsheet").hidden) { $("calsheet").hidden = true; return true; }
     if (!$("plans").hidden) { $("plans").hidden = true; return true; }
-    if (!$("testplan").hidden) { $("testplan").hidden = true; return true; }
     if (!$("hours").hidden) { $("hours").hidden = true; return true; }
     if (!$("company").hidden) { $("company").hidden = true; return true; }
     if ($("ideas").classList.contains("active") || $("goalpage").classList.contains("active") || $("team").classList.contains("active")) { show("chat"); return true; }

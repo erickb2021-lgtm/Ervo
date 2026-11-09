@@ -1646,3 +1646,16 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 .mini-stats:has(> div:nth-child(3)) b { font-size: 1.05rem; }
 /* My Businesses: the purple Add button reads white, not purple on purple */
 #biz-add.ideas-refresh { color: #fff !important; }
+
+/* ---------- 0.5.9: Settings spacing and the Switch row, one Plans sheet, sheets that don't scroll unless they must ---------- */
+#settings .set-hero { margin-bottom: 14px; }
+#settings-list > .card.list.compact:first-child { margin-top: 0; }
+#settings .row.switch .txt { text-align: center; }
+#settings .row.switch .txt b, #settings .row.switch .txt small { display: block; }
+.row.locked .txt b { color: var(--text-2); }
+.row.locked .side { color: var(--text-3); font-weight: 600; }
+.row.locked .app-ico { opacity: 0.6; }
+/* A pop-up sheet scrolls only when its content is taller than the screen; a short one stays put, and never drags the page behind it */
+html, body { overscroll-behavior: none; }
+.sheet-wrap { overscroll-behavior: none; }
+.sheet { overscroll-behavior: contain; }
