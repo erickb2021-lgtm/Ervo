@@ -91,7 +91,7 @@
   // ---------- screens ----------
   // How deep each screen sits, so moving in slides from the right and going back slides away
   // to the right, like every iPhone app (Apple: navigation is a stack you push and pop)
-  const DEPTH = { splash: 0, welcome: 0, chat: 0, ideas: 0, goalpage: 0, team: 0, library: 0, settings: 1, stats: 2, psyche: 2, teamchat: 2, activity: 3 };
+  const DEPTH = { splash: 0, welcome: 0, chat: 0, ideas: 0, goalpage: 0, team: 0, library: 0, settings: 1, stats: 2, psyche: 2, teamchat: 2, appsPage: 2, activity: 3 };
   // The four tabs at the bottom, and which screen each one shows (Business owners get Team where Goals is)
   const TAB_OF = { chat: "tab-chat", ideas: "open-ideas", goalpage: "tab-goals", team: "tab-goals", library: "open-library" };
   // Back goes to where you came from: Settings when you opened it there, else the chat
@@ -489,9 +489,7 @@
     ]],
     ["Ervo", [
       ["open-look", "people", "#7a4be0", "Ervo's Look", "Pick an outfit"],
-      ["open-greeting", "sun", "#ff9f0a", "Greeting", "What Ervo says first"],
       ["open-wake", "mic", "#30d158", "Hey Ervo", "Hands-free"],
-      ["open-leave", "map", "#0a84ff", "Weather Before You Leave", "A heads-up only on bad-weather days"],
     ]],
     ["Work", [
       ["open-team", "people", "#0a84ff", "Team", "Employees, their chats and employee IDs"],
@@ -501,7 +499,7 @@
     ["You", [
       ["open-psyche", "brain", "#bf5af2", "Psyche", "What Ervo knows about you"],
       ["open-stats", "stats", "#ff375f", "Ervo Stats", "Steps, upcoming, activity"],
-      ["open-apps", "open", "#5e5ce6", "Connected Apps", "Calendar, Health, Location and more"],
+      ["open-apps", "open", "#5e5ce6", "Connected Apps", "Calendar, Health, Location, stores"],
       ["open-chats", "chat", "#64d2ff", "Chats", "Side chats"],
     ]],
     ["About", [
@@ -2577,13 +2575,8 @@
     const name = p.nickname || account.name;
     const now = new Date();
     const h = now.getHours();
-    const hello = firstTime ? "Hi" : h < 5 ? "Hi" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-    const lines = [firstTime ? `${hello} ${name}, I'm Ervo.` : `${hello}, ${name}.`];
-    const date = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-    const time = now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-    if (p.date && p.time) lines.push(`It's ${date}, ${time}.`);
-    else if (p.date) lines.push(`It's ${date}.`);
-    else if (p.time) lines.push(`It's ${time}.`);
+    void now; void h;
+    const lines = [firstTime ? `Hi ${name}, I'm Ervo.` : `Hi ${name}, what can I help you with today?`];
     return { lines, firstTime, p };
   }
 
@@ -2593,20 +2586,11 @@
     const g = greetingText(firstTime);
     const build = (async () => {
       const lines = g.lines.slice();
-      if (g.p.weather && allowed("location")) {
-        const w = await Promise.race([weatherNow(), delay(5000).then(() => null)]).catch(() => null);
-        if (w) {
-          const weather = `${w.temp}°${w.unit} and ${w.kind}${w.city ? ` in ${w.city}` : ""} ${w.emoji}`;
-          // "It's Thursday, November 5, 60°F and clear in Austin 🌙"
-          if (lines.length > 1) lines[lines.length - 1] = lines[lines.length - 1].replace(/\.$/, `, ${weather}`);
-          else lines.push(`It's ${weather}`);
-        }
-      }
       if (g.firstTime && !biz()) {
-        lines.push("I get to know you as we talk, so the more you tell me, the more I can help. What would you like help with most?");
+        lines.push("I get to know you as we talk. What can I help you with today?");
         return { text: lines.join(" "), choices: ["Planning my days", "Food and groceries", "Shopping", "Skip for now"] };
       }
-      lines.push(g.firstTime ? "What do you need?" : "How can I help?");
+      if (g.firstTime) lines.push("What can I help you with today?");
       return lines.join(" ");
     })();
     await ervoSays(build);
@@ -2754,9 +2738,15 @@
 
   // City-level location, kept for 3 hours so the phone's location dot rarely shows.
   // Rounded so it's never an exact address.
+  // Android keeps the city for the weather notice that comes after you close Ervo
+  function pushPlace(place) {
+    if (!(native && native.setPlace) || !place || !place.lat) return;
+    const f = place.country ? ["US", "LR", "MM", "BS", "BZ", "KY", "PW"].includes(place.country) : /-US$/.test(navigator.language || "");
+    try { native.setPlace(place.lat, place.lon, place.city || "", f); } catch (e) { /* older app */ }
+  }
   async function getPlace() {
     const cached = load(PLACE_KEY);
-    if (cached && Date.now() - cached.at < 3 * 60 * 60 * 1000) return cached;
+    if (cached && Date.now() - cached.at < 3 * 60 * 60 * 1000) { pushPlace(cached); return cached; }
     const pos = await getPosition();
     const place = { lat: Math.round(pos.lat * 100) / 100, lon: Math.round(pos.lon * 100) / 100, city: "", region: "", country: "", at: Date.now() };
     try {
@@ -2767,6 +2757,7 @@
       place.country = j.countryCode || "";
     } catch (e) { /* weather still works without the city name */ }
     save(PLACE_KEY, place);
+    pushPlace(place);
     return place;
   }
 
@@ -3591,6 +3582,8 @@
     }
     const mixed = String(text).match(/^(.{8,}?)\s*,?\s+(?:and|then|also|plus)\s+(?:can you\s+|please\s+)?(?:set|start|make)\s+(?:me\s+)?(?:an?|the|another)\s+(?:\d+\s*\w+\s+)?(?:alarm|timer)\b/i);
     if (mixed && AI_URL && !task && !/\b(alarm|timer|wake me)\b/i.test(mixed[1])) return askAI(understand(text));
+    { const nick = String(text).trim().match(/^(?:please |hey ervo,? )?(?:you can )?(?:call me|my nickname is|nickname me) ([a-z][\w'-]{1,20})[.!]?$/i);
+      if (nick) { const p = prefs(); p.nickname = nick[1]; save(PREFS_KEY, p); logActivity({ kind: "settings", ico: "star", title: `Now calls you ${nick[1]}` }); return ervoSays(`Got it, ${nick[1]} it is 😊`, { instant: true }); } }
     if (account.team) { const ts = matchTeamSend(text); if (ts) return teamSend(ts.to, ts.text); }
     { const tn = String(text).trim().replace(/\s+/g, ""); const car = tn.length >= 10 && !/\s/.test(tn) ? carrierFor(tn) : null; if (car && !/[a-z]{4,}/i.test(tn.replace(/^TBA|^JD/i, ""))) return trackNumberReply(tn, car); }
     const d = understand(text);
@@ -4727,7 +4720,7 @@
     renderStats();
     show("stats");
     $("stats-body").scrollTop = 0;
-    if (scrollToApps) setTimeout(() => $("apps-heading").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    if (scrollToApps) openApps();
   }
   $("stats-back").addEventListener("click", () => show(backTo("stats")));
   window.ervoResume = () => {
@@ -4743,7 +4736,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.3"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.4"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -5272,8 +5265,10 @@
     setTimeout(() => $("message").focus(), 300);
   });
   $("open-stats").addEventListener("click", () => openStats(false));
-  $("open-apps").addEventListener("click", () => openStats(true));
-  $("open-greeting").addEventListener("click", openGreeting);
+  function openApps() { toggleMenu(false); renderApps(); show("appsPage"); }
+  $("open-apps").addEventListener("click", openApps);
+  $("apps-back").addEventListener("click", () => show(backTo("appsPage")));
+  if ($("open-greeting")) $("open-greeting").addEventListener("click", openGreeting);
   $("open-wake").addEventListener("click", () => { toggleMenu(false); heyErvo(); });
   $("open-chats").addEventListener("click", openChats);
   $("open-ideas").addEventListener("click", openIdeas);
@@ -5340,6 +5335,7 @@
     if (!voice.hidden) { $("voice-cancel").click(); return true; }
     if ($("activity").classList.contains("active")) { renderStats(); show("stats"); return true; }
     if ($("stats").classList.contains("active")) { show(backTo("stats")); return true; }
+    if ($("appsPage").classList.contains("active")) { show(backTo("appsPage")); return true; }
     if ($("settings").classList.contains("active")) { show("chat"); return true; }
     if (!$("chats-panel").hidden && !docked()) { closeChats(); return true; }
     if ($("psyche").classList.contains("active")) { show(backTo("psyche")); return true; }
@@ -5544,7 +5540,7 @@
   });
   $("leave-cancel").addEventListener("click", () => { $("leave").hidden = true; });
   $("leave").addEventListener("click", (e) => { if (e.target === $("leave")) $("leave").hidden = true; });
-  $("open-leave").addEventListener("click", () => openLeave(null));
+  if ($("open-leave")) $("open-leave").addEventListener("click", () => openLeave(null));
   window.ervoWeatherAlert = (json) => {
     if (!leaveAsk) return;
     leaveAsk = false;

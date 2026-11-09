@@ -627,6 +627,10 @@ open class MainActivity : AppCompatActivity() {
             if (id in LOOK_IDS) pendingIcon = id
         }
 
+        /** Where they are (city level), for the weather notice after Ervo is closed. */
+        @JavascriptInterface
+        fun setPlace(lat: Double, lon: Double, city: String, fahrenheit: Boolean) = WeatherAlert.savePlace(applicationContext, lat, lon, city, fahrenheit)
+
         /** This app's version, like "0.2.1", so the screens can check for updates. */
         @JavascriptInterface
         fun appVersion(): String = packageManager.getPackageInfo(packageName, 0).versionName ?: "0"
@@ -1275,6 +1279,7 @@ open class MainActivity : AppCompatActivity() {
         visible = false
         if (overlay) WakeService.resume(this) // pop-up closed: listen for "Hey Ervo" again
         applyPendingIcon() // a new home-screen icon waits until Ervo is out of sight
+        if (!overlay) WeatherAlert.closeNotice(applicationContext) // one short weather line, now and then, when Ervo is put away
         super.onStop()
     }
 

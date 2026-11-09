@@ -222,9 +222,6 @@
     <h2>Most recent events</h2>
     <div class="card list" id="recent"></div>
 
-    <h2 id="apps-heading">Connected apps</h2>
-    <div class="card list compact" id="apps"></div>
-    <p class="foot-note">Ervo only uses an app after you allow it. Turn any of them off here.</p>
   </div>
 </section>
 
@@ -328,7 +325,7 @@
     </button>
     <div id="settings-list"></div>
     <p class="foot-note menu-ai">Ervo uses AI and can make mistakes. Check important info.</p>
-    <p class="foot-note menu-version" id="menu-version">Ervo version 0.5.3 (preview)</p>
+    <p class="foot-note menu-version" id="menu-version">Ervo version 0.5.4 (preview)</p>
   </div>
 </section>
 
@@ -360,6 +357,19 @@
   <button type="button" id="tab-goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg><span>Goals</span></button>
   <button type="button" id="open-library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h4l2 2.5h7A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg><span>Files</span></button>
 </nav>
+
+<!-- Connected apps: what Ervo may use, and the switch to turn each off -->
+<section class="screen stats" id="appsPage" aria-labelledby="apps-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="apps-back" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span class="nav-title" aria-hidden="true"></span>
+  </header>
+  <div class="stats-body">
+    <h1 id="apps-title">Connected Apps</h1>
+    <p class="stats-weather">Ervo only uses an app after you allow it. Turn any of them off here.</p>
+    <div class="card list compact" id="apps"></div>
+  </div>
+</section>
 
 <!-- 11. Team (Business owner): employees, their chats, employee IDs -->
 <section class="screen stats" id="team" aria-labelledby="team-title">

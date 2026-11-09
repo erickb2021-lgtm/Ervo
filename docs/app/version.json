@@ -1,6 +1,9 @@
 {
-  "version": "0.5.3",
+  "version": "0.5.4",
   "notes": [
+    "Connected Apps is its own page, out of Ervo Stats; Settings lost the Greeting and Weather rows",
+    "The greeting is just \"Hi Erick, what can I help you with today?\"; tell Ervo \"call me …\" to change the name",
+    "Android: when you close Ervo, one short weather line (temperature and sky), with a brief caution only for storms, snow, rain, very hot, very cold or strong wind; at most every 3 hours, never at night",
     "Ervo Stats: the Back button works again and the page moves smoothly; the sky animates on the graphics chip instead of repainting the screen",
     "Switching between Personal and Business is one smooth transition, with no flash in between",
     "Switching between Personal and Business shows the look you picked for that Ervo, with no flash of the default owl",
@@ -9,14 +12,11 @@
     "A Files tab for Orders, where every card lives with its progress",
     "\"What do I have today?\" shows the day as a card with a 3D icon per event and the time; Open calendar brings up a month with dots on busy days",
     "Glass everywhere: frosted cards, sheets and bubbles with a hairline highlight, tuned for light and dark",
-    "The status pill only ever says simple things like Researching, Planning or Writing a draft, never your own words",
-    "Signed up on ervo.company? The QR code opens Ervo with your email filled in and sends your code right away; if your browser already has the sign-in, you go straight to your chat",
-    "Pick which Ervo is your home-screen icon, Personal or Business, with a switch in Ervo's Look. The icon changes quietly once you leave the app, no more getting kicked out",
-    "Ervo's Look scrolls without closing; a quick \"Switching to Business\" curtain when you change Ervos"
+    "The status pill only ever says simple things like Researching, Planning or Writing a draft, never your own words"
   ],
   "highlights": [
-    "Ervo Stats opens faster and its Back button works again",
-    "Switching Personal and Business is one smooth transition",
-    "Track orders, returns and refunds as cards with a progress bar"
+    "Connected Apps has its own page; Settings is shorter",
+    "A short weather note when you close Ervo, with a caution only when it is bad",
+    "Say \"call me Rick\" and Ervo uses it"
   ]
 }
