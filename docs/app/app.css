@@ -1568,3 +1568,8 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 [data-theme="dark"] { --glass-sheet: rgba(30, 30, 40, 0.9); }
 .sheet { background: var(--glass-sheet); }
 .sheet.glass { background: var(--glass-sheet); }
+
+/* Ervo's Look: the grid scrolls on its own, inside the sheet, and the sheet never closes on a swipe */
+#look .sheet { overflow: hidden; display: flex; flex-direction: column; max-height: 88%; }
+#look .look-grid { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 6px 2px 14px; -webkit-mask-image: linear-gradient(#000 calc(100% - 22px), transparent); mask-image: linear-gradient(#000 calc(100% - 22px), transparent); }
+#look .look-grid::-webkit-scrollbar { width: 0; }

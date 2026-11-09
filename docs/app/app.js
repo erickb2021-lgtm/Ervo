@@ -5588,7 +5588,7 @@
     save("ervo-seen-version", APP_VERSION);
     if (firstTime || seen === APP_VERSION) return;
     let notes = [];
-    try { const r = await fetch("version.json", { cache: "no-store" }); notes = ((await r.json()).notes || []).slice(0, 4); } catch (e) { /* offline */ }
+    try { const r = await fetch("version.json", { cache: "no-store" }); const v = await r.json(); notes = (v.highlights && v.highlights.length ? v.highlights : v.notes || []).slice(0, 3); } catch (e) { /* offline */ }
     if (!notes.length) return;
     await ervoSays(`I was just updated to version ${APP_VERSION}. What's new:\n${notes.map((n) => `• ${n}`).join("\n")}`);
   }
@@ -6084,6 +6084,7 @@
     let y0 = null, dy = 0;
     sheet.addEventListener("touchstart", (e) => {
       // Only when the sheet is scrolled to the top, and not while typing
+      if (sheet.classList.contains("no-swipe") || e.target.closest(".look-grid, .cal-events, .tc-thread")) { y0 = null; return; }
       if (sheet.scrollTop > 0 || e.target.closest("input, select, textarea")) { y0 = null; return; }
       const scrolls = sheet.scrollHeight > sheet.clientHeight + 4;
       if (scrolls && e.touches[0].clientY - sheet.getBoundingClientRect().top > 72) { y0 = null; return; }

@@ -13,5 +13,10 @@
     "Ervo's Look scrolls without closing; a quick \"Switching to Business\" curtain when you change Ervos",
     "Work settings show only for Business; the owner can create co-owner IDs; IDs are longer and never reused",
     "Smoother: fewer heavy effects while you move around the app"
+  ],
+  "highlights": [
+    "Track orders, returns and refunds as cards with a progress bar",
+    "Ask \"what do I have today\" for your day and a calendar pop-up",
+    "New glass look in light and dark"
   ]
 }
