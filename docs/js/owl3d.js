@@ -48,6 +48,7 @@ function studio(renderer) {
 }
 
 const SHELLS = 14;
+const NECK = 0.42; // where the head pivots on the shoulders
 
 function furMaterial(length, density) {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, vertexColors: true });
@@ -111,11 +112,19 @@ function buildOwl() {
   };
   // A fur part: the shape is baked (so the coat has the same length everywhere), painted per point, then drawn as shells.
   const out = { c: new THREE.Color(), f: 1 };
-  const furPart = (parent, geo, mat4, painter) => {
+  const furPart = (parent, geo, mat4, painter, taper) => {
     const g = geo.clone();
     g.applyMatrix4(mat4);
     const pos = g.attributes.position, n = pos.count;
     const col = new Float32Array(n * 3), len = new Float32Array(n), v = new THREE.Vector3();
+    if (taper) {
+      const nor = g.attributes.normal, a = new THREE.Vector3(), b = new THREE.Vector3();
+      for (let i = 0; i < n; i++) {
+        const w = pear(a.fromBufferAttribute(pos, i), b.fromBufferAttribute(nor, i), taper);
+        pos.setXYZ(i, w.p.x, w.p.y, w.p.z);
+        nor.setXYZ(i, w.n.x, w.n.y, w.n.z);
+      }
+    }
     for (let i = 0; i < n; i++) {
       v.fromBufferAttribute(pos, i);
       out.f = 1;
@@ -139,6 +148,14 @@ function buildOwl() {
     parent.add(m);
     return m;
   };
+  // The pear: a point at height y is pulled in (above the middle) or pushed out (below it); taper = [how much, half height].
+  const pear = (p, n, taper) => {
+    const s = 1 - taper[0] * p.y / taper[1], ds = -taper[0] / taper[1];
+    return {
+      p: new THREE.Vector3(p.x * s, p.y, p.z * s),
+      n: new THREE.Vector3(n.x / s, n.y - (p.x * n.x + p.z * n.z) * ds / s, n.z / s).normalize(),
+    };
+  };
   // A point on an ellipsoid (radii a, b, c) in the direction d, and the surface normal there.
   const onSurface = (radii, d) => {
     const v = new THREE.Vector3(d[0], d[1], d[2]).normalize();
@@ -159,20 +176,25 @@ function buildOwl() {
   const turn = new THREE.Group();
 
   // ---- body ----
-  const bodyR = [1.22, 1.08, 1.04];
+  // A pear, not a ball: narrow shoulders that tuck under the head, widest low down.
+  const bodyR = [1.16, 1.12, 1.02], bodyT = [0.26, 1.12];
   const body = new THREE.Group();
   turn.add(body);
-  furPart(body, sphere, matrix(null, bodyR), (v, o) => {
+  const bodyPaint = (v, o) => {
     const ux = v.x / bodyR[0], uy = v.y / bodyR[1];
     const inBelly = v.z > 0 ? 1 - smooth(0.86, 1.04, Math.hypot(ux / 0.68, (uy + 0.22) / 0.8)) : 0;
     o.c.copy(K.body).lerp(K.belly, inBelly);
-    // a little shade in the crease under the head and at the very bottom
-    o.c.multiplyScalar(1 - 0.3 * smooth(0.25, 0.75, v.y) - 0.25 * smooth(-0.8, -1.05, v.y));
-  });
+    // a little shade where the head rests on the shoulders and at the very bottom
+    o.c.multiplyScalar(1 - 0.24 * smooth(0.1, 0.62, v.y) - 0.25 * smooth(-0.8, -1.05, v.y));
+  };
+  furPart(body, sphere, matrix(null, bodyR), bodyPaint, bodyT);
+  // The ruff: a soft collar of plush that fills the fold between head and body, so the two read as one animal.
+  furPart(body, midSphere, matrix([0, 0.33, -0.02], [1.1, 0.43, 0.95]), bodyPaint);
   // Belly: three rows of scalloped feathers
   [[0.06, [-0.3, 0, 0.3]], [-0.25, [-0.46, -0.153, 0.153, 0.46]], [-0.56, [-0.31, 0, 0.31]]].forEach(([y, xs]) => {
     xs.forEach((x) => {
-      const { p, n } = onSurface(bodyR, [x, y, 1]);
+      const at = onSurface(bodyR, [x, y, 1]);
+      const { p, n } = pear(at.p, at.n, bodyT);
       const q = new THREE.Quaternion().setFromUnitVectors(Z, n);
       furPart(body, lowSphere, matrix([p.x, p.y, p.z], [0.235, 0.2, 0.08], null, q), (v, o) => { o.c.copy(K.scallop); o.f = 0.5; });
     });
@@ -180,7 +202,7 @@ function buildOwl() {
   // Wings, tail
   const wings = [-1, 1].map((side) => {
     const pivot = new THREE.Group();
-    pivot.position.set(side * 0.9, 0.44, 0.02);
+    pivot.position.set(side * 0.92, 0.42, 0.02);
     furPart(pivot, midSphere, matrix([side * 0.2, -0.6, 0], [0.33, 0.76, 0.6], [0, 0, side * 0.2]), (v, o) => {
       o.c.copy(K.dark).multiplyScalar(1 - 0.18 * smooth(-0.9, -1.3, v.y));
     });
@@ -198,11 +220,11 @@ function buildOwl() {
 
   // ---- head: pivots at the neck so it can turn a little further than the body ----
   const head = new THREE.Group();
-  head.position.set(0, 0.5, 0);
+  head.position.set(0, NECK, 0);
   turn.add(head);
-  const headR = [1.36, 1.04, 1.08];
+  const headR = [1.33, 1.02, 1.06], headT = [0.07, 1.02];
   const skull = new THREE.Group();
-  skull.position.set(0, 0.56, 0.04);
+  skull.position.set(0, 0.5, 0.04);
   head.add(skull);
   const eyeAt = [0.37, 0.03];
   furPart(skull, sphere, matrix(null, headR), (v, o) => {
@@ -217,7 +239,7 @@ function buildOwl() {
     o.c.copy(K.body).lerp(K.face, face).lerp(K.blush, blush * 0.8 * face);
     o.c.multiplyScalar(1 - 0.22 * smooth(-0.55, -0.95, v.y));
     o.f = 1 - 0.62 * face - 0.3 * nearEye;
-  });
+  }, headT);
   // Ears: a big rounded point with a darker inside, and a smaller tuft beside it
   [-1, 1].forEach((side) => {
     const ear = new THREE.Group();
@@ -237,7 +259,8 @@ function buildOwl() {
   // Eyes and beak
   const eyes = [];
   [-1, 1].forEach((side) => {
-    const { p, n } = onSurface(headR, [side * eyeAt[0] * 1.09, eyeAt[1], 1]);
+    const eyeOn = onSurface(headR, [side * eyeAt[0] * 1.09, eyeAt[1], 1]);
+    const { p, n } = pear(eyeOn.p, eyeOn.n, headT);
     const eye = new THREE.Group();
     eye.position.copy(p).addScaledVector(n, 0.03);
     eye.quaternion.setFromUnitVectors(Z, n);
@@ -249,7 +272,8 @@ function buildOwl() {
     eyes.push(eye);
   });
   const beak = new THREE.Group();
-  const bk = onSurface(headR, [0, -0.19, 1]);
+  const bkOn = onSurface(headR, [0, -0.19, 1]);
+  const bk = pear(bkOn.p, bkOn.n, headT);
   beak.position.copy(bk.p).addScaledVector(bk.n, 0.05);
   beak.quaternion.setFromUnitVectors(Y, new THREE.Vector3(0, -0.8, 0.6).normalize());
   plain(beak, new THREE.ConeGeometry(0.2, 0.34, 32), M.beak, [0, 0.03, 0], [1.08, 1, 0.84]);
@@ -278,8 +302,8 @@ export async function mountOwl(host, opts = {}) {
   await breath();
   scene.environmentIntensity = 0.75;
   const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 40);
-  camera.position.set(0, 1.05, 8.3);
-  camera.lookAt(0, 0.62, 0);
+  camera.position.set(0, 0.8, 8.3);
+  camera.lookAt(0, 0.6, 0);
 
   const key = new THREE.DirectionalLight(0xfff4ea, 2.1); key.position.set(-3.2, 5, 6); scene.add(key);
   const rim = new THREE.DirectionalLight(0xe2d2ff, 1.6); rim.position.set(4.5, 3, -5); scene.add(rim);
@@ -333,7 +357,7 @@ export async function mountOwl(host, opts = {}) {
     owl.turn.scale.set(1 - squash * 0.5, 1 + squash, 1 - squash * 0.5);
     owl.turn.position.y = squash * 1.1;
     owl.body.scale.set(1 + breath * 0.006, 1 + breath * 0.012, 1 + breath * 0.01);
-    owl.head.position.y = 0.5 + breath * 0.012;
+    owl.head.position.y = NECK + breath * 0.012;
     owl.head.rotation.y = yaw * 0.5 * facing;
     owl.head.rotation.x = pitch * 0.65 * facing;
     owl.head.rotation.z = -yaw * 0.12 * facing;
@@ -354,11 +378,15 @@ export async function mountOwl(host, opts = {}) {
   }
   function wake() { if (ready && !raf && visible && active && !document.hidden) { last = 0; raf = requestAnimationFrame(frame); } }
 
+  // The canvas reaches past the owl's square (extra room at both sides and above), so spread wings and a hop are
+  // never cut off. The view offset keeps the owl exactly where it stood in the square.
   function resize() {
-    const w = host.clientWidth || 1, h = host.clientHeight || 1;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    const side = host.clientWidth || 1, mx = Math.round(side * 0.34), my = Math.round(side * 0.3);
+    renderer.setSize(side + 2 * mx, side + my, false);
+    canvas.style.left = -mx + "px"; canvas.style.top = -my + "px";
+    canvas.style.width = side + 2 * mx + "px"; canvas.style.height = side + my + "px";
+    camera.aspect = 1;
+    camera.setViewOffset(side, side, -mx, -my, side + 2 * mx, side + my);
     if (ready && !raf) renderer.render(scene, camera);
   }
   const ro = new ResizeObserver(resize); ro.observe(host);
@@ -377,13 +405,14 @@ export async function mountOwl(host, opts = {}) {
   window.addEventListener("pointermove", onMove, { passive: true });
 
   function hop() { if (hopY <= 0.001) { hopV = 4.2; squashV = -1.2; wake(); } }
-  canvas.addEventListener("pointerdown", (e) => {
-    if (e.button) return;
+  host.addEventListener("pointerdown", (e) => {
+    if (e.button || !active) return;
     dragging = true; moved = false; lastX = e.clientX; lastT = performance.now(); spinV = 0;
-    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
+    try { host.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
     host.classList.add("grabbing");
+    wake();
   });
-  canvas.addEventListener("pointermove", (e) => {
+  host.addEventListener("pointermove", (e) => {
     if (!dragging) return;
     const now = performance.now(), dx = e.clientX - lastX, dt = Math.max(1, now - lastT) / 1000;
     if (Math.abs(dx) > 3) moved = true;
@@ -403,8 +432,8 @@ export async function mountOwl(host, opts = {}) {
     spinTarget = Math.round((spin + spinV * 0.32) / TAU) * TAU;
     if (moved && opts.onSpin) opts.onSpin();
   };
-  canvas.addEventListener("pointerup", () => release(true));
-  canvas.addEventListener("pointercancel", () => release(false));
+  host.addEventListener("pointerup", () => release(true));
+  host.addEventListener("pointercancel", () => release(false));
   canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); active = false; if (opts.onFail) opts.onFail(); });
 
   host.appendChild(canvas);

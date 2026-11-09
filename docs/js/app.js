@@ -219,8 +219,8 @@
     rot.appendChild(next);
     const w = next.offsetWidth;
     requestAnimationFrame(() => requestAnimationFrame(() => { rot.style.width = w + "px"; next.classList.remove("enter"); }));
-    setTimeout(() => { item.remove(); item = next; i = (i + 1) % words.length; rot.style.width = ""; busy = false; }, 650);
-  }, 3600);
+    setTimeout(() => { item.remove(); item = next; i = (i + 1) % words.length; rot.style.width = ""; busy = false; }, 1200);
+  }, 5600);   // each job stays long enough to read before the next one arrives
 })();
 
 // Headline avatar: tap Ervo to pick any of the app's 23 looks

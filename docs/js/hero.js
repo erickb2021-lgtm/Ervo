@@ -41,7 +41,7 @@
     if (!canWebGL()) { failed = true; return; }
     loading = true;
     try {
-      const mod = await import("./owl3d.js?v=3");
+      const mod = await import("./owl3d.js?v=4");
       api = await mod.mountOwl(host, { onTap: hideHint, onSpin: hideHint, onFail: () => { failed = true; sync(); } });
       api.setTheme(root.dataset.theme === "dark");
       // Two frames so the first picture is on the canvas before the still fades out.

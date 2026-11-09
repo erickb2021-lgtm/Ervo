@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Ervo">
+  <title>Ervo</title>
+  <!-- The Ervo mark: Classic Ervo's face, flat colours only (no gradients, no shadows), so it prints cleanly at any size. -->
+  <path d="M9.5 27 Q6 9 12.5 5.5 Q22 9.5 27.5 17 Z M54.5 27 Q58 9 51.5 5.5 Q42 9.5 36.5 17 Z" fill="#7B3FC4" stroke="#7B3FC4" stroke-width="2.4" stroke-linejoin="round"/>
+  <ellipse cx="32" cy="37" rx="26" ry="23.5" fill="#7B3FC4"/>
+  <circle cx="21.5" cy="35.5" r="12.2" fill="#FFF3F8"/>
+  <circle cx="42.5" cy="35.5" r="12.2" fill="#FFF3F8"/>
+  <ellipse cx="32" cy="43.5" rx="11" ry="7" fill="#FFF3F8"/>
+  <ellipse cx="13.5" cy="43.5" rx="3.4" ry="2.1" fill="#FF9DBB"/>
+  <ellipse cx="50.5" cy="43.5" rx="3.4" ry="2.1" fill="#FF9DBB"/>
+  <circle cx="22.5" cy="35.5" r="7" fill="#231340"/>
+  <circle cx="41.5" cy="35.5" r="7" fill="#231340"/>
+  <circle cx="24.8" cy="32.8" r="2.3" fill="#FFFFFF"/>
+  <circle cx="43.8" cy="32.8" r="2.3" fill="#FFFFFF"/>
+  <circle cx="20.3" cy="38.4" r="1.1" fill="#FFFFFF"/>
+  <circle cx="39.3" cy="38.4" r="1.1" fill="#FFFFFF"/>
+  <path d="M28.4 40 Q32 38 35.6 40 L32 46.6 Z" fill="#FFB01A" stroke="#FFB01A" stroke-width="1.8" stroke-linejoin="round"/>
+</svg>
