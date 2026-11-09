@@ -25,8 +25,18 @@
   const PROFILES_KEY = "ervo-profiles";
   const ICON_PROFILE_KEY = "ervo-icon-profile"; // "personal" or "business": whose look is the home-screen icon
   const SHARED_KEYS = new Set([ACCOUNT_KEY, PROFILES_KEY, ICON_PROFILE_KEY, "ervo-session", THEME_KEY, PLACE_KEY, "ervo-seen-version", "ervo-intro", "ervo-update-checked", "ervo-cal-reset-027"]);
-  let NS = (() => { try { const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY)); return a && a.plan === "business" ? "biz:" : ""; } catch (e) { return ""; } })();
-  const setNS = (plan) => { NS = plan === "business" ? "biz:" : ""; };
+  // Business data lives per company: "biz:<companyId>:", or "biz:" before a company is set up
+  const nsFor = (plan, companyId) => (plan === "business" ? (companyId ? `biz:${companyId}:` : "biz:") : "");
+  let NS = (() => { try { const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY)); return a ? nsFor(a.plan, a.team && a.team.companyId) : ""; } catch (e) { return ""; } })();
+  const setNS = (plan, companyId) => { NS = nsFor(plan, companyId); };
+  // Chats and Psyche saved before companies had their own space move into the first company once
+  function migrateLegacyBiz(companyId) {
+    try {
+      if (!companyId || localStorage.getItem(`biz:${companyId}:${PREFS_KEY}`) !== null || localStorage.getItem(`biz:${CHAT_KEY}`) === null) return;
+      const keys = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith("biz:") && !/^biz:[a-z0-9]{6,}:/.test(k)) keys.push(k); }
+      keys.forEach((k) => { localStorage.setItem(`biz:${companyId}:${k.slice(4)}`, localStorage.getItem(k)); localStorage.removeItem(k); });
+    } catch (e) { /* fine */ }
+  }
   const nsKey = (k) => (NS && !SHARED_KEYS.has(k) ? NS + k : k);
   const load = (k) => { try { return JSON.parse(localStorage.getItem(nsKey(k))); } catch (e) { return null; } };
   const save = (k, v) => { try { localStorage.setItem(nsKey(k), JSON.stringify(v)); } catch (e) { /* ignore */ } };
@@ -91,7 +101,7 @@
   // ---------- screens ----------
   // How deep each screen sits, so moving in slides from the right and going back slides away
   // to the right, like every iPhone app (Apple: navigation is a stack you push and pop)
-  const DEPTH = { splash: 0, welcome: 0, chat: 0, ideas: 0, goalpage: 0, team: 0, library: 0, settings: 1, stats: 2, psyche: 2, teamchat: 2, appsPage: 2, activity: 3 };
+  const DEPTH = { splash: 0, welcome: 0, chat: 0, ideas: 0, goalpage: 0, team: 0, library: 0, settings: 1, stats: 2, psyche: 2, teamchat: 2, appsPage: 2, bizpage: 2, activity: 3 };
   // The four tabs at the bottom, and which screen each one shows (Business owners get Team where Goals is)
   const TAB_OF = { chat: "tab-chat", ideas: "open-ideas", goalpage: "tab-goals", team: "tab-goals", library: "open-library" };
   // Back goes to where you came from: Settings when you opened it there, else the chat
@@ -281,7 +291,7 @@
   // Moves the app into the other Ervo without reloading: storage switches namespace, memory is reset,
   // the chat reopens, and the curtain lifts once it's drawn
   function switchInto(acc, fresh) {
-    setNS(acc.plan);
+    setNS(acc.plan, acc.team && acc.team.companyId);
     save(ACCOUNT_KEY, acc);
     hideTyping();
     task = null; confirming = false; pending = null; history = []; lastErvoText = "";
@@ -312,10 +322,11 @@
     toggleMenu(false);
     const to = account.plan === "business" ? "personal" : "business";
     const prof = load(PROFILES_KEY) || {};
-    prof[account.plan] = Object.assign({}, prof[account.plan] || {}, { plan: account.plan, name: account.name, contact: account.contact, id: account.id, createdAt: account.createdAt });
+    prof[account.plan] = Object.assign({}, prof[account.plan] || {}, { plan: account.plan, name: account.name, contact: account.contact, id: account.id, createdAt: account.createdAt, team: account.team || null });
     save(PROFILES_KEY, prof);
     const other = prof[to] || ((userMeta.profiles && userMeta.profiles[to]) ? { plan: to, name: userMeta.profiles[to].name, contact: account.contact, id: account.id } : null);
     if (other && other.name) {
+      if (to === "business" && other.team && other.team.companyId) migrateLegacyBiz(other.team.companyId);
       curtain(to, () => switchInto(other, false)); // one curtain, no reload
       return;
     }
@@ -337,9 +348,12 @@
     teamRole = r;
     document.querySelectorAll('input[name="teamrole"]').forEach((x) => { x.checked = x.value === r; });
     $("team-code").hidden = r !== "employee";
+    $("team-names").hidden = r !== "owner";
+    const a0 = pendingAcc || account || {};
+    if (!$("team-first").value && a0.name) $("team-first").value = String(a0.name).split(" ")[0];
     $("team-hint").textContent = r === "owner"
-      ? "You run the company. You'll create employee IDs so your team can join, and you can see their chats with Ervo."
-      : "Your company gave you an employee ID. Enter the company's name exactly as they use it on Ervo, and the ID. Your chats with Ervo here are visible to the company owner.";
+      ? "You run the company. Your name and the company's location keep it apart from any other company with the same name. You'll create employee IDs so your team can join."
+      : "Your company gave you an employee ID. Enter the company's name and location exactly as the owner set them, and the ID. Your chats with Ervo here are visible to the owner.";
     $("team-go").textContent = r === "owner" ? "Create my company" : "Join my company";
   }
   document.querySelectorAll('input[name="teamrole"]').forEach((x) => x.addEventListener("change", () => setTeamRole(x.value)));
@@ -350,14 +364,19 @@
     const acc = pendingAcc || load(ACCOUNT_KEY);
     if (!acc) { step("contact"); return; }
     const company = $("team-company").value.trim();
+    const location = $("team-location").value.trim();
+    const first = $("team-first").value.trim(), last = $("team-last").value.trim();
     const code = $("team-code").value.trim().toUpperCase();
     if (company.length < 2) { $("team-error").textContent = "Enter the company's name."; return; }
+    if (location.length < 2) { $("team-error").textContent = "Enter where the company is, like Austin, TX."; return; }
+    if (teamRole === "owner" && (!first || !last)) { $("team-error").textContent = "Enter your first and last name."; return; }
     if (teamRole === "employee" && !/^ERVO(-[A-Z0-9]{4}){2,3}$/.test(code)) { $("team-error").textContent = "Enter the employee ID your company gave you, like ERVO-7F3K-92QX-4MNB."; return; }
     const btn = $("team-go");
     btn.disabled = true;
     try {
-      const v = teamRole === "owner" ? await teamApi("company/create", { name: company, ownerName: acc.name }) : await teamApi("join", { company, code, name: acc.name });
+      const v = teamRole === "owner" ? await teamApi("company/create", { name: company, location, firstName: first, lastName: last }) : await teamApi("join", { company, location, code, name: acc.name });
       acc.team = teamFromView(v);
+      if (teamRole === "owner") acc.name = first;
     } catch (err) {
       $("team-error").textContent = err.message || "Couldn't reach Ervo. Check your connection and try again.";
       btn.disabled = false;
@@ -365,9 +384,8 @@
     }
     btn.disabled = false;
     pendingAcc = null;
-    save(ACCOUNT_KEY, acc);
-    if (switching) { switching = false; curtain(acc.plan, () => switchInto(acc, true)); return; }
-    openChat(acc, true);
+    switching = false;
+    curtain(acc.plan, () => switchInto(acc, true)); // the new company gets its own space
   });
 
   // ---------- settings, connected apps and Ervo's activity ----------
@@ -494,7 +512,7 @@
     ["Work", [
       ["open-team", "people", "#0a84ff", "Team", "Employees, their chats and employee IDs"],
       ["open-hours", "clock", "#ff9f0a", "Office Hours", "When you're working"],
-      ["open-company", "home", "#30d158", "My Company", ""],
+      ["open-biz", "home", "#30d158", "My Businesses", "Switch, add, verify or delete"],
     ]],
     ["You", [
       ["open-psyche", "brain", "#bf5af2", "Psyche", "What Ervo knows about you"],
@@ -2530,7 +2548,7 @@
   function openChat(acc, fresh) {
     account = acc;
     const prof = load(PROFILES_KEY) || {};
-    prof[acc.plan] = { plan: acc.plan, name: acc.name, contact: acc.contact, id: acc.id, createdAt: acc.createdAt };
+    prof[acc.plan] = { plan: acc.plan, name: acc.name, contact: acc.contact, id: acc.id, createdAt: acc.createdAt, team: acc.team || null };
     save(PROFILES_KEY, prof);
     $("open-switch").querySelector("b").textContent = acc.plan === "business" ? "Switch to Ervo Personal" : "Switch to Ervo for Business";
     $("open-switch").querySelector("small").textContent = acc.plan === "business" ? "Your own chats, Psyche and settings, kept apart from work" : "Your work Ervo, with its own chats and team";
@@ -2589,6 +2607,15 @@
       if (g.firstTime && !biz()) {
         lines.push("I get to know you as we talk. What can I help you with today?");
         return { text: lines.join(" "), choices: ["Planning my days", "Food and groceries", "Shopping", "Skip for now"] };
+      }
+      if (biz()) {
+        const co = account.team ? account.team.companyName : "your business";
+        const known = psyche().facts.length;
+        if (g.firstTime || known < 3) {
+          return { text: `${g.firstTime ? lines[0] + " " : ""}Let's start with ${co}: what does the business do, and who are your customers? The more I know, the more I can take off your plate.`.replace(/^Hi (\w+), what can I help you with today\?\s*/, ""),
+            chips: ["We're a restaurant", "We sell products online", "We offer a service", "Something else"] };
+        }
+        if (known < 8) return `Hi ${g.p.nickname || account.name}, what's happening at ${co} today? I still have a few things to learn about the business, so tell me as we go.`;
       }
       if (g.firstTime) lines.push("What can I help you with today?");
       return lines.join(" ");
@@ -4736,7 +4763,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.4"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.6.0"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -5336,6 +5363,9 @@
     if ($("activity").classList.contains("active")) { renderStats(); show("stats"); return true; }
     if ($("stats").classList.contains("active")) { show(backTo("stats")); return true; }
     if ($("appsPage").classList.contains("active")) { show(backTo("appsPage")); return true; }
+    if ($("bizpage").classList.contains("active")) { show(backTo("bizpage")); return true; }
+    if (!$("verify").hidden) { $("verify").hidden = true; return true; }
+    if (!$("bizdel").hidden) { $("bizdel").hidden = true; return true; }
     if ($("settings").classList.contains("active")) { show("chat"); return true; }
     if (!$("chats-panel").hidden && !docked()) { closeChats(); return true; }
     if ($("psyche").classList.contains("active")) { show(backTo("psyche")); return true; }
@@ -5697,8 +5727,9 @@
     if (!AI_URL) throw new Error("Ervo's server isn't set up.");
     if (!token) { const e = new Error("Please sign in again."); e.status = 401; throw e; }
     let r;
+    const payload = Object.assign({ companyId: account && account.team ? account.team.companyId : undefined }, body || {});
     try {
-      r = await fetch(`${AI_URL}/team/${path}`, { method: "POST", headers: { "content-type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body || {}), signal: AbortSignal.timeout(15000) });
+      r = await fetch(`${AI_URL}/team/${path}`, { method: "POST", headers: { "content-type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload), signal: AbortSignal.timeout(15000) });
     } catch (e) { throw new Error("Couldn't reach Ervo. Check your connection and try again."); }
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { const e = new Error(j.error || `Ervo's server said ${r.status}.`); e.status = r.status; e.none = !!j.none; e.removed = j.removed || null; throw e; }
@@ -5706,21 +5737,23 @@
   }
   const teamFromView = (v) => ({
     role: v.member.role, memberId: v.member.id, myName: v.member.name, hours: v.member.hours || null,
-    companyId: v.company.id, companyName: v.company.name, owner: v.company.owner || "", peer: !!v.company.peerMessages,
-    members: v.members || [], pendingCodes: v.pendingCodes || [], unread: v.unread || 0,
+    companyId: v.company.id, companyName: v.company.name, location: v.company.location || "", verified: !!v.company.verified, website: v.company.website || "", owner: v.company.owner || "", peer: !!v.company.peerMessages,
+    members: v.members || [], pendingCodes: v.pendingCodes || [], companies: v.companies || [], unread: v.unread || 0,
   });
   function teamForAI() {
     const t = account && account.team;
     if (!t) return undefined;
-    return { company: t.companyName, role: t.role, myName: t.myName, hours: t.hours, members: t.members.filter((m) => m.id !== t.memberId).map((m) => m.name), peerMessages: t.peer };
+    return { company: t.companyName, location: t.location, verified: t.verified, role: t.role, myName: t.myName, hours: t.hours, members: t.members.filter((m) => m.id !== t.memberId).map((m) => m.name), peerMessages: t.peer };
   }
   // Fresh team picture from the server (and the first place a returning Business user is sent to pick Company or Employee)
   async function syncTeam() {
     if (!account || account.plan !== "business" || !realAuth) return;
     try {
       const v = await teamApi("me");
+      const before = account.team ? account.team.companyId : null;
       account.team = teamFromView(v);
       save(ACCOUNT_KEY, account);
+      if (account.team.companyId !== before) { migrateLegacyBiz(account.team.companyId); switchInto(account, false); return; }
       applyTeamUI();
       pollInbox();
     } catch (e) {
@@ -5729,7 +5762,7 @@
         show("welcome");
         setTeamRole(e.removed ? "employee" : "owner");
         step("team");
-        if (e.removed) $("team-error").textContent = `Your access to ${e.removed.company} on Ervo was removed by the company. To rejoin, ask them for a new employee ID.`;
+        if (e.removed) $("team-error").textContent = e.removed.closed ? `${e.removed.company} closed its Ervo workspace. You can start your own company here or join another with an employee ID.` : `Your access to ${e.removed.company} on Ervo was removed by the company. To rejoin, ask them for a new employee ID.`;
       }
       else if (e.status === 401) { /* signed out elsewhere: the next action asks to sign in */ }
     }
@@ -5740,7 +5773,7 @@
     const owner = !!(t && isAdminRole(t.role));
     $("open-team").hidden = !owner;
     $("open-hours").hidden = !t;
-    $("open-company").hidden = !(t && t.role === "employee");
+    $("open-biz").hidden = !t;
     document.querySelectorAll('#settings-list [data-group="Work"]').forEach((el) => { el.hidden = !t; });
     const tab = $("tab-goals");
     tab.querySelector("span").textContent = owner ? "Team" : "Goals";
@@ -5836,7 +5869,7 @@
     $("team-title").textContent = t.companyName;
     const staff = t.members.filter((m) => m.id !== t.memberId);
     const n = staff.filter((m) => m.role === "employee").length;
-    $("team-sub").textContent = `${n} employee${n === 1 ? "" : "s"} · you're ${t.role === "owner" ? "the owner" : "a co-owner"}`;
+    $("team-sub").textContent = `${t.location ? `${t.location} · ` : ""}${t.verified ? "Verified ✓ · " : ""}${n} employee${n === 1 ? "" : "s"} · you're ${t.role === "owner" ? "the owner" : "a co-owner"}`;
     const mbox = $("team-members");
     mbox.innerHTML = "";
     if (!staff.length) mbox.append(empty("No one else yet. Add an employee ID below and give it to them."));
@@ -6008,7 +6041,7 @@
   });
 
   // ----- My company (employee) -----
-  $("open-company").addEventListener("click", () => {
+  if ($("open-company")) $("open-company").addEventListener("click", () => {
     toggleMenu(false);
     const t = account.team;
     $("company-info").textContent = `${t.companyName}${t.owner ? `, run by ${t.owner}` : ""}. You joined as ${t.myName}. Teammates can ${t.peer ? "message each other and the owner" : "message the owner"} through Ervo.`;
@@ -6016,7 +6049,107 @@
   });
   $("company-done").addEventListener("click", () => { $("company").hidden = true; });
   $("company").addEventListener("click", (e) => { if (e.target === $("company")) $("company").hidden = true; });
-  $("company-leave").addEventListener("click", () => {
+  // ----- My Businesses -----
+  const DEPTH_BIZ = 2; void DEPTH_BIZ;
+  function openBiz() {
+    toggleMenu(false);
+    renderBiz();
+    show("bizpage");
+    teamApi("me").then((v) => { account.team = teamFromView(v); save(ACCOUNT_KEY, account); renderBiz(); }).catch(() => { /* show what we have */ });
+  }
+  function renderBiz() {
+    const t = account.team;
+    const box = $("biz-list");
+    box.innerHTML = "";
+    const list = (t && t.companies && t.companies.length) ? t.companies : (t ? [{ id: t.companyId, name: t.companyName, location: t.location, role: t.role, verified: t.verified }] : []);
+    list.forEach((c) => {
+      const active = t && c.id === t.companyId;
+      const r = row(c.role === "employee" ? "people" : "home", c.name, `${c.location || "Location not set"} · ${c.role === "owner" ? "Owner" : c.role === "coowner" ? "Co-owner" : "Employee"}${c.verified ? " · Verified ✓" : ""}`, active ? "Current" : "›");
+      r.classList.add("tap");
+      if (active) r.classList.add("current");
+      r.setAttribute("role", "button");
+      r.tabIndex = 0;
+      r.addEventListener("click", () => { if (!active) switchCompany(c.id, c.name); });
+      box.append(r);
+    });
+    if (!list.length) box.append(empty("No business yet. Add one below, or join a company with an employee ID."));
+    const mine = $("biz-this");
+    mine.innerHTML = "";
+    if (!t) { $("biz-this-title").hidden = true; return; }
+    $("biz-this-title").hidden = false;
+    $("biz-this-title").textContent = t.companyName;
+    const info = row("location", t.location || "Location not set", t.verified ? `Verified business${t.website ? ` · ${t.website}` : ""}` : "Not verified yet", "");
+    info.classList.add("compact");
+    mine.append(info);
+    const act = (ico, label, sub, fn, danger) => { const b = row(ico, label, sub, "›"); b.classList.add("compact", "tap"); if (danger) b.classList.add("danger"); b.setAttribute("role", "button"); b.tabIndex = 0; b.addEventListener("click", fn); mine.append(b); };
+    if (t.role === "owner" && !t.verified) act("done", "Verify this business", "With your company's website and work email", openVerify);
+    if (t.role === "owner") act("undo", "Delete this business…", "Removes the team and everything Ervo knows about it", openBizDelete, true);
+    else act("open", "Leave this company", "Your chats here stay with the company", () => $("company-leave").click());
+  }
+  async function switchCompany(id, name) {
+    buzz("tick");
+    curtain("business", async () => {
+      try {
+        const v = await teamApi("me", { companyId: id });
+        account.team = teamFromView(v);
+        save(ACCOUNT_KEY, account);
+        migrateLegacyBiz(id);
+        switchInto(account, false);
+        toast(`Now in ${name || account.team.companyName}`);
+      } catch (e) { $("switching").hidden = true; toast(e.message); }
+    });
+  }
+  $("open-biz").addEventListener("click", openBiz);
+  $("biz-back").addEventListener("click", () => show(backTo("bizpage")));
+  $("biz-add").addEventListener("click", () => { pendingAcc = account; switching = true; show("welcome"); setTeamRole("owner"); $("team-company").value = ""; $("team-location").value = ""; $("team-error").textContent = ""; step("team"); });
+  $("biz-join").addEventListener("click", () => { pendingAcc = account; switching = true; show("welcome"); setTeamRole("employee"); $("team-company").value = ""; $("team-location").value = ""; $("team-code").value = ""; $("team-error").textContent = ""; step("team"); });
+  // Verify
+  function openVerify() { $("verify-site").value = (account.team && account.team.website) || ""; $("verify").hidden = false; setTimeout(() => $("verify-site").focus(), 60); }
+  $("verify-cancel").addEventListener("click", () => { $("verify").hidden = true; });
+  $("verify").addEventListener("click", (e) => { if (e.target === $("verify")) $("verify").hidden = true; });
+  $("verify-go").addEventListener("click", async () => {
+    const site = $("verify-site").value.trim();
+    if (!site) return;
+    $("verify-go").disabled = true;
+    try {
+      const v = await teamApi("company/verify", { website: site });
+      account.team = teamFromView(v);
+      save(ACCOUNT_KEY, account);
+      $("verify").hidden = true;
+      renderBiz();
+      if (v.verified) { logActivity({ kind: "team", ico: "done", title: `Verified ${account.team.companyName}` }); ervoSays(`${account.team.companyName} is verified ✅ Nobody else can claim it at ${account.team.location || "your location"} now.`, { instant: true }); }
+      else ervoSays(v.reason || "I couldn't verify that yet.", { instant: true });
+      if (!v.verified) show("chat");
+    } catch (e) { toast(e.message); }
+    $("verify-go").disabled = false;
+  });
+  // Delete
+  function openBizDelete() {
+    const t = account.team;
+    $("bizdel-text").textContent = `${t.companyName}${t.location ? ` in ${t.location}` : ""} will be removed from Ervo: the team, its employee IDs and the chats Ervo kept for it. Employees lose access right away. This can't be undone.`;
+    $("bizdel-name").value = "";
+    $("bizdel").hidden = false;
+    setTimeout(() => $("bizdel-name").focus(), 60);
+  }
+  $("bizdel-cancel").addEventListener("click", () => { $("bizdel").hidden = true; });
+  $("bizdel").addEventListener("click", (e) => { if (e.target === $("bizdel")) $("bizdel").hidden = true; });
+  $("bizdel-go").addEventListener("click", async () => {
+    const typed = $("bizdel-name").value.trim();
+    if (!typed) return;
+    $("bizdel-go").disabled = true;
+    try {
+      const gone = account.team.companyName;
+      const r = await teamApi("company/delete", { confirm: typed });
+      $("bizdel").hidden = true;
+      // Clear this company's space on the phone
+      try { const pre = `biz:${account.team.companyId}:`; const ks = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(pre)) ks.push(k); } ks.forEach((k) => localStorage.removeItem(k)); } catch (e) { /* fine */ }
+      const next = (r.companies || [])[0];
+      if (next) { account.team = null; save(ACCOUNT_KEY, account); switchCompany(next.id, next.name); toast(`${gone} deleted`); }
+      else { account.team = null; setNS("business", null); save(ACCOUNT_KEY, account); pendingAcc = account; show("welcome"); setTeamRole("owner"); step("team"); $("team-error").textContent = `${gone} was deleted. Start a new company here, or join one with an employee ID.`; }
+    } catch (e) { toast(e.message); }
+    $("bizdel-go").disabled = false;
+  });
+  if ($("company-leave")) $("company-leave").addEventListener("click", () => {
     $("company").hidden = true;
     askConfirm(`Leave ${account.team.companyName}?`, "You'll be signed out of Ervo for Business on this phone. Your company keeps the chats you had with Ervo here.", "Leave", async () => {
       try { await teamApi("leave"); } catch (e) { toast(e.message); return; }
@@ -6049,6 +6182,20 @@
       b.addEventListener("click", () => { closeMsgMenu(); fn(); });
       menu.append(b);
     };
+    const mine = el.classList.contains("me");
+    const text = (() => { const tag = el.querySelector(".voice-tag"); return (tag ? el.innerText.replace(tag.innerText, "") : el.innerText).trim(); })();
+    if (mine) {
+      item("Copy", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+        () => copyText(text).then((ok) => toast(ok ? "Copied" : "Couldn't copy that. Try again.")));
+      item("Send again", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>', () => send(text));
+      item("Edit", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M12 6l4 4"/></svg>', () => { $("message").value = text; $("message").focus(); syncComposer(); });
+      document.body.append(menu);
+      const r0 = el.getBoundingClientRect();
+      const mh0 = menu.offsetHeight, mw0 = menu.offsetWidth;
+      menu.style.top = Math.max(60, r0.bottom + 8 + mh0 < window.innerHeight - 90 ? r0.bottom + 8 : r0.top - mh0 - 8) + "px";
+      menu.style.left = Math.min(Math.max(12, r0.right - mw0), window.innerWidth - mw0 - 12) + "px";
+      return;
+    }
     item("Copy", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
       () => copyText(el.innerText).then((ok) => toast(ok ? "Copied" : "Couldn't copy that. Try again.")));
     // The question this reply answered
@@ -6076,8 +6223,8 @@
     let holdTimer = 0, startX = 0, startY = 0;
     const cancel = () => clearTimeout(holdTimer);
     thread.addEventListener("pointerdown", (e) => {
-      const el = e.target.closest(".msg.them");
-      if (!el || e.target.closest("a")) return;
+      const el = e.target.closest(".msg.them, .msg.me");
+      if (!el || e.target.closest("a") || el.classList.contains("photo") || el.classList.contains("link")) return;
       startX = e.clientX; startY = e.clientY;
       cancel();
       holdTimer = setTimeout(() => msgMenu(el), 480);
@@ -6085,7 +6232,7 @@
     thread.addEventListener("pointermove", (e) => { if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) cancel(); });
     ["pointerup", "pointercancel"].forEach((n) => thread.addEventListener(n, cancel));
     // Right-click or a keyboard's menu key does the same
-    thread.addEventListener("contextmenu", (e) => { const el = e.target.closest(".msg.them"); if (el) { e.preventDefault(); cancel(); msgMenu(el); } });
+    thread.addEventListener("contextmenu", (e) => { const el = e.target.closest(".msg.them, .msg.me"); if (el && !el.classList.contains("photo") && !el.classList.contains("link")) { e.preventDefault(); cancel(); msgMenu(el); } });
     document.addEventListener("pointerdown", (e) => { if (!e.target.closest(".msg-menu")) closeMsgMenu(); }, true);
     thread.addEventListener("scroll", () => { cancel(); closeMsgMenu(); }, { passive: true });
   }

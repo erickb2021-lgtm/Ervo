@@ -75,6 +75,12 @@
     <p class="hint" id="team-hint">You run the company. You'll create employee IDs so your team can join, and you can see their chats with Ervo.</p>
     <label class="sr" for="team-company">Company name</label>
     <input class="field" id="team-company" type="text" autocomplete="organization" placeholder="Company name">
+    <label class="sr" for="team-location">Where the company is</label>
+    <input class="field" id="team-location" type="text" autocomplete="address-level2" placeholder="City, state (like Austin, TX)">
+    <div class="two-up" id="team-names">
+      <label class="sr" for="team-first">First name</label><input class="field" id="team-first" type="text" autocomplete="given-name" placeholder="First name">
+      <label class="sr" for="team-last">Last name</label><input class="field" id="team-last" type="text" autocomplete="family-name" placeholder="Last name">
+    </div>
     <label class="sr" for="team-code">Employee ID</label>
     <input class="field" id="team-code" type="text" autocomplete="off" autocapitalize="characters" placeholder="Employee ID, like ERVO-7F3K-92QX-4MNB" hidden>
     <p class="error" id="team-error" role="alert"></p>
@@ -325,7 +331,7 @@
     </button>
     <div id="settings-list"></div>
     <p class="foot-note menu-ai">Ervo uses AI and can make mistakes. Check important info.</p>
-    <p class="foot-note menu-version" id="menu-version">Ervo version 0.5.4 (preview)</p>
+    <p class="foot-note menu-version" id="menu-version">Ervo version 0.6.0 (preview)</p>
   </div>
 </section>
 
@@ -370,6 +376,52 @@
     <div class="card list compact" id="apps"></div>
   </div>
 </section>
+
+<!-- My Businesses: every company you belong to; switch, add, verify, delete -->
+<section class="screen stats" id="bizpage" aria-labelledby="biz-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="biz-back" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span class="nav-title" aria-hidden="true"></span>
+  </header>
+  <div class="stats-body">
+    <h1 id="biz-title">My Businesses</h1>
+    <p class="stats-weather">Each business has its own chats, Psyche, team and Ideas. Tap one to switch.</p>
+    <div class="card list" id="biz-list"></div>
+    <button class="pill ideas-refresh team-add" type="button" id="biz-add">Add a business</button>
+    <button class="pill ghost ideas-refresh" type="button" id="biz-join">Join a company with an employee ID</button>
+    <h2 id="biz-this-title">This business</h2>
+    <div class="card list compact" id="biz-this"></div>
+  </div>
+</section>
+
+<!-- Verify a business: the owner's sign-in email must be on the company's website domain -->
+<div class="sheet-wrap" id="verify" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="verify-title">
+    <h2 id="verify-title">Verify your business</h2>
+    <p class="muted">Ervo checks that the email you signed in with is on your company's own website domain. Verified businesses get a badge, and nobody else can claim the same name and location.</p>
+    <label class="field-label" for="verify-site">Company website</label>
+    <input class="field soft" id="verify-site" type="text" inputmode="url" autocomplete="url" placeholder="joestacos.com">
+    <p class="perm-note" id="verify-note">Signed in with a Gmail or similar address? Sign in with your work email instead, or skip this; everything works without it.</p>
+    <div class="sheet-actions">
+      <button class="pill ghost" type="button" id="verify-cancel">Not now</button>
+      <button class="pill" type="button" id="verify-go">Verify</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete a business: type its name -->
+<div class="sheet-wrap" id="bizdel" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="bizdel-title">
+    <h2 id="bizdel-title">Delete this business?</h2>
+    <p class="muted" id="bizdel-text"></p>
+    <label class="field-label" for="bizdel-name">Type the company's name to confirm</label>
+    <input class="field soft" id="bizdel-name" type="text" autocomplete="off" placeholder="Company name">
+    <div class="sheet-actions">
+      <button class="pill ghost" type="button" id="bizdel-cancel">Keep it</button>
+      <button class="pill danger-fill" type="button" id="bizdel-go">Delete</button>
+    </div>
+  </div>
+</div>
 
 <!-- 11. Team (Business owner): employees, their chats, employee IDs -->
 <section class="screen stats" id="team" aria-labelledby="team-title">

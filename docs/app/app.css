@@ -1603,3 +1603,12 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 /* Nothing in the sky moves while a screen slides, or while Stats is not on screen */
 .screen.push-in .sky-scene *, .screen.pop-out .sky-scene *, .screen.under .sky-scene * { animation-play-state: paused !important; }
 .sky-scene > div { will-change: opacity; }
+
+/* ===== 0.6.0: businesses with a location, several per person ===== */
+.two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.two-up .field { margin: 0; }
+.row.current { background: color-mix(in srgb, var(--tint) 10%, transparent); }
+.row.current .side { color: var(--tint); font-weight: 700; }
+.row.danger .txt b { color: var(--red); }
+.pill.danger-fill { background: var(--red); color: #fff; }
+.msg.me.held { outline: 2px solid rgba(255, 255, 255, 0.35); outline-offset: 2px; }
