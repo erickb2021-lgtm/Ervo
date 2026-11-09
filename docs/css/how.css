@@ -229,3 +229,54 @@ section.how .section-head { margin-bottom: 24px; }
 .gl-row .f3d { width: 8.5cqw; height: 8.5cqw; font-size: 6cqw; }
 .steps-head .emo.f3d { background: none; }
 @media (max-width: 640px) { .gl-row .f3d { width: 11cqw; height: 11cqw; } }
+
+/* Business scenes: small 3D icons, mock cards and toasts (they look tappable but are part of the video) */
+.f3d.sm { width: 2.8cqw; height: 2.8cqw; min-width: 18px; min-height: 18px; margin-right: 0.8cqw; vertical-align: middle; font-size: 2cqw; }
+.f3d.sm.big { width: 4.4cqw; height: 4.4cqw; margin-right: 0; }
+.f3d.sm.face { width: 2.6cqw; height: 2.6cqw; margin: 0 0 0 -0.6cqw; border-radius: 50%; background: #fff; box-shadow: 0 0 0 0.25cqw #fff; }
+.f3d.sm.face img { width: 80%; height: 80%; }
+.policy-head, .week-head, .team-head { display: flex; align-items: center; }
+.week-head .faces { margin-left: auto; display: flex; padding-left: 0.6cqw; }
+.prow span { display: flex; align-items: center; }
+.refund-card, .toast3d, .invite { display: flex; align-items: center; gap: 1.1cqw; background: #fff; border-radius: 1.4cqw; padding: 1cqw 1.3cqw; box-shadow: 0 0.6cqw 2cqw rgba(42, 22, 80, 0.14), 0 0 0 1px rgba(42, 22, 80, 0.06); }
+.refund-card > div, .toast3d > div { flex: 1; min-width: 0; }
+.refund-card b, .toast3d b { display: block; font-size: 0.95em; }
+.refund-card small, .toast3d small { display: block; color: #7d6357; font-size: 0.78em; font-weight: 500; }
+.refund-card { margin: 1.2cqw 0 1cqw; }
+.toast3d { align-self: flex-start; padding: 0.7cqw 1.4cqw 0.7cqw 0.9cqw; border-radius: 999px; font-size: 0.85em; }
+.mock-btn { flex: none; background: #6b2fd0; color: #fff; font-weight: 800; font-size: 0.75em; padding: 0.5cqw 1.4cqw; border-radius: 999px; }
+.attach .mock-btn { margin-left: auto; }
+.invite { font-weight: 700; margin-top: 0.4cqw; }
+.invite span:not(.mock-btn):not(.f3d) { flex: 1; }
+
+/* Personal scenes: clean, tappable-looking cards with 3D icons */
+.cal-head { display: flex; align-items: center; }
+.cal-head .weather { margin-left: auto; display: flex; align-items: center; font-size: 0.75em; font-weight: 700; color: #7d6357; background: #f5f0ec; padding: 0.3cqw 1cqw 0.3cqw 0.4cqw; border-radius: 999px; }
+.cal-head .weather .f3d.sm { margin-right: 0.3cqw; }
+.slot .f3d.sm { margin-right: 0; }
+.slot span { min-width: 2.9em; }
+.slot .new-tag { margin-left: auto; font-style: normal; font-size: 0.7em; font-weight: 800; background: #fff; color: #6b2fd0; padding: 0.2cqw 0.9cqw; border-radius: 999px; }
+.mock-row { display: flex; align-items: center; gap: 1cqw; background: #f5f0ec; border-radius: 1cqw; padding: 0.8cqw 1.2cqw; font-weight: 600; }
+.mock-row .f3d.sm { margin-right: 0; }
+.mock-row > span:not(.f3d):not(.mock-btn) { flex: 1; min-width: 0; }
+.mock-row b { display: block; font-size: 0.95em; }
+.mock-row small { display: block; color: #7d6357; font-weight: 500; font-size: 0.8em; }
+.mock-row .sw { margin-left: auto; }
+.mock-actions { display: flex; gap: 0.8cqw; justify-content: flex-end; }
+.mock-btn.ghost { background: #fff; color: #6b2fd0; box-shadow: inset 0 0 0 1px #d9c9f5; }
+.product { display: flex; align-items: center; gap: 1.2cqw; }
+.product .photo { flex: none; width: 6.4cqw; height: 6.4cqw; border-radius: 1.4cqw; background: linear-gradient(145deg, #e9e4f5, #c9bdf0); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+.product .photo img { width: 72%; height: 72%; object-fit: contain; filter: drop-shadow(0 0.3cqw 0.4cqw rgba(0, 0, 0, 0.2)); }
+.product > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.product small { color: #7d6357; font-weight: 500; font-size: 0.82em; }
+.product .price { font-weight: 800; }
+.status-pill { flex: none; align-self: flex-start; font-size: 0.7em; font-weight: 800; background: #e3f6ee; color: #0f6e56; padding: 0.3cqw 1cqw; border-radius: 999px; }
+.track { display: flex; align-items: center; margin: 0.6cqw 0.6cqw 0; }
+.track .dot { flex: none; width: 1.6cqw; height: 1.6cqw; min-width: 10px; min-height: 10px; border-radius: 50%; background: #1d9e75; }
+.track .dot.now { background: #fff; box-shadow: inset 0 0 0 0.4cqw #6b2fd0; }
+.track .line { flex: 1; height: 0.45cqw; min-height: 3px; background: #1d9e75; border-radius: 2px; margin: 0 0.4cqw; }
+.track-labels { display: flex; justify-content: space-between; font-size: 0.72em; color: #7d6357; font-weight: 600; margin-top: -0.4cqw; }
+.policy .refund-card { margin: 0.2cqw 0 0; box-shadow: none; background: #f3eefc; }
+/* "For you" pill: a darker peach edge and soft shadow so it stands out from the light video background */
+.side:not(.biz) { box-shadow: inset 0 0 0 0.25cqw #f2b89a, 0 0 0 0.35cqw rgba(232, 150, 110, 0.18), 0 0.8cqw 2cqw rgba(200, 110, 70, 0.22); }
+.side.biz { box-shadow: 0 0 0 0.35cqw rgba(42, 22, 80, 0.14), 0 0.8cqw 2cqw rgba(42, 22, 80, 0.25); }

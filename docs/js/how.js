@@ -60,10 +60,9 @@
     music.volume = toVolume(vol.value);
     setMuted(vol.value === "0");
   });
-  // music.mp3 is 45 seconds long, so it loops to cover the whole 1-minute video.
+  // music.mp3 is 0:20 to 1:20 of the song (one minute), so it matches the 1-minute video.
   // The song's spot always comes from the video's time, so seeking or rewinding keeps them in step.
-  music.loop = true;
-  const musicTime = () => (music.duration ? (elapsed / 1000) % music.duration : elapsed / 1000);
+  const musicTime = () => Math.min(elapsed / 1000, music.duration ? music.duration - 0.05 : elapsed / 1000);
   function syncMusic(force) {
     if (!music.duration) {
       music.addEventListener("loadedmetadata", () => syncMusic(true), { once: true });
@@ -75,7 +74,6 @@
     if (force || (off > 0.25 && off < music.duration - 0.25)) music.currentTime = want;
     if (playing && music.paused) music.play().catch(() => {});
   }
-  let lastSync = 0;
 
   function sceneAt(ms) {
     let i = 0;
@@ -113,7 +111,14 @@
 
   function tick(now) {
     if (!playing) return;
-    elapsed += now - last;
+    // Follow the music by running a little faster or slower, never by stepping back:
+    // stepping back made scenes flash in and out right at a scene change
+    let dt = now - last;
+    if (!music.paused && music.readyState >= 2) {
+      const diff = music.currentTime * 1000 - elapsed;
+      if (Math.abs(diff) < 1500) dt *= Math.min(1.25, Math.max(0.75, 1 + diff / 800));
+    }
+    elapsed += dt;
     last = now;
     const left = total - elapsed;
     if (left < 1500 && !music.muted) music.volume = toVolume(vol.value) * Math.max(0, left / 1500);
@@ -124,7 +129,6 @@
       return;
     }
     render();
-    if (now - lastSync > 1000) { lastSync = now; syncMusic(false); }
     requestAnimationFrame(tick);
   }
 
@@ -186,6 +190,10 @@
     e.preventDefault();
   });
 
+  // Start on the first frame, paused, with the song at its first second too
+  elapsed = 0;
+  if (music.readyState >= 1) music.currentTime = 0;
+  else music.addEventListener("loadedmetadata", () => { if (!playing) music.currentTime = 0; }, { once: true });
   // Start on the first frame, paused
   stage.classList.add("paused");
   render();
