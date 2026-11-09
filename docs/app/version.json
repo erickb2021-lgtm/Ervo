@@ -1,6 +1,9 @@
 {
-  "version": "0.5.5",
+  "version": "0.5.6",
   "notes": [
+    "Passwords: sign in with email and password, sign up with a confirmed password, and reset it from an email link that opens Ervo. Three wrong tries and Ervo points you to Forgot password",
+    "Keep me logged in (on by default) and Unlock with fingerprint or face, in Settings. Password fields work with Samsung Pass, Google and iCloud Keychain",
+    "The company name Ervo is reserved",
     "Businesses: a company is its name plus its location, so two shops with the same name in different cities both fit. The owner gives a first and last name",
     "My Businesses in Settings: switch between your companies, add another, join one with an ID, verify yours with your work email and website, or delete one (type its name)",
     "Each business keeps its own chats, Psyche, team and Ideas",
@@ -9,14 +12,11 @@
     "Ervo turns down harmful or illegal requests in one calm line and never shares another company's information",
     "Connected Apps is its own page, out of Ervo Stats; Settings lost the Greeting and Weather rows",
     "The greeting is just \"Hi Erick, what can I help you with today?\"; tell Ervo \"call me …\" to change the name",
-    "Android: when you close Ervo, one short weather line (temperature and sky), with a brief caution only for storms, snow, rain, very hot, very cold or strong wind; at most every 3 hours, never at night",
-    "Ervo Stats: the Back button works again and the page moves smoothly; the sky animates on the graphics chip instead of repainting the screen",
-    "Switching between Personal and Business is one smooth transition, with no flash in between",
-    "Switching between Personal and Business shows the look you picked for that Ervo, with no flash of the default owl"
+    "Android: when you close Ervo, one short weather line (temperature and sky), with a brief caution only for storms, snow, rain, very hot, very cold or strong wind; at most every 3 hours, never at night"
   ],
   "highlights": [
-    "Run more than one business and switch between them",
-    "Companies are set apart by name and location, with optional verification",
-    "Hold any message to copy it"
+    "Sign in with a password; Sign up and Forgot password are built in",
+    "Keep me logged in, and unlock with fingerprint or face on Android",
+    "Run several businesses and switch between them"
   ]
 }

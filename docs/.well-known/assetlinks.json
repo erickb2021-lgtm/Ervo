@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.ervo",
+      "sha256_cert_fingerprints": [
+        "2A:69:3C:C0:B1:06:4F:B1:A5:6C:B7:E2:CF:5C:DD:6E:89:25:3A:8C:96:19:9C:25:0E:17:C2:C7:F1:80:EE:34"
+      ]
+    }
+  }
+]

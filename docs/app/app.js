@@ -24,7 +24,10 @@
   // shared by both (the sign-in itself, the list of profiles, the theme, update checks, your city).
   const PROFILES_KEY = "ervo-profiles";
   const ICON_PROFILE_KEY = "ervo-icon-profile"; // "personal" or "business": whose look is the home-screen icon
-  const SHARED_KEYS = new Set([ACCOUNT_KEY, PROFILES_KEY, ICON_PROFILE_KEY, "ervo-session", THEME_KEY, PLACE_KEY, "ervo-seen-version", "ervo-intro", "ervo-update-checked", "ervo-cal-reset-027"]);
+  const KEEP_KEY = "ervo-keep"; // stay signed in (default on)
+  const BIO_KEY = "ervo-bio"; // unlock with fingerprint or face
+  const LEFT_KEY = "ervo-left"; // the app was put away while "keep me logged in" was off
+  const SHARED_KEYS = new Set([ACCOUNT_KEY, PROFILES_KEY, ICON_PROFILE_KEY, KEEP_KEY, BIO_KEY, LEFT_KEY, "ervo-session", THEME_KEY, PLACE_KEY, "ervo-seen-version", "ervo-intro", "ervo-update-checked", "ervo-cal-reset-027"]);
   // Business data lives per company: "biz:<companyId>:", or "biz:" before a company is set up
   const nsFor = (plan, companyId) => (plan === "business" ? (companyId ? `biz:${companyId}:` : "biz:") : "");
   let NS = (() => { try { const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY)); return a ? nsFor(a.plan, a.team && a.team.companyId) : ""; } catch (e) { return ""; } })();
@@ -101,7 +104,7 @@
   // ---------- screens ----------
   // How deep each screen sits, so moving in slides from the right and going back slides away
   // to the right, like every iPhone app (Apple: navigation is a stack you push and pop)
-  const DEPTH = { splash: 0, welcome: 0, chat: 0, ideas: 0, goalpage: 0, team: 0, library: 0, settings: 1, stats: 2, psyche: 2, teamchat: 2, appsPage: 2, bizpage: 2, activity: 3 };
+  const DEPTH = { splash: 0, welcome: 0, lock: 0, chat: 0, ideas: 0, goalpage: 0, team: 0, library: 0, settings: 1, stats: 2, psyche: 2, teamchat: 2, appsPage: 2, bizpage: 2, activity: 3 };
   // The four tabs at the bottom, and which screen each one shows (Business owners get Team where Goals is)
   const TAB_OF = { chat: "tab-chat", ideas: "open-ideas", goalpage: "tab-goals", team: "tab-goals", library: "open-library" };
   // Back goes to where you came from: Settings when you opened it there, else the chat
@@ -212,26 +215,138 @@
     return "Couldn't reach Ervo's sign-in. Check your connection and try again.";
   }
   if (realAuth) {
-    document.querySelector(".demo").textContent = "Check your inbox (and spam folder) for a code from Ervo.";
-    $("contact").placeholder = "Your email";
+    const demoEl = document.querySelector(".demo"); if (demoEl) demoEl.textContent = "Check your inbox (and spam folder) for a code from Ervo.";
   }
 
+  // After signing in: open the Ervo they picked, or ask for a name if this email hasn't set it up yet
+  function afterSignIn(j, email) {
+    save(SESSION_KEY, { access_token: j.access_token, refresh_token: j.refresh_token, expiresAt: Date.now() + (j.expires_in || 3600) * 1000 });
+    userMeta = (j.user && j.user.user_metadata) || {};
+    contact = email || (j.user && j.user.email) || "";
+    drop(LEFT_KEY);
+    const prof = (userMeta.profiles && userMeta.profiles[plan]) || (userMeta.plan === plan && userMeta.name ? { name: userMeta.name } : null);
+    if (prof && prof.name) {
+      const acc = { plan, name: prof.name, contact, id: j.user && j.user.id, createdAt: j.user && j.user.created_at };
+      setNS(plan);
+      save(ACCOUNT_KEY, acc);
+      openChat(acc, false);
+      return;
+    }
+    step("name");
+  }
+  let wrongTries = 0;
+  let lockedAcc = null; // the account waiting behind the fingerprint lock
+  let bioArming = false; // turning fingerprint unlock on: waiting for the phone's confirmation
+  const mark = (ids, bad) => ids.forEach((id) => $(id).classList.toggle("bad", bad));
+  document.querySelectorAll(".pw-eye").forEach((b) => b.addEventListener("click", () => { const i = $(b.dataset.eye); i.type = i.type === "password" ? "text" : "password"; b.setAttribute("aria-label", i.type === "password" ? "Show password" : "Hide password"); }));
   document.querySelector('[data-step="contact"]').addEventListener("submit", async (e) => {
     e.preventDefault();
     const v = $("contact").value.trim();
-    if (!v) { $("contact-error").textContent = realAuth ? "Enter your email." : "Enter your mobile number or email."; return; }
-    if (!isEmail(v) && !isPhone(v)) { $("contact-error").textContent = "That doesn't look like a valid number or email. Try again."; return; }
-    if (realAuth) {
-      if (!isEmail(v)) { $("contact-error").textContent = "For now, sign in with your email. Text message codes are coming soon."; return; }
-      const btn = e.submitter || document.querySelector('[data-step="contact"] .btn');
-      btn.disabled = true;
-      try { await auth("otp", { email: v, create_user: true }); } catch (err) { $("contact-error").textContent = friendlyAuthError(err); btn.disabled = false; return; }
+    const pw = $("password").value;
+    if (!v) { $("contact-error").textContent = "Enter your email."; return; }
+    if (!isEmail(v)) { $("contact-error").textContent = "That doesn't look like an email. Try again."; return; }
+    if (!realAuth) { contact = v; step("name"); return; } // preview: no password needed
+    if (!pw) { $("contact-error").textContent = "Enter your password."; mark(["password"], true); return; }
+    const btn = e.submitter || document.querySelector('[data-step="contact"] .btn');
+    btn.disabled = true;
+    try {
+      const j = await auth("token?grant_type=password", { email: v, password: pw });
       btn.disabled = false;
+      wrongTries = 0;
+      mark(["password"], false);
+      afterSignIn(j, v);
+    } catch (err) {
+      btn.disabled = false;
+      if (err.status === 400 || /invalid/i.test(err.message)) {
+        wrongTries += 1;
+        mark(["password"], true);
+        $("contact-error").textContent = wrongTries >= 3
+          ? "Three tries. Tap Forgot password and Ervo will email you a link to set a new one."
+          : `That password doesn't match this email${wrongTries === 2 ? " (one more try before I suggest a reset)" : ""}. New here? Tap Sign up.`;
+        $("go-forgot").classList.toggle("attention", wrongTries >= 3);
+      } else $("contact-error").textContent = friendlyAuthError(err);
     }
-    contact = v;
-    $("sent-to").textContent = v;
-    step("code");
   });
+  $("go-signup").addEventListener("click", () => { $("su-email").value = $("contact").value.trim(); $("su-error").textContent = ""; step("signup"); });
+  $("go-forgot").addEventListener("click", () => { $("fg-email").value = $("contact").value.trim(); $("fg-error").textContent = ""; step("forgot"); });
+  $("su-back").addEventListener("click", () => step("contact"));
+  $("fg-back").addEventListener("click", () => step("contact"));
+  clearOnType($("password"), "contact-error");
+  ["su-email", "su-pass", "su-pass2"].forEach((id) => clearOnType($(id), "su-error"));
+  clearOnType($("fg-email"), "fg-error");
+  ["rs-pass", "rs-pass2"].forEach((id) => clearOnType($(id), "rs-error"));
+  const passwordsOk = (a, b, errId, ids) => {
+    if (a.length < 8) { $(errId).textContent = "Use at least 8 characters."; mark([ids[0]], true); return false; }
+    if (a !== b) { $(errId).textContent = "Passwords don't match."; mark(ids, true); return false; }
+    mark(ids, false);
+    return true;
+  };
+  // Sign up: email, password, confirm
+  document.querySelector('[data-step="signup"]').addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const v = $("su-email").value.trim(), pw = $("su-pass").value, pw2 = $("su-pass2").value;
+    if (!isEmail(v)) { $("su-error").textContent = "Enter your email."; mark(["su-email"], true); return; }
+    mark(["su-email"], false);
+    if (!passwordsOk(pw, pw2, "su-error", ["su-pass", "su-pass2"])) return;
+    if (!realAuth) { contact = v; step("name"); return; }
+    const btn = e.submitter || document.querySelector('[data-step="signup"] .btn');
+    btn.disabled = true;
+    try {
+      const j = await auth("signup", { email: v, password: pw, data: { plan } });
+      btn.disabled = false;
+      if (j.access_token) afterSignIn(j, v);
+      else { $("su-error").textContent = "Account created. Check your email to confirm it, then sign in."; step("contact"); $("contact").value = v; }
+    } catch (err) {
+      btn.disabled = false;
+      $("su-error").textContent = /registered|exists|already/i.test(err.message) ? "This email already has an Ervo account. Sign in, or use Forgot password." : friendlyAuthError(err);
+    }
+  });
+  // Forgot: a reset link by email that opens Ervo on the new-password page
+  document.querySelector('[data-step="forgot"]').addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const v = $("fg-email").value.trim();
+    if (!isEmail(v)) { $("fg-error").textContent = "Enter your email."; return; }
+    if (!realAuth) { $("fg-error").textContent = "Preview mode: nothing is sent."; return; }
+    const btn = e.submitter || document.querySelector('[data-step="forgot"] .btn');
+    btn.disabled = true;
+    try {
+      await auth(`recover?redirect_to=${encodeURIComponent("https://ervo.company/app/")}`, { email: v });
+      $("fg-error").textContent = "";
+      $("contact-error").textContent = `Check ${v} for a link from Ervo. Open it on this phone to set your new password.`;
+      $("contact").value = v;
+      step("contact");
+    } catch (err) { $("fg-error").textContent = friendlyAuthError(err); }
+    btn.disabled = false;
+  });
+  // New password, from the email link (the link carries a short-lived sign-in in the URL)
+  document.querySelector('[data-step="reset"]').addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const pw = $("rs-pass").value, pw2 = $("rs-pass2").value;
+    if (!passwordsOk(pw, pw2, "rs-error", ["rs-pass", "rs-pass2"])) return;
+    const btn = e.submitter || document.querySelector('[data-step="reset"] .btn');
+    btn.disabled = true;
+    try {
+      const token = await freshToken();
+      const u = await auth("user", { password: pw }, "PUT", token);
+      btn.disabled = false;
+      $("rs-pass").value = ""; $("rs-pass2").value = "";
+      toast("New password saved");
+      const s = session();
+      afterSignIn({ access_token: s.access_token, refresh_token: s.refresh_token, expires_in: Math.max(60, Math.round((s.expiresAt - Date.now()) / 1000)), user: u }, u.email);
+    } catch (err) { btn.disabled = false; $("rs-error").textContent = friendlyAuthError(err); }
+  });
+  // The email link lands here with #access_token=...&type=recovery
+  function takeRecoveryHash() {
+    const h = new URLSearchParams(location.hash.replace(/^#/, ""));
+    if (h.get("type") !== "recovery" || !h.get("access_token")) return false;
+    save(SESSION_KEY, { access_token: h.get("access_token"), refresh_token: h.get("refresh_token") || "", expiresAt: Date.now() + (Number(h.get("expires_in")) || 3600) * 1000 });
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* fine */ }
+    show("welcome");
+    step("reset");
+    auth("user", null, "GET", h.get("access_token")).then((u) => { $("rs-email").textContent = u.email || ""; }).catch(() => {});
+    return true;
+  }
+  window.ervoHash = () => { takeRecoveryHash(); };
 
   $("code").addEventListener("input", () => { $("code").value = $("code").value.replace(/\D/g, "").slice(0, 8); });
   document.querySelector('[data-step="code"]').addEventListener("submit", async (e) => {
@@ -519,6 +634,10 @@
       ["open-stats", "stats", "#ff375f", "Ervo Stats", "Steps, upcoming, activity"],
       ["open-apps", "open", "#5e5ce6", "Connected Apps", "Calendar, Health, Location, stores"],
       ["open-chats", "chat", "#64d2ff", "Chats", "Side chats"],
+    ]],
+    ["Sign-in", [
+      ["open-keep", "done", "#30d158", "Keep me logged in", "On: you stay signed in until you sign out"],
+      ["open-bio", "star", "#0a84ff", "Unlock with fingerprint or face", "Off"],
     ]],
     ["About", [
       ["open-intro", "book", "#8e8e93", "How Ervo Works"],
@@ -4763,7 +4882,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.5"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.6"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -5270,7 +5389,23 @@
 
   // ---------- menu ----------
   const menu = { get hidden() { return !$("settings").classList.contains("active"); } };
-  function openSettings() { $("set-owl").src = lookSrc(); show("settings"); }
+  function syncSignInRows() {
+    const keep = load(KEEP_KEY) !== false;
+    $("open-keep").querySelector("small").textContent = keep ? "On: you stay signed in until you sign out" : "Off: Ervo asks for your password next time";
+    $("open-keep").classList.toggle("on", keep);
+    const bioOk = !!(native && native.biometricAvailable && native.biometricAvailable());
+    $("open-bio").hidden = !bioOk;
+    const bio = !!load(BIO_KEY);
+    $("open-bio").querySelector("small").textContent = bio ? "On: Ervo opens with your fingerprint, face or screen lock" : "Off";
+    $("open-bio").classList.toggle("on", bio);
+  }
+  $("open-keep").addEventListener("click", () => { const keep = load(KEEP_KEY) !== false; save(KEEP_KEY, !keep); syncSignInRows(); toast(!keep ? "You'll stay signed in" : "Ervo will ask for your password next time"); });
+  $("open-bio").addEventListener("click", () => {
+    if (load(BIO_KEY)) { save(BIO_KEY, false); syncSignInRows(); toast("Fingerprint unlock is off"); return; }
+    bioArming = true;
+    if (native && native.biometricAuth) native.biometricAuth("Confirm it's you");
+  });
+  function openSettings() { $("set-owl").src = lookSrc(); syncSignInRows(); show("settings"); }
   // Warm the settings icons once the app is idle, so the first open doesn't wait on 16 downloads
   (window.requestIdleCallback || ((fn) => setTimeout(fn, 1500)))(() => {
     document.querySelectorAll("#settings-list .app-ico img").forEach((img) => { if (!img.complete) { const i = new Image(); i.decoding = "async"; i.src = img.src; } });
@@ -5345,7 +5480,9 @@
     [ACCOUNT_KEY, PROFILES_KEY, PLACE_KEY, SESSION_KEY, "ervo-intro", "ervo-seen-version"].forEach(drop);
     setNS("personal");
     account = null;
-    ["contact", "code", "name"].forEach((id) => { $(id).value = ""; });
+    ["contact", "password", "code", "name", "su-email", "su-pass", "su-pass2", "fg-email"].forEach((id) => { if ($(id)) $(id).value = ""; });
+    wrongTries = 0;
+    $("go-forgot").classList.remove("attention");
     setPlan("personal");
     step("contact");
     show("welcome");
@@ -5362,6 +5499,7 @@
     if (!voice.hidden) { $("voice-cancel").click(); return true; }
     if ($("activity").classList.contains("active")) { renderStats(); show("stats"); return true; }
     if ($("stats").classList.contains("active")) { show(backTo("stats")); return true; }
+    if ($("lock").classList.contains("active")) return false;
     if ($("appsPage").classList.contains("active")) { show(backTo("appsPage")); return true; }
     if ($("bizpage").classList.contains("active")) { show(backTo("bizpage")); return true; }
     if (!$("verify").hidden) { $("verify").hidden = true; return true; }
@@ -6335,23 +6473,37 @@
     const hintPlan = PLAN[hash.get("plan")] ? hash.get("plan") : "personal";
     const dropHash = () => { try { if (location.hash) history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* fine */ } };
     if (hintEmail) { dropHash(); setTimeout(dropHash, 600); } // some browsers re-apply the fragment after load
+    if (takeRecoveryHash()) return;
+    // "Keep me logged in" off: a sign-in that was put away asks for the password again
+    if (realAuth && session() && load(KEEP_KEY) === false && load(LEFT_KEY)) { const a0 = load(ACCOUNT_KEY); drop(SESSION_KEY); drop(ACCOUNT_KEY); drop(LEFT_KEY); if (a0) { $("contact").value = a0.contact || ""; setPlan(a0.plan); } }
     const saved = load(ACCOUNT_KEY);
     if (saved && saved.plan && saved.name && realAuth && !session()) { drop(ACCOUNT_KEY); show("welcome"); }
+    else if (saved && saved.plan && saved.name && load(BIO_KEY) && native && native.biometricAvailable && native.biometricAvailable()) { lockedAcc = saved; $("lock-owl").src = lookSrc(); show("lock"); setTimeout(() => $("lock-go").click(), 350); }
     else if (saved && saved.plan && saved.name) openChat(saved, false);
     else if (OVERLAY && native && native.openFullApp) native.openFullApp(); // sign in first, in the full app
     else show("welcome");
     if (native) $("same-email").hidden = false; // Android can't carry the email through the APK install
     if (hintEmail && !account && !OVERLAY) startFromHint(hintEmail, hintPlan);
   }
-  // Signed up on the website: same sign-in if the browser already has it, else send the code to that email
+  // Signed up on the website: same sign-in if the browser already has it, else the email is filled in
   async function startFromHint(email, plan) {
     setPlan(plan);
     if (session() && (await resumeFromSession(plan, email))) return;
     if (!isEmail(email)) return;
     $("contact").value = email;
-    const form = document.querySelector('[data-step="contact"]');
-    if (form.requestSubmit) form.requestSubmit(); else form.dispatchEvent(new Event("submit", { cancelable: true }));
+    setTimeout(() => $("password").focus(), 300);
   }
+  // ----- locked: fingerprint, face or screen lock -----
+  $("lock-go").addEventListener("click", () => { if (native && native.biometricAuth) native.biometricAuth("Unlock Ervo"); });
+  $("lock-pass").addEventListener("click", () => { lockedAcc = null; drop(SESSION_KEY); const a0 = load(ACCOUNT_KEY); drop(ACCOUNT_KEY); if (a0) { $("contact").value = a0.contact || ""; setPlan(a0.plan); } show("welcome"); step("contact"); });
+  window.ervoBiometric = (ok) => {
+    const yes = String(ok) === "true";
+    if ($("lock").classList.contains("active")) { if (yes && lockedAcc) { const a = lockedAcc; lockedAcc = null; openChat(a, false); } else buzz("reject"); return; }
+    if (bioArming) { bioArming = false; if (yes) { save(BIO_KEY, true); toast("Fingerprint or face unlock is on"); } else toast("Couldn't confirm. Fingerprint unlock stays off."); syncSignInRows(); }
+  };
+  // The app was put away: remember it, for "keep me logged in" off
+  document.addEventListener("visibilitychange", () => { if (document.hidden && account) save(LEFT_KEY, true); });
+  window.addEventListener("pagehide", () => { if (account) save(LEFT_KEY, true); });
   async function resumeFromSession(plan, email) {
     try {
       const token = await freshToken();

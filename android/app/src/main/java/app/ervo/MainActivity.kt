@@ -33,6 +33,8 @@ import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
@@ -252,7 +254,8 @@ open class MainActivity : AppCompatActivity() {
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
         } else {
-            webView.loadUrl("https://$APP_HOST/assets/www/index.html" + if (overlay) "?overlay=1" else "")
+            val frag = linkFragment(intent)
+            webView.loadUrl("https://$APP_HOST/assets/www/index.html" + (if (overlay) "?overlay=1" else "") + (if (frag != null) "#$frag" else ""))
         }
         // Safety net: if the page's script crashed, offer to update or reload without it
         if (!overlay) webView.postDelayed({ checkPageAlive(0) }, 9000)
@@ -627,6 +630,26 @@ open class MainActivity : AppCompatActivity() {
             if (id in LOOK_IDS) pendingIcon = id
         }
 
+        /** Can this phone unlock with a fingerprint, face or screen lock? */
+        @JavascriptInterface
+        fun biometricAvailable(): Boolean =
+            BiometricManager.from(this@MainActivity).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
+
+        /** Shows the phone's own unlock prompt; answers window.ervoBiometric("true" | "false"). */
+        @JavascriptInterface
+        fun biometricAuth(title: String) = runOnUiThread {
+            val prompt = BiometricPrompt(this@MainActivity, ContextCompat.getMainExecutor(this@MainActivity), object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { callJs("ervoBiometric", "true") }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) { callJs("ervoBiometric", "false") }
+            })
+            val info = BiometricPrompt.PromptInfo.Builder()
+                .setTitle(title.ifBlank { "Unlock Ervo" })
+                .setSubtitle("Fingerprint, face or your screen lock")
+                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                .build()
+            try { prompt.authenticate(info) } catch (e: Exception) { callJs("ervoBiometric", "false") }
+        }
+
         /** Where they are (city level), for the weather notice after Ervo is closed. */
         @JavascriptInterface
         fun setPlace(lat: Double, lon: Double, city: String, fahrenheit: Boolean) = WeatherAlert.savePlace(applicationContext, lat, lon, city, fahrenheit)
@@ -826,6 +849,13 @@ open class MainActivity : AppCompatActivity() {
             if (ok) installUpdate()
             else { Toast.makeText(this@MainActivity, "The download didn't finish. Check your connection and try again.", Toast.LENGTH_LONG).show(); nativeUpdate = false }
         }
+    }
+
+    /** The part after # of an https://ervo.company/app link, or null when the intent isn't one. */
+    private fun linkFragment(intent: Intent?): String? {
+        val d = intent?.data ?: return null
+        if (intent.action != Intent.ACTION_VIEW || d.host != "ervo.company") return null
+        return d.fragment?.takeIf { it.isNotBlank() }
     }
 
     /** Opened from the "Ervo X is ready" notification: go straight to the update. */
@@ -1258,6 +1288,10 @@ open class MainActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent) {
         takeUpdateIntent(intent)
+        linkFragment(intent)?.let { frag ->
+            val js = org.json.JSONObject.quote(frag)
+            webView.evaluateJavascript("location.hash = $js; if (window.ervoHash) window.ervoHash();", null)
+        }
         super.onNewIntent(intent)
         if (takeWakeIntent(intent)) {
             val w = pendingWake ?: return

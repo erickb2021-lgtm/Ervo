@@ -1612,3 +1612,20 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 .row.danger .txt b { color: var(--red); }
 .pill.danger-fill { background: var(--red); color: #fff; }
 .msg.me.held { outline: 2px solid rgba(255, 255, 255, 0.35); outline-offset: 2px; }
+
+/* ===== 0.5.6: passwords, sign up, reset, lock ===== */
+.pw-wrap { position: relative; }
+.pw-wrap .field { padding-right: 48px; }
+.pw-eye { position: absolute; right: 6px; top: 50%; width: 40px; height: 40px; margin-top: -20px; border: 0; background: none; color: var(--field-hint); display: grid; place-items: center; cursor: pointer; }
+.pw-eye svg { width: 20px; height: 20px; }
+.field.bad { box-shadow: 0 0 0 2px var(--red); }
+.field + .field, .field + .pw-wrap, .pw-wrap + .field { margin-top: 8px; }
+.auth-links { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.auth-links .btn.link { flex: 1; margin: 0; }
+.btn.link.strong { font-weight: 800; }
+.btn.link.attention { color: var(--red); animation: nudge 0.6s ease 2; }
+@keyframes nudge { 0%, 100% { transform: none; } 30% { transform: translateX(-4px); } 60% { transform: translateX(4px); } }
+.lock { align-items: center; justify-content: center; }
+.lock-actions { width: 100%; max-width: var(--col); padding: 0 24px; }
+#open-keep b, #open-bio b { font-weight: 800; }
+.row.on .app-ico { box-shadow: 0 0 0 2px var(--green); }

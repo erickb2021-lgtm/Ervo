@@ -64,7 +64,15 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
             android:launchMode="singleTask"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize">
+            <!-- Links to ervo.company/app open in Ervo: the password-reset email lands here -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="ervo.company" android:pathPrefix="/app" />
+            </intent-filter>
+        </activity>
 
         <!-- The home-screen icon follows Ervo's look: one launcher alias per look, only one enabled
              (MainActivity.setAppIcon flips them). Touch and hold the icon for the shortcuts. -->

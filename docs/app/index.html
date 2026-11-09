@@ -38,11 +38,52 @@
       <label><input type="radio" name="plan" value="business"><span>Business</span></label>
     </div>
     <p class="hint" id="plan-hint">Personal use only: planning, shopping, your own returns and more.</p>
-    <label class="sr" for="contact">Mobile number or email</label>
-    <input class="field" id="contact" type="text" inputmode="email" autocomplete="username" placeholder="Mobile number or email">
+    <label class="sr" for="contact">Email</label>
+    <input class="field" id="contact" type="email" inputmode="email" autocomplete="username" placeholder="Email">
+    <label class="sr" for="password">Password</label>
+    <div class="pw-wrap"><input class="field" id="password" type="password" autocomplete="current-password" placeholder="Password"><button class="pw-eye" type="button" data-eye="password" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <p class="error" id="contact-error" role="alert"></p>
     <p class="hint" id="same-email" hidden>Signed up on ervo.company? Use the same email here.</p>
-    <button class="btn primary" type="submit">Continue</button>
+    <button class="btn primary" type="submit">Sign in</button>
+    <div class="auth-links">
+      <button class="btn link" type="button" id="go-forgot">Forgot password?</button>
+      <button class="btn link strong" type="button" id="go-signup">New to Ervo? Sign up</button>
+    </div>
+  </form>
+
+  <!-- step: sign up -->
+  <form class="step" data-step="signup" novalidate>
+    <p class="muted">Create your Ervo account.</p>
+    <label class="sr" for="su-email">Email</label>
+    <input class="field" id="su-email" type="email" inputmode="email" autocomplete="username" placeholder="Email">
+    <label class="sr" for="su-pass">Password</label>
+    <div class="pw-wrap"><input class="field" id="su-pass" type="password" autocomplete="new-password" placeholder="Password (8+ characters)"><button class="pw-eye" type="button" data-eye="su-pass" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <label class="sr" for="su-pass2">Confirm password</label>
+    <input class="field" id="su-pass2" type="password" autocomplete="new-password" placeholder="Confirm password">
+    <p class="error" id="su-error" role="alert"></p>
+    <button class="btn primary" type="submit">Create account</button>
+    <button class="btn link" type="button" id="su-back">I already have an account</button>
+  </form>
+
+  <!-- step: forgot password -->
+  <form class="step" data-step="forgot" novalidate>
+    <p class="muted">Enter your email and Ervo sends a link to set a new password.</p>
+    <label class="sr" for="fg-email">Email</label>
+    <input class="field" id="fg-email" type="email" inputmode="email" autocomplete="username" placeholder="Email">
+    <p class="error" id="fg-error" role="alert"></p>
+    <button class="btn primary" type="submit">Send reset link</button>
+    <button class="btn link" type="button" id="fg-back">Back to sign in</button>
+  </form>
+
+  <!-- step: new password (opened from the email link) -->
+  <form class="step" data-step="reset" novalidate>
+    <p class="muted">Set a new password for <b id="rs-email"></b>.</p>
+    <label class="sr" for="rs-pass">New password</label>
+    <div class="pw-wrap"><input class="field" id="rs-pass" type="password" autocomplete="new-password" placeholder="New password (8+ characters)"><button class="pw-eye" type="button" data-eye="rs-pass" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <label class="sr" for="rs-pass2">Confirm new password</label>
+    <input class="field" id="rs-pass2" type="password" autocomplete="new-password" placeholder="Confirm new password">
+    <p class="error" id="rs-error" role="alert"></p>
+    <button class="btn primary" type="submit">Save password</button>
   </form>
 
   <!-- step: code -->
@@ -86,6 +127,19 @@
     <p class="error" id="team-error" role="alert"></p>
     <button class="btn primary" type="submit" id="team-go">Create my company</button>
   </form>
+</section>
+
+<!-- Locked: unlock with fingerprint, face or your screen lock -->
+<section class="screen lock" id="lock" aria-labelledby="lock-title">
+  <div class="welcome-top">
+    <img class="avatar-xl" id="lock-owl" src="img/ervo-classic.png" alt="">
+    <h1 id="lock-title">Ervo is locked</h1>
+    <p class="muted">Unlock with your fingerprint, face or screen lock.</p>
+  </div>
+  <div class="step active lock-actions">
+    <button class="btn primary" type="button" id="lock-go">Unlock</button>
+    <button class="btn link" type="button" id="lock-pass">Use my password instead</button>
+  </div>
 </section>
 
 <!-- 3. Chat with Ervo -->
@@ -331,7 +385,7 @@
     </button>
     <div id="settings-list"></div>
     <p class="foot-note menu-ai">Ervo uses AI and can make mistakes. Check important info.</p>
-    <p class="foot-note menu-version" id="menu-version">Ervo version 0.5.5 (preview)</p>
+    <p class="foot-note menu-version" id="menu-version">Ervo version 0.5.6 (preview)</p>
   </div>
 </section>
 
