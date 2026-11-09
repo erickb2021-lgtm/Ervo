@@ -262,7 +262,7 @@
     setNS(plan);
     if (plan === "business" && realAuth) { pendingAcc = acc; setTeamRole("owner"); step("team"); return; }
     save(ACCOUNT_KEY, acc);
-    if (switching) { location.reload(); return; }
+    if (switching) { switching = false; curtain(acc.plan, () => switchInto(acc, true)); return; }
     openChat(acc, true);
   });
   let userMeta = {};
@@ -276,8 +276,23 @@
     $("switching-text").textContent = `Switching to ${to === "business" ? "Business" : "Personal"}`;
     c.classList.remove("out");
     c.hidden = false;
-    try { sessionStorage.setItem("ervo-switching", to); } catch (e) { /* fine */ }
     setTimeout(then, 420);
+  }
+  // Moves the app into the other Ervo without reloading: storage switches namespace, memory is reset,
+  // the chat reopens, and the curtain lifts once it's drawn
+  function switchInto(acc, fresh) {
+    setNS(acc.plan);
+    save(ACCOUNT_KEY, acc);
+    hideTyping();
+    task = null; confirming = false; pending = null; history = []; lastErvoText = "";
+    $("chips").innerHTML = "";
+    try { closeChats(); } catch (e) { /* drawer wasn't open */ }
+    calCache = {};
+    teamChatMember = null;
+    stopInbox();
+    openChat(acc, !!fresh);
+    const c = $("switching");
+    setTimeout(() => { c.classList.add("out"); setTimeout(() => { c.hidden = true; c.classList.remove("out"); }, 320); }, 520);
   }
   // After the reload: keep the curtain up for a beat, then lift it
   (function liftCurtain() {
@@ -301,9 +316,7 @@
     save(PROFILES_KEY, prof);
     const other = prof[to] || ((userMeta.profiles && userMeta.profiles[to]) ? { plan: to, name: userMeta.profiles[to].name, contact: account.contact, id: account.id } : null);
     if (other && other.name) {
-      setNS(to);
-      save(ACCOUNT_KEY, other);
-      curtain(to, () => location.reload()); // start clean in the other Ervo's space
+      curtain(to, () => switchInto(other, false)); // one curtain, no reload
       return;
     }
     if (!realAuth || !session()) { ervoSays(`To add Ervo ${to === "business" ? "for Business" : "Personal"} to this email, sign out and sign in again choosing ${to === "business" ? "Business" : "Personal"}.`); return; }
@@ -353,7 +366,7 @@
     btn.disabled = false;
     pendingAcc = null;
     save(ACCOUNT_KEY, acc);
-    if (switching) { location.reload(); return; }
+    if (switching) { switching = false; curtain(acc.plan, () => switchInto(acc, true)); return; }
     openChat(acc, true);
   });
 
