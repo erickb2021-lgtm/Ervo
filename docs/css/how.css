@@ -220,3 +220,12 @@ section.how .section-head { margin-bottom: 24px; }
 .member small { display: block; color: #7d6357; font-weight: 500; font-size: 0.82em; }
 @media (max-width: 640px) { .gl-row { gap: 3cqw; } .gl-row .gl { width: 11cqw; height: 11cqw; } }
 .steps-head .emo.gl { background: linear-gradient(160deg, color-mix(in srgb, var(--c) 50%, #fff) 0%, var(--c) 70%); border-radius: 28%; }
+
+/* 2026-11: the app's own 3D icons (Fluent emoji) in the video */
+.f3d { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 4.6cqw; height: 4.6cqw; min-width: 28px; min-height: 28px; font-size: 3.2cqw; line-height: 1; }
+.f3d img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0.3cqw 0.5cqw rgba(0, 0, 0, 0.25)); }
+.f3d.big { width: 6.6cqw; height: 6.6cqw; }
+.voice-line .f3d { animation: listen 1.6s ease-in-out infinite; }
+.gl-row .f3d { width: 8.5cqw; height: 8.5cqw; font-size: 6cqw; }
+.steps-head .emo.f3d { background: none; }
+@media (max-width: 640px) { .gl-row .f3d { width: 11cqw; height: 11cqw; } }

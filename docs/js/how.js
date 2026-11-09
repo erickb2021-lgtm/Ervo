@@ -60,13 +60,22 @@
     music.volume = toVolume(vol.value);
     setMuted(vol.value === "0");
   });
-  // music.mp3 is already trimmed to begin 20 seconds into the original song
-  const MUSIC_START = 0;
-  function syncMusic() {
-    const t = MUSIC_START + elapsed / 1000;
-    if (music.duration) music.currentTime = Math.min(t, music.duration);
-    else music.addEventListener("loadedmetadata", () => { music.currentTime = MUSIC_START + elapsed / 1000; }, { once: true });
+  // music.mp3 is 45 seconds long, so it loops to cover the whole 1-minute video.
+  // The song's spot always comes from the video's time, so seeking or rewinding keeps them in step.
+  music.loop = true;
+  const musicTime = () => (music.duration ? (elapsed / 1000) % music.duration : elapsed / 1000);
+  function syncMusic(force) {
+    if (!music.duration) {
+      music.addEventListener("loadedmetadata", () => syncMusic(true), { once: true });
+      return;
+    }
+    const want = musicTime();
+    const off = Math.abs(music.currentTime - want);
+    // Small drift is left alone so the sound doesn't stutter; near the loop point the gap looks big but isn't
+    if (force || (off > 0.25 && off < music.duration - 0.25)) music.currentTime = want;
+    if (playing && music.paused) music.play().catch(() => {});
   }
+  let lastSync = 0;
 
   function sceneAt(ms) {
     let i = 0;
@@ -74,7 +83,9 @@
     return i;
   }
 
-  function setScene(i) {
+  // Show scene i with its animations at `into` ms, so jumping into the middle of a scene
+  // shows it exactly as it looks at that moment instead of starting it over
+  function setScene(i, into) {
     if (i === current) return;
     current = i;
     scenes.forEach((s, j) => {
@@ -82,6 +93,11 @@
       if (j === i) {
         void s.offsetWidth; // restart this scene's CSS animations
         s.classList.add("active");
+        if (into > 0 && s.getAnimations) {
+          s.getAnimations({ subtree: true }).forEach((a) => {
+            try { a.currentTime = into; } catch (e) { /* older browsers: the scene starts from its beginning */ }
+          });
+        }
       }
     });
   }
@@ -91,13 +107,16 @@
     fill.style.width = pct + "%";
     bar.setAttribute("aria-valuenow", Math.round(pct));
     timeEl.textContent = `${fmt(elapsed)} / ${fmt(total)}`;
-    setScene(sceneAt(elapsed));
+    const i = sceneAt(elapsed);
+    setScene(i, elapsed - starts[i]);
   }
 
   function tick(now) {
     if (!playing) return;
     elapsed += now - last;
     last = now;
+    const left = total - elapsed;
+    if (left < 1500 && !music.muted) music.volume = toVolume(vol.value) * Math.max(0, left / 1500);
     if (elapsed >= total) {
       elapsed = total - 1;
       render();
@@ -105,6 +124,7 @@
       return;
     }
     render();
+    if (now - lastSync > 1000) { lastSync = now; syncMusic(false); }
     requestAnimationFrame(tick);
   }
 
@@ -115,7 +135,7 @@
     player.classList.add("playing");
     stage.classList.remove("paused");
     toggle.setAttribute("aria-label", "Pause");
-    syncMusic();
+    syncMusic(true);
     // Fade the music in over about a second instead of starting at full level
     const target = toVolume(vol.value);
     music.volume = 0;
@@ -140,9 +160,10 @@
 
   function seek(ms) {
     elapsed = Math.max(0, Math.min(total - 1, ms));
+    if (total - elapsed > 1500) music.volume = toVolume(vol.value); // undo the end fade after rewinding
     current = -1; // force the scene to restart its animations
     render();
-    syncMusic();
+    syncMusic(true);
   }
 
   bigPlay.addEventListener("click", play);

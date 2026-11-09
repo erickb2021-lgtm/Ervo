@@ -285,6 +285,99 @@
   set(current, false);
 })();
 
+// Mock result cards under each example answer. Pictures are 3D icons used as fake photos;
+// the buttons and switches only react on screen, nothing is sent or saved.
+const CMP_PIC = (name, alt) => {
+  const f = name.toLowerCase().replace(/ /g, "_");
+  return `<img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/${encodeURIComponent(name)}/3D/${f}_3d.png" alt="${alt}" loading="lazy">`;
+};
+const CMP_CARDS = {
+  nap: () => `<div class="mc mc-alarm"><div class="mc-pic" style="--g1:#ffd36e;--g2:#ff9f43">${CMP_PIC("Alarm clock", "Alarm clock")}</div>
+    <div class="mc-main"><b class="mc-big">2:30 <small>PM</small></b><span>Nap · rings in 30 minutes</span></div>
+    <button type="button" class="mc-switch on" aria-pressed="true" aria-label="Alarm on"></button></div>
+    <div class="mc-actions"><button type="button" class="mc-btn">Snooze 5 min</button><button type="button" class="mc-btn main">Keep it</button></div>`,
+  dentist: () => `<div class="mc mc-event"><span class="mc-bar"></span><div class="mc-main"><b>Dentist</b><span>Thursday · 4:00 to 5:00 PM</span><span class="mc-sub">Bright Smile Dental · 12 min away</span></div>
+    <div class="mc-pic" style="--g1:#c7f0ff;--g2:#7cc8ff">${CMP_PIC("Tooth", "Tooth")}</div></div>
+    <div class="mc-week">${["M","T","W","T","F","S","S"].map((d, i) => `<span class="${i === 3 ? "on" : ""}">${d}<i>${10 + i}</i></span>`).join("")}</div>`,
+  lights: () => `<div class="mc-shop">${[
+      ["Flashlight", "#fde68a", "#f59e0b", "Field LED 200W", "$89", "4.7"],
+      ["Light bulb", "#dbeafe", "#60a5fa", "Solar flood pair", "$129", "4.5"],
+      ["Battery", "#d1fae5", "#34d399", "Battery stadium light", "$149", "4.8"],
+    ].map(([n, a, b, t, p, r]) => `<div class="mc-item"><div class="mc-photo" style="--g1:${a};--g2:${b}">${CMP_PIC(n, t)}</div>
+      <b>${t}</b><span>${p} · ★ ${r}</span><div class="mc-actions tight"><button type="button" class="mc-btn">View</button><button type="button" class="mc-btn main">Add to cart</button></div></div>`).join("")}</div>
+    <p class="mc-note">Ervo always asks before you buy.</p>`,
+  call: () => `<div class="mc mc-call"><div class="mc-avatar" style="--g1:#fbcfe8;--g2:#f472b6">M</div><div class="mc-main"><b>Mom</b><span>Mobile · calling in <em class="mc-count">3</em></span></div></div>
+    <div class="mc-actions"><button type="button" class="mc-btn danger">Cancel</button><button type="button" class="mc-btn main">Call now</button></div>`,
+  meet: () => `<div class="mc mc-meet"><div class="mc-pic" style="--g1:#bbf7d0;--g2:#22c55e">${CMP_PIC("Video camera", "Video camera")}</div>
+    <div class="mc-main"><b>Catch-up with Zephyr</b><span>Friday · 3:00 to 3:30 PM</span><span class="mc-link">meet.google.com/abc-defg-hij</span></div></div>
+    <div class="mc-actions"><button type="button" class="mc-btn">Copy link</button><button type="button" class="mc-btn main">Save in Google Calendar</button></div>`,
+  birthday: () => `<div class="mc-gifts">${[
+      ["Wrapped gift", "#fecdd3", "#fb7185", "Photo book", "$45"],
+      ["Bouquet", "#fce7f3", "#f9a8d4", "Flower delivery", "$38"],
+      ["Candle", "#fef3c7", "#fbbf24", "Candle set", "$32"],
+    ].map(([n, a, b, t, p]) => `<button type="button" class="mc-gift" aria-pressed="false"><span class="mc-photo" style="--g1:${a};--g2:${b}">${CMP_PIC(n, t)}</span><b>${t}</b><span>${p}</span></button>`).join("")}</div>
+    <div class="mc mc-event slim"><span class="mc-bar pink"></span><div class="mc-main"><b>Mom's birthday dinner</b><span>Saturday · 7:00 PM · 4 people</span></div></div>`,
+  refund: () => `<div class="mc mc-receipt"><div class="mc-row head"><b>Order #4821</b><span class="mc-pill ok">Refund sent</span></div>
+    <div class="mc-row"><span>Charge · Nov 2</span><b>$49.00</b></div>
+    <div class="mc-row struck"><span>Duplicate charge · Nov 2</span><b>$49.00</b></div>
+    <div class="mc-row total"><span>Back to the customer</span><b>$49.00</b></div>
+    <div class="mc-track"><i></i></div><span class="mc-sub">Arrives in 3 to 5 business days</span></div>`,
+  employee: () => `<div class="mc mc-id"><div class="mc-pic round" style="--g1:#e0e7ff;--g2:#818cf8">${CMP_PIC("Bust in silhouette", "Employee photo")}</div>
+    <div class="mc-main"><span class="mc-sub">Employee ID</span><b class="mc-code">ERVO-7F3K-92QX-4MNB</b><span>New employee · Support team</span></div></div>
+    <div class="mc-actions"><button type="button" class="mc-btn">Copy ID</button><button type="button" class="mc-btn main">Share</button></div>`,
+  coowner: () => `<div class="mc mc-invite"><div class="mc-pic" style="--g1:#fde68a;--g2:#f59e0b">${CMP_PIC("Crown", "Crown")}</div>
+    <div class="mc-main"><b>Co-owner invite</b><span>Can do everything you can</span><span class="mc-sub">Except remove co-owners or you</span></div></div>
+    <ul class="mc-checks"><li>Sees every team chat</li><li>Manages billing and refunds</li><li>Adds and removes employees</li></ul>
+    <div class="mc-actions"><button type="button" class="mc-btn">Copy link</button><button type="button" class="mc-btn main">Send invite</button></div>`,
+  bills: () => `<div class="mc mc-bills">${[
+      ["Software renewals (3)", "$186", "Nov 12"],
+      ["Supplier invoice", "$1,240", "Nov 18"],
+      ["Quarterly taxes", "Estimate", "Nov 15"],
+    ].map(([t, a, d]) => `<div class="mc-row"><div><b>${t}</b><span class="mc-sub">Due ${d}</span></div><span class="mc-amt">${a}</span><button type="button" class="mc-switch" aria-pressed="false" aria-label="Remind me about ${t}"></button></div>`).join("")}
+    <span class="mc-sub">Turn on a switch to get a reminder.</span></div>`,
+  policy: () => `<div class="mc mc-doc"><div class="mc-page"><span class="mc-url">yourstore.com/returns</span><i></i><i></i><i class="short"></i><i></i><i class="short"></i></div>
+    <div class="mc-main"><span class="mc-pill ok">Learned</span><ul class="mc-checks"><li>30-day returns with a receipt</li><li>Store credit after 30 days</li><li>Free return shipping</li></ul></div></div>`,
+  handoff: () => `<div class="mc mc-ticket"><div class="mc-row head"><b>Ticket #2190</b><span class="mc-pill warn">High priority</span></div>
+    <div class="mc-who"><div class="mc-pic round" style="--g1:#ccfbf1;--g2:#2dd4bf">${CMP_PIC("Headphone", "Support employee")}</div><div><b>Support employee</b><span class="mc-sub">Assigned just now</span></div></div>
+    <p class="mc-summary">Summary: the customer's package says delivered, but it never arrived. They'd like a replacement by Friday.</p>
+    <div class="mc-actions"><button type="button" class="mc-btn">View chat</button><button type="button" class="mc-btn main">Open ticket</button></div>`,
+};
+function showCard(panel, key, show) {
+  const slot = panel.querySelector(".cmp-card");
+  if (!slot) return;
+  clearInterval(slot._count);
+  if (!show || !CMP_CARDS[key]) { slot.hidden = true; slot.innerHTML = ""; return; }
+  slot.innerHTML = CMP_CARDS[key]();
+  slot.hidden = false;
+  slot.classList.remove("pop"); void slot.offsetWidth; slot.classList.add("pop");
+  slot.querySelectorAll("img").forEach((img) => { img.onerror = () => img.remove(); });
+  const count = slot.querySelector(".mc-count");
+  if (count) {
+    let n = 3;
+    slot._count = setInterval(() => {
+      n -= 1;
+      if (n <= 0) { clearInterval(slot._count); count.parentElement.textContent = "Mobile · calling…"; return; }
+      count.textContent = n;
+    }, 1000);
+  }
+}
+document.addEventListener("click", (e) => {
+  const sw = e.target.closest(".cmp-card .mc-switch, .cmp-card .mc-gift");
+  if (sw) {
+    const on = sw.getAttribute("aria-pressed") !== "true";
+    sw.setAttribute("aria-pressed", String(on));
+    sw.classList.toggle("on", on);
+    return;
+  }
+  const btn = e.target.closest(".cmp-card .mc-btn");
+  if (!btn || btn.dataset.busy) return;
+  const label = btn.textContent;
+  btn.dataset.busy = "1";
+  btn.textContent = "Done ✓";
+  btn.classList.add("done");
+  setTimeout(() => { btn.textContent = label; btn.classList.remove("done"); delete btn.dataset.busy; }, 1400);
+});
+
 // Personal vs Business: tap a tab, then tap an example to see how that Ervo answers.
 // These buttons only show examples; nothing is sent anywhere.
 (function () {
@@ -309,31 +402,23 @@
         clearTimeout(timer);
         me.textContent = b.dataset.q;
         them.hidden = true;
+        showCard(p, "", false);
         typing.hidden = false;
-        typing.querySelector("em").textContent = b.dataset.doing || "thinking";
+        const doing = b.dataset.doing || "thinking";
+        typing.querySelector("em").textContent = doing.charAt(0).toUpperCase() + doing.slice(1);
         me.classList.remove("pop"); void me.offsetWidth; me.classList.add("pop");
         timer = setTimeout(() => {
           typing.hidden = true;
           them.textContent = b.dataset.a;
           them.hidden = false;
           them.classList.remove("pop"); void them.offsetWidth; them.classList.add("pop");
+          showCard(p, b.dataset.card, true);
         }, 900);
       });
     });
   });
+  panels.forEach((p) => { const first = p.querySelector(".try"); if (first) showCard(p, first.dataset.card, true); });
   select("personal");
-})();
-
-// Phone example: the same Ervo on iPhone and Android
-(function () {
-  const phone = document.getElementById("demo-phone");
-  if (!phone) return;
-  const btns = document.querySelectorAll("[data-device]");
-  btns.forEach((b) => b.addEventListener("click", () => {
-    btns.forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-    phone.classList.toggle("android", b.dataset.device === "android");
-    phone.setAttribute("aria-label", phone.getAttribute("aria-label").replace(/on an? (iPhone|Android phone)/, b.dataset.device === "android" ? "on an Android phone" : "on an iPhone"));
-  }));
 })();
 
 // Download now: iPhone / Android tabs, starting on the visitor's own phone type
