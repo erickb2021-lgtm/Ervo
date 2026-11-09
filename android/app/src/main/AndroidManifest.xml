@@ -465,6 +465,16 @@
             </intent-filter>
         </receiver>
 
+        <!-- Order reminders: the day before and the day a package should arrive -->
+        <receiver
+            android:name=".OrderNoticeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Shares a downloaded update with Android's installer -->
         <provider
             android:name="androidx.core.content.FileProvider"

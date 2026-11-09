@@ -393,11 +393,24 @@
 <div class="sheet-wrap" id="plans" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="plans-title">
     <h2 id="plans-title">Plans</h2>
-    <p class="muted">Chats are everyday messages. Research is when Ervo searches the web or looks something up for you.</p>
+    <p class="muted">Chats are everyday messages. Research is when Ervo searches the web or digs into something. Pictures are the ones Ervo draws for you.</p>
     <div class="card list" id="plans-list"></div>
     <p class="perm-note">Upgrading isn't open yet. It's coming with the app stores, and your limits reset on their own in the meantime.</p>
     <div class="sheet-actions">
-      <button class="pill" type="button" id="plans-done">Done</button>
+      <button class="pill ghost" type="button" id="plans-done">Not now</button>
+      <button class="pill" type="button" id="plans-upgrade">Upgrade</button>
+    </div>
+  </div>
+</div>
+
+<!-- Owner only: try a plan to feel its model and limits -->
+<div class="sheet-wrap" id="testplan" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="testplan-title">
+    <h2 id="testplan-title">Try a plan</h2>
+    <p class="muted">See how Ervo feels on each plan: which model answers, how long replies are, and the limits. Your own account stays unlimited.</p>
+    <div class="card list" id="testplan-list"></div>
+    <div class="sheet-actions">
+      <button class="pill" type="button" id="testplan-done">Done</button>
     </div>
   </div>
 </div>

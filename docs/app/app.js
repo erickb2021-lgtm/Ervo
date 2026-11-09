@@ -11,7 +11,8 @@
   const CONN_KEY = "ervo-connections";
   const ACTIVITY_KEY = "ervo-activity";
   const PLACE_KEY = "ervo-place";
-  const AI_URL = ((window.ERVO_CONFIG || {}).aiUrl || "").replace(/\/+$/, "");
+  // Testing on this computer: ?ai=http://localhost:8787 talks to a server running here (wrangler dev)
+  const AI_URL = ((/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get("ai")) || (window.ERVO_CONFIG || {}).aiUrl || "").replace(/\/+$/, "");
   const native = window.ErvoNative || null;
   // Pop-up mode: "Hey Ervo" or the assistant button, drawn over other apps (Android)
   const OVERLAY = /[?&]overlay=1\b/.test(location.search);
@@ -28,7 +29,9 @@
   const BIO_KEY = "ervo-bio"; // unlock with fingerprint or face
   const LEFT_KEY = "ervo-left"; // the app was put away while "keep me logged in" was off
   const DEVICE_KEY = "ervo-device";
-  const SHARED_KEYS = new Set([ACCOUNT_KEY, PROFILES_KEY, ICON_PROFILE_KEY, KEEP_KEY, BIO_KEY, LEFT_KEY, DEVICE_KEY, "ervo-session", THEME_KEY, PLACE_KEY, "ervo-seen-version", "ervo-intro", "ervo-update-checked", "ervo-cal-reset-027"]);
+  const TEST_PLAN_KEY = "ervo-test-plan"; // the owner trying a plan out (free, plus, pro)
+  const OWNER_KEY = "ervo-owner"; // the server said this account is the owner
+  const SHARED_KEYS = new Set([ACCOUNT_KEY, PROFILES_KEY, ICON_PROFILE_KEY, KEEP_KEY, BIO_KEY, LEFT_KEY, DEVICE_KEY, TEST_PLAN_KEY, OWNER_KEY, "ervo-session", THEME_KEY, PLACE_KEY, "ervo-seen-version", "ervo-intro", "ervo-update-checked", "ervo-cal-reset-027"]);
   // Business data lives per company: "biz:<companyId>:", or "biz:" before a company is set up
   const nsFor = (plan, companyId) => (plan === "business" ? (companyId ? `biz:${companyId}:` : "biz:") : "");
   let NS = (() => { try { const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY)); return a ? nsFor(a.plan, a.team && a.team.companyId) : ""; } catch (e) { return ""; } })();
@@ -141,14 +144,14 @@
       hint: "Personal use only: planning, shopping, your own returns and more.",
       question: "What should Ervo call you?", nameLabel: "Your name", placeholder: "Alex", nameError: "Enter your name.",
       chips: ["Book a table for 4 tonight", "Gym Friday at 6pm", "Buy paper towels", "What's coming up?", "Weather"],
-      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "amazon", "health", "location"],
+      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "amazon", "orders", "health", "location"],
     },
     business: {
       label: "Business", avatar: "img/ervo-business.png",
       hint: "Business use only: customer support, refunds by your policy, scheduling and more.",
       question: "What's your name?", nameLabel: "Your name", placeholder: "Alex", nameError: "Enter your name.",
       chips: ["Refund order #5512", "Summarize today's tickets", "Call with Northwind Thursday at 2pm", "Draft a reply to an upset customer"],
-      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "mail", "location"],
+      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "mail", "orders", "location"],
     },
   };
   let plan = "personal";
@@ -640,6 +643,9 @@
       ["open-keep", "done", "#30d158", "Keep me logged in", "On: you stay signed in until you sign out"],
       ["open-bio", "star", "#0a84ff", "Unlock with fingerprint or face", "Off"],
     ]],
+    ["Testing", [
+      ["open-testplan", "star", "#ff9f0a", "Try a plan", "Owner: no limits"],
+    ]],
     ["About", [
       ["open-intro", "book", "#8e8e93", "How Ervo Works"],
       ["check-update", "done", "#34c759", "Check for Updates"],
@@ -694,6 +700,11 @@
       name: "Amazon", ico: "shop", login: "https://www.amazon.com/gp/css/homepage.html",
       does: ["Search for things you ask Ervo to find", "Open your orders for returns and tracking", "Ervo never buys anything without your OK"],
       note: "Ervo opens Amazon (or its sign-in page). Ervo never sees your password or card.",
+    },
+    orders: {
+      name: "Order tracking", ico: "shop",
+      does: ["Keep a card for each order, return and refund you tell Ervo about, with a progress bar", "Look up tracking numbers you share and remind you the day before and the day it should arrive", "Stores don't let Ervo see inside your account, so Ervo tracks what you share"],
+      note: "Everything stays in Ervo. Nothing opens unless you tap a card's button.",
     },
     health: {
       name: "Health", ico: "health",
@@ -1809,6 +1820,7 @@
       else if (x.t === "products") showProducts(x.products);
       else if (x.t === "links") showActs(x.acts.map((a) => ({ label: a.label, icon: a.icon, href: a.href })));
       else if (x.t === "photo") photoBubble(x.src);
+      else if (x.t === "picture") pictureBubble(x.src, x.prompt);
       else if (x.t === "link") linkBubble(x.url);
       else if (x.t === "choices") showChoices(x.options || [], x.picked || "");
       else if (x.t === "list" && x.list) showList(x.list);
@@ -2435,7 +2447,7 @@
     let said;
     try { said = await Promise.resolve(text); } catch (e) { said = "I ran into a problem answering that. Ask again in a moment."; }
     if (said && typeof said === "object") {
-      opts = Object.assign({}, opts, { products: said.products, chips: said.chips || opts.chips, acts: said.acts || opts.acts, choices: said.choices || opts.choices, list: said.list || opts.list, trackers: said.trackers || opts.trackers, calendar: said.calendar || opts.calendar });
+      opts = Object.assign({}, opts, { products: said.products, chips: said.chips || opts.chips, acts: said.acts || opts.acts, choices: said.choices || opts.choices, list: said.list || opts.list, trackers: said.trackers || opts.trackers, calendar: said.calendar || opts.calendar, picture: said.picture, prompt: said.prompt, model: said.model });
       said = said.text;
     }
     said = plain(said);
@@ -2445,6 +2457,8 @@
     if (opts.replace) opts.replace.remove();
     bubble(said, "them");
     lastErvoText = said;
+    if (opts.picture) pictureBubble(opts.picture, opts.prompt);
+    if (opts.model && testPlan()) modelTag(opts.model);
     thread.querySelectorAll(".fb").forEach((x) => x.remove());
     // A done or failed action gets the matching haptic (Android); plain answers get none
     if (/^(Done|Undone|All set)\b/.test(String(said))) buzz("confirm");
@@ -2452,7 +2466,7 @@
     // The AI remembers what it showed, so "the second one" or "those lights" still make sense later
     const shown = opts.products && opts.products.length ? `\n[Showed product cards: ${opts.products.map((p) => [p.name, p.price].filter(Boolean).join(" ")).join("; ")}]` : "";
     const listed = opts.list ? `\n[Showed a ${opts.list.kind} list "${opts.list.title}": ${opts.list.items.map((i) => `${i.time ? i.time + " " : ""}${i.text}`).join("; ")}]` : "";
-    history.push({ role: "assistant", text: said + shown + listed });
+    history.push({ role: "assistant", text: said + shown + listed + (opts.picture ? `\n[Drew a picture: ${String(opts.prompt || "").slice(0, 120)}]` : "") });
     if (opts.products && opts.products.length) showProducts(opts.products);
     if (opts.list && opts.list.items.length) showList(opts.list);
     if (opts.trackers && opts.trackers.length) opts.trackers.forEach((tr) => { showTracker(tr); record({ t: "tracker", id: tr.id }); });
@@ -2980,6 +2994,7 @@
           name: prefs().nickname || account.name,
           team: teamForAI(),
           deviceId: deviceId(),
+          testPlan: testPlan() || undefined,
           messages: history.slice(-16),
           psyche: psycheForServer(),
           memory: memory(),
@@ -3118,10 +3133,12 @@
       .replace(/[ \t]{2,}/g, " ").trim();
   }
 
+  const PICTURE_RE = /\b(draw|sketch|paint|generate|make|create|design|render)\b.{0,40}\b(picture|image|drawing|logo|wallpaper|poster|illustration|art|icon)\b|\b(picture|image|drawing|logo|illustration) of\b/i;
   // What the status pill says while the AI works on it
   function guessStatus(d) {
     const t = d.t || "";
     if (d.intent === "photo") return ["📷", "Looking at your photo"];
+    if (PICTURE_RE.test(t)) return ["🎨", "Drawing your picture"];
     if (/\b(meal plan|diet|lose weight|calories|macros|protein|eat healthier|eating plan)\b/.test(t)) return ["🥗", "Making your meal plan"];
     if (/\b(workout|work out|training plan|exercise|running plan|marathon|5k|10k|lift)\b/.test(t)) return ["💪", "Making your workout plan"];
     if (/\b(recipe|cook|bake|what should i (make|eat)|for dinner|for lunch|for breakfast)\b/.test(t)) return ["🍳", "Finding recipes"];
@@ -3173,12 +3190,18 @@
       live.textContent = txt;
       toBottom();
     };
-    const result = askServer(extra, extra ? null : onText).then((j) => {
-      // Learn first, so "use emojis" already shows in this reply
-      if (j.usage) save(SERVER_USAGE_KEY, Object.assign({ at: new Date().toISOString() }, j.usage));
+    const result = askServer(extra, extra ? null : onText).then(async (j) => {
+      if (j.usage) noteUsage(j.usage);
       if (j.limit) {
-        return { text: plainText(j.reply), acts: [{ label: "See plans", icon: "star", onClick: openPlans }], limit: j.limit };
+        return { text: plainText(j.reply), acts: [{ label: "See plans", icon: "star", onClick: openPlans }], limit: j.limit, model: j.model };
       }
+      if (j.picture) return { text: plainText(j.reply), picture: j.picture, prompt: j.prompt || "", model: j.model };
+      // Order cards need one yes (inside Ervo; nothing opens): Allow Order tracking
+      if ((j.actions || []).some((a) => a.type === "track_order") && !allowed("orders")) {
+        const ok = await ensure("orders", "Keep a card for this order, with a progress bar", true);
+        if (!ok) j.actions = j.actions.filter((a) => a.type !== "track_order" && a.type !== "update_tracker");
+      }
+      // Learn first, so "use emojis" already shows in this reply
       // Learning can be turned off in Psyche (guideline 17); asked-for style changes ("use emojis") still apply
       const learning = prefs().learn !== false;
       const before = new Set(psyche().facts.map((f) => f.id));
@@ -3186,7 +3209,7 @@
       else if (learning && j.memories && j.memories.length) remember(j.memories);
       const learnedNow = psyche().facts.filter((f) => !before.has(f.id));
       const said = plainText(j.reply);
-      const out = { text: said, products: [], chips: null };
+      const out = { text: said, products: [], chips: null, model: j.model };
       const afters = [];
       out.learned = learnedNow;
       out.quiet = (j.actions || []).some((a) => SELF_REPORTING.has(a.type));
@@ -3737,6 +3760,7 @@
     { const nick = String(text).trim().match(/^(?:please |hey ervo,? )?(?:you can )?(?:call me|my nickname is|nickname me) ([a-z][\w'-]{1,20})[.!]?$/i);
       if (nick) { const p = prefs(); p.nickname = nick[1]; save(PREFS_KEY, p); logActivity({ kind: "settings", ico: "star", title: `Now calls you ${nick[1]}` }); return ervoSays(`Got it, ${nick[1]} it is 😊`, { instant: true }); } }
     if (account.team) { const ts = matchTeamSend(text); if (ts) return teamSend(ts.to, ts.text); }
+    { const on = String(text).trim().match(/^(\d{3}-\d{7}-\d{7})$/); if (on) return orderNumberReply(on[1]); }
     { const tn = String(text).trim().replace(/\s+/g, ""); const car = tn.length >= 10 && !/\s/.test(tn) ? carrierFor(tn) : null; if (car && !/[a-z]{4,}/i.test(tn.replace(/^TBA|^JD/i, ""))) return trackNumberReply(tn, car); }
     const d = understand(text);
     if (calendarAsk(d.t) && !/(stats|activity|what (have|did) you|add|put|schedule|set up|create|book|make|move|remove|delete|cancel|remind|alarm|timer)/i.test(d.t.replace(/\bwhat'?s? (on|planned|scheduled)\b/, "x"))) return calendarReply(d);
@@ -3859,14 +3883,10 @@
       case "stats": return statsReply();
       case "steps": return stepsReply();
       case "track": case "return": {
+        // Nothing opens: Ervo makes the card here (after one Allow), and the card's own buttons go to the store
+        if (AI_URL) return ensure("orders", d.intent === "track" ? "Keep a card for this order, with a progress bar" : "Keep a card for this return").then((ok) => (ok ? askAI(d) : null));
         const url = "https://www.amazon.com/gp/css/order-history";
-        const what = d.intent === "track" ? "track your order" : "start your return";
-        return ensure("amazon", d.intent === "track" ? "Open your orders to track a package" : "Open your orders to start a return").then((ok) => {
-          if (!ok) return ervoSays("Okay, I won't open Amazon.");
-          logActivity({ kind: d.intent, ico: "shop", title: d.intent === "track" ? "Checked an order" : "Started a return", detail: "Amazon", link: url });
-          openOutside(url);
-          return ervoSays(`I opened your Amazon orders so you can ${what}. ${d.intent === "return" ? "Pick the item and choose Return or replace." : "Tap Track package on the order."}`, { acts: [{ label: "Your orders", icon: "shop", href: url }] });
-        });
+        return ervoSays(`I can't reach my AI right now. Your Amazon orders page has the live ${d.intent === "track" ? "tracking" : "return options"}.`, { acts: [{ label: "Your orders", icon: "shop", href: url }] });
       }
       case "refund":
         pending = {
@@ -4089,13 +4109,50 @@
     Object.assign(t, {
       kind, store: key, storeName: key ? STORES_DIR[key].name : String(a.store || "").slice(0, 30), title, price: String(a.price || t.price || "").slice(0, 20),
       items: Array.isArray(a.items) ? a.items.slice(0, 8).map((x) => String(x).slice(0, 60)) : t.items || [],
-      steps: STEPS[kind], step: Math.max(stepIndex(kind, a.status), t.step || 0), eta: String(a.eta || t.eta || "").slice(0, 60),
-      tracking: tracking || t.tracking || "", carrier: car ? car.key : t.carrier || "", note: String(a.note || t.note || "").slice(0, 160), updatedAt: new Date().toISOString(),
+      steps: STEPS[kind], step: Math.max(stepIndex(kind, a.status), t.step || 0), eta: String(a.eta || t.eta || "").slice(0, 60), etaDate: dateOnly(a.eta_date) || t.etaDate || "",
+      tracking: tracking || t.tracking || "", carrier: car ? car.key : t.carrier || "", orderNo: String(a.order_number || t.orderNo || "").replace(/\s+/g, "").slice(0, 40),
+      note: cleanNote(a.note) || t.note || "", source: SOURCES.includes(a.source) ? a.source : t.source || "you", checkedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     });
     t.done = t.step >= t.steps.length - 1;
     saveTrackers(list);
+    scheduleTrackerNotices(t);
     logActivity({ kind: "track", ico: "shop", title: `${kind === "order" ? "Tracking" : kind === "return" ? "Return" : "Refund"}: ${t.title}`, detail: `${t.storeName || ""} · ${t.steps[t.step]}` });
     return t;
+  }
+  const SOURCES = ["you", "store", "carrier"];
+  const dateOnly = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : "");
+  // Notes that only repeat the card's buttons aren't notes
+  const cleanNote = (v) => { const n = String(v || "").trim().slice(0, 160); return !n || /\b(tap|press|click)\b.*\b(open|track|button)\b/i.test(n) ? "" : n; };
+  // The day it should arrive: the exact date when Ervo has one, else what "Thursday" or "Nov 13" means
+  function etaDateOf(t) {
+    if (t.etaDate) { const d = new Date(`${t.etaDate}T12:00`); if (!isNaN(d)) return d; }
+    if (t.eta && !/\d+\s*(to|-)\s*\d+\s*days?/i.test(t.eta)) { try { const w = parseWhen(String(t.eta).toLowerCase(), new Date(), false); if (w && w.date) return w.date; } catch (e) { /* not a date */ } }
+    return null;
+  }
+  // Phone reminders: the evening before and the morning it should arrive; or a check-in two days after it shipped
+  function scheduleTrackerNotices(t) {
+    if (!native || !native.scheduleNotice) return;
+    ["eve", "day", "way"].forEach((k) => native.cancelNotice(`${t.id}-${k}`));
+    if (t.done || t.kind !== "order") return;
+    const now = Date.now();
+    const at = (d, h) => { const x = new Date(d); x.setHours(h, 0, 0, 0); return x.getTime(); };
+    const eta = etaDateOf(t);
+    const where = t.storeName ? ` from ${t.storeName}` : "";
+    if (eta) {
+      const eve = at(addDays(eta, -1), 18), day = at(eta, 9);
+      if (eve > now) native.scheduleNotice(`${t.id}-eve`, eve, `${t.title} arrives tomorrow`, `Your order${where} is on the way. Tap to see the card.`);
+      if (day > now) native.scheduleNotice(`${t.id}-day`, day, `${t.title} should arrive today`, "Tell me when it lands and I'll mark it delivered.");
+    } else if (t.step >= 1) {
+      native.scheduleNotice(`${t.id}-way`, at(addDays(new Date(), 2), 10), `${t.title} is on the way`, "Has it arrived? Tell me and I'll update the card.");
+    }
+  }
+  // An Amazon order number on its own: the card is made right away and saved in Files
+  function orderNumberReply(num) {
+    const run = () => {
+      const t = upsertTracker({ kind: "order", store: "Amazon", title: "Amazon order", order_number: num, status: "ordered", source: "you" });
+      return ervoSays("Saved. That looks like an Amazon order number, so I made a card for it; you'll find it under Files too. What's in the order, and when does Amazon say it arrives? I'll fill it in and remind you the day before.", { trackers: [t], instant: true });
+    };
+    return ensure("orders", "Keep a card for your orders, returns and refunds").then((ok) => (ok ? run() : null));
   }
   function updateTracker(a) {
     const list = trackers();
@@ -4105,12 +4162,17 @@
     if (!t) return null;
     if (a.status) t.step = Math.max(t.step, stepIndex(t.kind, a.status));
     if (a.eta) t.eta = String(a.eta).slice(0, 60);
-    if (a.note) t.note = String(a.note).slice(0, 160);
+    if (dateOnly(a.eta_date)) t.etaDate = a.eta_date;
+    if (a.order_number) t.orderNo = String(a.order_number).replace(/\s+/g, "").slice(0, 40);
+    if (a.note !== undefined) t.note = cleanNote(a.note);
     if (a.tracking) { t.tracking = String(a.tracking).replace(/\s+/g, "").slice(0, 40); const c = carrierFor(t.tracking); if (c) t.carrier = c.key; }
     if (a.done === true) t.step = t.steps.length - 1;
+    if (SOURCES.includes(a.source)) t.source = a.source;
+    t.checkedAt = new Date().toISOString();
     t.done = t.step >= t.steps.length - 1;
     t.updatedAt = new Date().toISOString();
     saveTrackers(list);
+    scheduleTrackerNotices(t);
     return t;
   }
   function advanceTracker(id) {
@@ -4119,8 +4181,11 @@
     if (!t || t.done) return;
     t.step = Math.min(t.steps.length - 1, t.step + 1);
     t.done = t.step >= t.steps.length - 1;
+    t.source = "you";
+    t.checkedAt = new Date().toISOString();
     t.updatedAt = new Date().toISOString();
     saveTrackers(list);
+    scheduleTrackerNotices(t);
     document.querySelectorAll(`.tracker[data-id="${id}"]`).forEach((el) => el.replaceWith(trackerEl(t)));
     if (t.done) { buzz("confirm"); ervoSays(t.kind === "order" ? `${t.title} is delivered 🎉` : `${t.title}: refund done ✅`, { instant: true }); }
   }
@@ -4130,8 +4195,11 @@
     toast("Removed");
   }
   function trackNumberReply(num, car) {
-    const t = upsertTracker({ kind: "order", title: "Package", tracking: num, carrier: car.name, status: "shipped" });
-    return ervoSays(`That's a ${car.name} tracking number. I'll keep an eye on it here; tap Track package for the live details, or tell me what's in it and I'll name the card.`, { trackers: [t], instant: true });
+    const run = () => {
+      const t = upsertTracker({ kind: "order", title: "Package", tracking: num, carrier: car.name, status: "shipped", source: "you" });
+      return ervoSays(`That's a ${car.name} tracking number. I made a card for it (it's under Files too); tap Track package for ${car.name}'s live details, or tell me what's in it and I'll name the card.`, { trackers: [t], instant: true });
+    };
+    return ensure("orders", "Keep a card for your orders, returns and refunds").then((ok) => (ok ? run() : null));
   }
   function trackerEl(t) {
     const store = STORES_DIR[t.store];
@@ -4146,14 +4214,23 @@
       <div class="tk-head">${badge}<div class="tk-text"><b></b><small></small></div><span class="tk-chip ${t.done ? "ok" : ""}"></span></div>
       <div class="tk-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${t.steps.length - 1}" aria-valuenow="${t.step}"><div class="tk-fill" style="--p:${(t.step / (t.steps.length - 1)) * 100}%"></div>${t.steps.map((s, i) => `<i class="tk-dot${i <= t.step ? " on" : ""}${i === t.step && !t.done ? " now" : ""}" style="left:${(i / (t.steps.length - 1)) * 100}%"></i>`).join("")}</div>
       <div class="tk-steps">${t.steps.map((s, i) => `<span class="${i === t.step ? "now" : ""}">${s}</span>`).join("")}</div>
+      <p class="tk-source"></p>
       <div class="tk-rows"></div>
       <div class="tk-acts"></div>`;
     el.querySelector(".tk-text b").textContent = t.title;
     el.querySelector(".tk-text small").textContent = [t.storeName || (car && car.name), kindText, t.price].filter(Boolean).join(" · ");
     el.querySelector(".tk-chip").textContent = chipText;
+    // Honest about what's live: a card from their words is an estimate, not a tracking update
+    const src = el.querySelector(".tk-source");
+    const when = t.checkedAt ? new Date(t.checkedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+    if (t.done) src.textContent = `Marked ${t.steps[t.steps.length - 1].toLowerCase()} ${when}`;
+    else if (t.source === "carrier") { src.textContent = `${car ? car.name : "Carrier"} update · ${when}`; src.classList.add("live"); }
+    else if (t.source === "store") src.textContent = `From your ${t.storeName || "store"} order details · ${when}`;
+    else src.textContent = "From what you told Ervo · not a live update";
     const rows = el.querySelector(".tk-rows");
     const row = (emoji, label, value) => { const r = document.createElement("div"); r.className = "tk-row"; r.innerHTML = `<span class="tk-remoji">${e3d(emoji)}</span><span class="tk-rlabel"></span><span class="tk-rvalue"></span>`; r.querySelector(".tk-rlabel").textContent = label; r.querySelector(".tk-rvalue").textContent = value; rows.append(r); return r; };
     if (t.eta) row(t.kind === "order" ? "🚚" : "💵", t.kind === "order" ? (t.done ? "Delivered" : "Arrives") : "Refund", t.eta);
+    if (t.orderNo) { const r = row("🧾", "Order #", t.orderNo); r.classList.add("tap"); r.title = "Copy"; r.addEventListener("click", async () => { toast((await copyText(t.orderNo)) ? "Order number copied" : "Couldn't copy"); }); }
     if (t.tracking) { const r = row("🔎", car ? car.name : "Tracking", t.tracking); r.classList.add("tap"); r.title = "Copy"; r.addEventListener("click", async () => { toast((await copyText(t.tracking)) ? "Tracking number copied" : "Couldn't copy"); }); }
     if (t.items && t.items.length > 1) row("🧾", "Items", t.items.join(", "));
     if (t.note) row("📝", "Note", t.note);
@@ -4311,6 +4388,7 @@
   function empty(text) { const p = document.createElement("p"); p.className = "empty"; p.textContent = text; return p; }
 
   function renderStats() {
+    fetchUsage();
     const now = new Date();
     $("stats-date").textContent = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
     $("stats-title").textContent = `${prefs().nickname || account.name}'s Ervo Stats`;
@@ -4394,13 +4472,19 @@
     if (sv && sv.chatsLimit) {
       // Numbers from the server (the ones that count)
       const stale = sv.resetsAt && new Date(sv.resetsAt) < new Date();
+      const mStale = sv.monthResetsAt && new Date(sv.monthResetsAt) < new Date();
       const left = stale ? sv.chatsLimit : sv.chatsLeft;
-      const rLeft = stale && sv.chatsPer === "month" ? sv.researchLimit : sv.researchLeft;
-      $("usage-today").textContent = left.toLocaleString();
-      $("usage-of").textContent = `chats left ${sv.chatsPer === "day" ? "today" : "this month"} · ${PLAN_NAMES[sv.plan] || sv.plan}`;
-      $("usage-ring").style.strokeDashoffset = String(314.16 * (1 - Math.min(left / sv.chatsLimit, 1)));
-      $("usage-extra").innerHTML = `<div><small>Research left this month</small><b>${rLeft.toLocaleString()}</b></div><div><small>Day streak</small><b>${streakDays()} 🔥</b></div>`;
-      $("usage-note").textContent = `${sv.chatsLimit.toLocaleString()} chats ${sv.chatsPer === "day" ? "a day" : "a month"} and ${sv.researchLimit.toLocaleString()} research questions a month on ${PLAN_NAMES[sv.plan] || sv.plan}. Research is when Ervo searches the web or looks things up.`;
+      const rLeft = mStale ? sv.researchLimit : sv.researchLeft;
+      const pLeft = mStale ? sv.picturesLimit || 0 : sv.picturesLeft || 0;
+      const owner = sv.plan === "owner";
+      const name = PLAN_NAMES[sv.plan] || sv.plan;
+      $("usage-today").textContent = owner ? "∞" : left.toLocaleString();
+      $("usage-of").textContent = owner ? "no limits · Owner" : `chats left ${sv.chatsPer === "day" ? "today" : "this month"} · ${name}`;
+      $("usage-ring").style.strokeDashoffset = String(owner ? 0 : 314.16 * (1 - Math.min(left / sv.chatsLimit, 1)));
+      $("usage-extra").innerHTML = `<div><small>Research left</small><b>${owner ? "∞" : rLeft.toLocaleString()}</b></div><div><small>Pictures left</small><b>${owner ? "∞" : pLeft.toLocaleString()}</b></div><div><small>Day streak</small><b>${streakDays()} 🔥</b></div>`;
+      $("usage-note").textContent = owner
+        ? "Your account has no limits. Try a plan in Settings to feel each one."
+        : `${name}: ${sv.chatsLimit.toLocaleString()} chats ${sv.chatsPer === "day" ? "a day" : "a month"}, ${sv.researchLimit.toLocaleString()} research questions and ${(sv.picturesLimit || 0).toLocaleString()} pictures a month. Research is when Ervo searches the web.`;
       return;
     }
     const limit = DAILY[(account || { plan: "personal" }).plan] || DAILY.personal;
@@ -4413,18 +4497,76 @@
     $("usage-note").textContent = "Your plan's exact numbers show after your next chat.";
   }
   // Plans: what each one gives (no payments yet; they arrive with Google Play Billing and Stripe)
+  const PLAN_ROWS = {
+    personal: [["free", "Free", "Free", "10 chats a day · 3 research and 3 pictures a month"], ["plus", "Plus", "$9.99/mo", "25 chats a day · 15 research and 30 pictures a month"], ["pro", "Pro", "$19.99/mo", "50 chats a day · 40 research and 100 pictures a month"]],
+    business: [["starter", "Business Starter", "", "1,000 customer chats a month for the whole team"], ["growth", "Business Growth", "", "5,000 customer chats a month"]],
+  };
   function openPlans() {
-    const biz = account && account.plan === "business";
-    const rows = biz
-      ? [["Business Starter", "1,000 chats and 300 research a month for the whole team", "Current"], ["Business Growth", "5,000 chats and 1,500 research a month", "Coming soon"]]
-      : [["Free", "10 chats a day, 3 research a month", (load(SERVER_USAGE_KEY) || {}).plan === "free" ? "Current" : ""], ["Plus", "50 chats a day, 15 research a month", "Coming soon"], ["Pro", "100 chats a day, 40 research a month", "Coming soon"]];
+    const cur = (load(SERVER_USAGE_KEY) || {}).plan;
     const box = $("plans-list");
     box.innerHTML = "";
-    rows.forEach(([name, sub, side]) => { const r = row("star", name, sub, side); if (side === "Current") r.classList.add("current"); box.append(r); });
+    PLAN_ROWS[account && account.plan === "business" ? "business" : "personal"].forEach(([key, name, price, sub]) => {
+      const r = row("star", name, sub, key === cur ? "Current" : price || "Coming soon");
+      if (key === cur) r.classList.add("current"); else if (price) r.querySelector(".side").classList.add("plan-price");
+      box.append(r);
+    });
     $("plans").hidden = false;
   }
   $("plans-done").addEventListener("click", () => { $("plans").hidden = true; });
   $("plans").addEventListener("click", (e) => { if (e.target === $("plans")) $("plans").hidden = true; });
+  $("plans-upgrade").addEventListener("click", () => { toast("Upgrading opens with the app stores. Your limits reset on their own until then."); });
+  // The owner can try each plan: the server then answers with that plan's model and limits
+  const testPlan = () => { const p = load(TEST_PLAN_KEY); return ["free", "plus", "pro"].includes(p) ? p : ""; };
+  const isOwner = () => !!load(OWNER_KEY);
+  function syncTestPlanRow() {
+    document.querySelectorAll('[data-group="Testing"]').forEach((el) => { el.hidden = !isOwner(); });
+    const tp = testPlan();
+    $("open-testplan").querySelector("small").textContent = tp ? `Trying ${PLAN_NAMES[tp]}: its model, limits and replies` : "Owner: no limits";
+    $("open-testplan").classList.toggle("on", !!tp);
+  }
+  function openTestPlan() {
+    const box = $("testplan-list");
+    box.innerHTML = "";
+    const tp = testPlan();
+    [["", "Off", "Owner account, no limits (Sonnet answers)"], ["free", "Free", "Haiku answers · 10 chats a day"], ["plus", "Plus", "Sonnet answers · 25 chats a day"], ["pro", "Pro", "Sonnet answers · 50 chats a day"]].forEach(([key, name, sub]) => {
+      const r = row("star", name, sub, key === tp ? "Current" : "");
+      r.classList.add("tap");
+      if (key === tp) r.classList.add("current");
+      r.addEventListener("click", () => {
+        if (key) save(TEST_PLAN_KEY, key); else drop(TEST_PLAN_KEY);
+        $("testplan").hidden = true;
+        syncTestPlanRow();
+        fetchUsage(true);
+        toast(key ? `Trying ${name}. Each reply shows which model wrote it.` : "Back to your own account");
+      });
+      box.append(r);
+    });
+    $("testplan").hidden = false;
+  }
+  $("open-testplan").addEventListener("click", openTestPlan);
+  $("testplan-done").addEventListener("click", () => { $("testplan").hidden = true; });
+  $("testplan").addEventListener("click", (e) => { if (e.target === $("testplan")) $("testplan").hidden = true; });
+  function noteUsage(u) {
+    save(SERVER_USAGE_KEY, Object.assign({ at: new Date().toISOString() }, u));
+    if (u.plan === "owner") save(OWNER_KEY, true);
+    syncTestPlanRow();
+  }
+  let usageFetchAt = 0;
+  async function fetchUsage(force) {
+    if (!AI_URL || !account || (!force && Date.now() - usageFetchAt < 20000)) return;
+    usageFetchAt = Date.now();
+    try {
+      const token = await freshToken();
+      const r = await fetch(`${AI_URL}/usage`, {
+        method: "POST",
+        headers: Object.assign({ "content-type": "application/json" }, token ? { Authorization: `Bearer ${token}` } : {}),
+        body: JSON.stringify({ plan: account.plan, team: teamForAI(), deviceId: deviceId(), testPlan: testPlan() || undefined, messages: [] }),
+        signal: AbortSignal.timeout(8000),
+      });
+      const j = await r.json();
+      if (j.usage) { noteUsage(j.usage); if ($("stats").classList.contains("active")) renderUsage(); }
+    } catch (e) { /* offline */ }
+  }
   function deviceId() {
     let id = load(DEVICE_KEY);
     if (!id) { id = `dv${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`; save(DEVICE_KEY, id); }
@@ -5164,6 +5306,50 @@
     thread.append(el);
     toBottom();
   }
+  // A picture Ervo drew: tap to see it big, Save keeps it in your Photos
+  function pictureBubble(src, prompt) {
+    const el = document.createElement("div");
+    el.className = "msg them picture";
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = prompt || "Picture Ervo made";
+    img.onload = () => { toBottom(); };
+    img.addEventListener("click", () => viewPhoto(src));
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "pic-save";
+    save.textContent = "Save";
+    save.addEventListener("click", () => savePicture(src, prompt));
+    el.append(img, save);
+    thread.append(el);
+    record({ t: "picture", src, prompt: String(prompt || "").slice(0, 200) });
+    toBottom();
+    return el;
+  }
+  async function savePicture(src, prompt) {
+    const name = `Ervo ${String(prompt || "").replace(/[^a-z0-9 ]/gi, "").trim().slice(0, 30) || "picture"}.jpg`;
+    if (native && native.saveImage) { const ok = native.saveImage(String(src).split(",")[1] || "", name); toast(ok ? "Saved to your Photos" : "Couldn't save that one"); return; }
+    try {
+      if (navigator.canShare) {
+        const blob = await (await fetch(src)).blob();
+        const file = new File([blob], name, { type: blob.type || "image/jpeg" });
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "Picture from Ervo" }); return; }
+      }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a");
+    a.href = src;
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+  }
+  // While trying a plan out: which model wrote the reply
+  function modelTag(tag) {
+    const p = document.createElement("p");
+    p.className = "model-tag";
+    p.textContent = tag;
+    thread.append(p);
+  }
   function linkBubble(href) {
     let host = href;
     try { host = new URL(href).hostname.replace(/^www\./, ""); } catch (e) { /* keep it whole */ }
@@ -5233,9 +5419,10 @@
       const pics = [];
       chats.forEach((c) => c.items.forEach((x) => {
         if (x.t === "photo") pics.push({ src: x.src, at: x.at });
+        if (x.t === "picture") pics.push({ src: x.src, at: x.at, name: x.prompt || "Picture Ervo made" });
         if (x.t === "products") x.products.forEach((p) => { const asin = asinOf(p.url); if (p.image || asin) pics.push({ src: p.image || amazonPic(asin), alt: amazonPic(asin), at: x.at, href: p.url, name: p.name }); });
       }));
-      if (!pics.length) { box.append(libEmpty("Photos you send and products Ervo finds show up here.")); return; }
+      if (!pics.length) { box.append(libEmpty("Photos you send, pictures Ervo draws and products Ervo finds show up here.")); return; }
       const grid = document.createElement("div");
       grid.className = "lib-grid";
       const shown = new Set();
@@ -5444,7 +5631,8 @@
     bioArming = true;
     if (native && native.biometricAuth) native.biometricAuth("Confirm it's you");
   });
-  function openSettings() { $("set-owl").src = lookSrc(); syncSignInRows(); show("settings"); }
+  function openSettings() {
+    syncTestPlanRow(); $("set-owl").src = lookSrc(); syncSignInRows(); show("settings"); }
   // Warm the settings icons once the app is idle, so the first open doesn't wait on 16 downloads
   (window.requestIdleCallback || ((fn) => setTimeout(fn, 1500)))(() => {
     document.querySelectorAll("#settings-list .app-ico img").forEach((img) => { if (!img.complete) { const i = new Image(); i.decoding = "async"; i.src = img.src; } });
@@ -5550,6 +5738,7 @@
     if (!$("newid").hidden) { $("newid").hidden = true; return true; }
     if (!$("calsheet").hidden) { $("calsheet").hidden = true; return true; }
     if (!$("plans").hidden) { $("plans").hidden = true; return true; }
+    if (!$("testplan").hidden) { $("testplan").hidden = true; return true; }
     if (!$("hours").hidden) { $("hours").hidden = true; return true; }
     if (!$("company").hidden) { $("company").hidden = true; return true; }
     if ($("ideas").classList.contains("active") || $("goalpage").classList.contains("active") || $("team").classList.contains("active")) { show("chat"); return true; }

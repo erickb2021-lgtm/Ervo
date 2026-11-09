@@ -1629,3 +1629,18 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 .lock-actions { width: 100%; max-width: var(--col); padding: 0 24px; }
 #open-keep b, #open-bio b { font-weight: 800; }
 .row.on .app-ico { box-shadow: 0 0 0 2px var(--green); }
+
+/* 0.5.7: order cards tell the truth and fit; pictures Ervo draws; plans; the owner's plan tester */
+.tk-row { align-items: flex-start; }
+.tk-rvalue { white-space: normal; overflow: visible; text-overflow: clip; text-align: left; overflow-wrap: anywhere; }
+.tk-source { margin: 8px 0 6px; font-size: var(--fs-cap2); color: var(--text-2); }
+.tk-source.live { color: var(--green); font-weight: 600; }
+.tracker.done .tk-source { color: var(--text-2); }
+.msg.them.picture { background: none; padding: 0; position: relative; max-width: min(80%, 320px); overflow: hidden; border-radius: 18px; }
+.msg.them.picture img { display: block; width: 100%; height: auto; border-radius: 18px; cursor: zoom-in; }
+.msg.them.picture::before, .msg.them.picture::after { display: none; }
+.pic-save { position: absolute; right: 10px; bottom: 10px; min-height: 34px; padding: 0 14px; border: 0; border-radius: 999px; background: rgba(0, 0, 0, 0.55); color: #fff; font-weight: 700; font-size: var(--fs-cap2); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.model-tag { align-self: flex-start; margin: 2px 0 0 14px; font-size: 0.7rem; color: var(--text-2); letter-spacing: 0.02em; }
+.row .side.plan-price { color: var(--tint); font-weight: 800; }
+.mini-stats:has(> div:nth-child(3)) { grid-template-columns: repeat(3, 1fr); }
+.mini-stats:has(> div:nth-child(3)) b { font-size: 1.05rem; }

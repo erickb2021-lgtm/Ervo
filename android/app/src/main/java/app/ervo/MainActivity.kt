@@ -18,6 +18,9 @@ import android.speech.SpeechRecognizer
 import android.telephony.PhoneNumberUtils
 import android.telephony.TelephonyManager
 import android.provider.Settings
+import android.content.ContentValues
+import android.provider.MediaStore
+import android.util.Base64
 import android.view.HapticFeedbackConstants
 import android.widget.Toast
 import android.os.Build
@@ -611,6 +614,34 @@ open class MainActivity : AppCompatActivity() {
         /** "Send a sample": shows what today's heads-up looks like, even on a calm day */
         @JavascriptInterface
         fun testWeatherAlert() { Thread { WeatherAlert.check(applicationContext, true) }.start() }
+
+        /** Saves a picture Ervo drew to the phone's Pictures (Photos app), in an "Ervo" album. */
+        @JavascriptInterface
+        fun saveImage(base64: String, name: String): Boolean {
+            val bytes = try { Base64.decode(base64, Base64.DEFAULT) } catch (e: IllegalArgumentException) { return false }
+            if (bytes.isEmpty()) return false
+            val safe = name.replace(Regex("[^A-Za-z0-9 ._-]"), "").ifBlank { "Ervo picture.jpg" }
+            return try {
+                val values = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, safe)
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Ervo")
+                }
+                val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
+                contentResolver.openOutputStream(uri)?.use { it.write(bytes) } ?: return false
+                true
+            } catch (e: Exception) { false }
+        }
+
+        /** Order reminders ("arrives tomorrow", "should arrive today"): planned by the web app, shown by OrderNotice. */
+        @JavascriptInterface
+        fun scheduleNotice(id: String, at: Double, title: String, text: String) {
+            if (id.isBlank() || at.isNaN()) return
+            OrderNotice.schedule(applicationContext, id.take(60), at.toLong(), title.take(80), text.take(240))
+        }
+
+        @JavascriptInterface
+        fun cancelNotice(id: String) { if (id.isNotBlank()) OrderNotice.cancel(applicationContext, id.take(60)) }
 
         /** Share text with any app (Notes, Keep, Messages, email...) through Android's share sheet */
         @JavascriptInterface

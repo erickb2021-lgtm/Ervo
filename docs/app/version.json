@@ -1,22 +1,18 @@
 {
   "version": "0.5.7",
   "notes": [
-    "Usage is counted by Ervo's server now: chats per day and research per month (research is when Ervo searches the web or looks something up). Ervo Stats shows what's left, and a friendly note with a See plans button appears at the limit",
-    "Everyday chats run on a faster model; research, shopping, plans and photos keep the deeper one",
-    "Passwords: sign in with email and password, sign up with a confirmed password, and reset it from an email link that opens Ervo. Three wrong tries and Ervo points you to Forgot password",
-    "Keep me logged in (on by default) and Unlock with fingerprint or face, in Settings. Password fields work with Samsung Pass, Google and iCloud Keychain",
-    "The company name Ervo is reserved",
-    "Businesses: a company is its name plus its location, so two shops with the same name in different cities both fit. The owner gives a first and last name",
-    "My Businesses in Settings: switch between your companies, add another, join one with an ID, verify yours with your work email and website, or delete one (type its name)",
-    "Each business keeps its own chats, Psyche, team and Ideas",
-    "Ervo for Business starts by learning the company: what it does, customers, products, hours, policies, tools, team",
-    "Hold your own message for Copy, Send again or Edit",
-    "Ervo turns down harmful or illegal requests in one calm line and never shares another company's information",
-    "Connected Apps is its own page, out of Ervo Stats; Settings lost the Greeting and Weather rows"
+    "Ervo picks the right brain for each message: quick answers on a fast model, research and health questions on a deeper one with web search, long documents written in full",
+    "Ervo draws pictures: ask for a drawing, logo or wallpaper, then tap Save. It won't draw real people or anything explicit or violent",
+    "Usage is counted by Ervo's server: chats a day, research and pictures a month. Ervo Stats shows what's left, and a friendly note with See plans appears at a limit",
+    "Plans: Free, Plus ($9.99) and Pro ($19.99), with Business Starter and Growth. Upgrading opens with the app stores",
+    "Order cards say where their status comes from (what you told Ervo, your order email, or the carrier), and nothing sends you out to the store anymore",
+    "Paste an Amazon order number or any tracking number and Ervo saves a card to Files; the phone reminds you the day before and the day it should arrive",
+    "Order tracking asks once, inside Ervo, under Connected Apps",
+    "Replies start appearing within a second or two as Ervo writes"
   ],
   "highlights": [
-    "Ervo Stats shows your chats and research left, counted by Ervo",
-    "Everyday chats answer faster",
-    "A Plans page explains Free, Plus and Pro"
+    "Ask Ervo to draw a picture, then tap Save",
+    "Ervo Stats shows chats, research and pictures left",
+    "Order cards are honest about what's live, and remind you when it should arrive"
   ]
 }
