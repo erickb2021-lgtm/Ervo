@@ -1,6 +1,7 @@
 {
-  "version": "0.5.0",
+  "version": "0.5.1",
   "notes": [
+    "Switching between Personal and Business shows the look you picked for that Ervo, with no flash of the default owl",
     "Orders, returns and refunds as cards: a progress bar from Ordered to Delivered (or Requested to Refunded), the arrival date, the tracking number, and buttons to open the store's own orders page or the carrier. Tell Ervo about an order, paste a tracking number or send a photo of the order email",
     "60 stores and services Ervo can open for orders and returns: Amazon, Walmart, Target, Costco, eBay, Etsy, Temu, Shein, Best Buy, Nike, Zara, DoorDash, Uber Eats, Instacart, Domino's, CVS and more, plus UPS, FedEx, USPS, DHL tracking",
     "A Files tab for Orders, where every card lives with its progress",
@@ -11,7 +12,6 @@
     "Pick which Ervo is your home-screen icon, Personal or Business, with a switch in Ervo's Look. The icon changes quietly once you leave the app, no more getting kicked out",
     "Ervo's Look scrolls without closing; a quick \"Switching to Business\" curtain when you change Ervos",
     "Work settings show only for Business; the owner can create co-owner IDs; IDs are longer and never reused",
-    "Smoother: fewer heavy effects while you move around the app",
-    "The website lives at ervo.company"
+    "Smoother: fewer heavy effects while you move around the app"
   ]
 }

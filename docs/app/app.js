@@ -285,7 +285,10 @@
     try { to = sessionStorage.getItem("ervo-switching"); sessionStorage.removeItem("ervo-switching"); } catch (e) { /* fine */ }
     if (!to) return;
     const c = $("switching");
-    $("switching-owl").src = PLAN[to] ? PLAN[to].avatar : "img/ervo-classic.png";
+    // This runs before the looks code exists, so read the saved look straight from storage
+    let look = "";
+    try { look = (JSON.parse(localStorage.getItem(`${to === "business" ? "biz:" : ""}${PREFS_KEY}`) || "{}").look || ""); } catch (e) { /* none */ }
+    $("switching-owl").src = /^[a-z]{2,24}$/.test(look) ? `img/ervo-${look}.png` : (PLAN[to] ? PLAN[to].avatar : "img/ervo-classic.png");
     $("switching-text").textContent = `Switching to ${to === "business" ? "Business" : "Personal"}`;
     c.hidden = false;
     setTimeout(() => { c.classList.add("out"); setTimeout(() => { c.hidden = true; }, 320); }, 380);
@@ -4727,7 +4730,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.0"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.1"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -5364,12 +5367,15 @@
   // ---------- Ervo's look: tap Ervo at the top to pick an outfit ----------
   // The list of looks lives in img/looks.json: {id, name, file}. Add a picture (PNG, or an animated GIF/WebP)
   // and a line there, and it shows up in the picker. This built-in list is the fallback when the file can't load.
-  let LOOKS = [["classic", "Classic"], ["business", "Business"], ["scholar", "Scholar"], ["gamer", "Gamer"], ["space", "Space"],
-    ["explorer", "Explorer"], ["tech", "Tech"], ["builder", "Builder"], ["winter", "Winter"], ["creative", "Creative"]];
+  let LOOKS = [["classic", "Classic"], ["business", "Business"], ["king", "Royal"], ["detective", "Detective"], ["explorer", "Explorer"], ["scientist", "Scientist"],
+    ["wizard", "Wizard"], ["ninja", "Ninja"], ["samurai", "Samurai"], ["pirate", "Pirate"], ["pilot", "Pilot"], ["athlete", "Athlete"], ["soccer", "Soccer"],
+    ["musician", "Musician"], ["chef", "Chef"], ["creative", "Artist"], ["gamer", "Gamer"], ["space", "Space"], ["scholar", "Scholar"], ["tech", "Tech"],
+    ["builder", "Builder"], ["winter", "Winter"], ["holiday", "Holiday"]];
   fetch("img/looks.json", { cache: "no-store" }).then((r) => r.json()).then((list) => {
     if (Array.isArray(list) && list.length) { LOOKS = list.filter((x) => x && x.id && x.name).map((x) => [x.id, x.name, x.file || `ervo-${x.id}.png`]); applyLook(); }
   }).catch(() => { /* keep the built-in list */ });
-  const lookFile = (id) => { const l = LOOKS.find((x) => x[0] === id); return l ? `img/${l[2] || `ervo-${id}.png`}` : null; };
+  // A look's picture. Unknown ids still map to img/ervo-<id>.png, so a saved look shows at once, before looks.json loads
+  const lookFile = (id) => { const l = LOOKS.find((x) => x[0] === id); if (l) return `img/${l[2] || `ervo-${id}.png`}`; return /^[a-z]{2,24}$/.test(String(id || "")) ? `img/ervo-${id}.png` : null; };
   function lookSrc() {
     const l = prefs().look;
     const f = l && lookFile(l);
@@ -5424,7 +5430,7 @@
   // One home-screen icon for both Ervos: the look of whichever profile owns it
   const iconOwner = () => load(ICON_PROFILE_KEY) || "personal";
   function lookOf(plan) {
-    try { const p = JSON.parse(localStorage.getItem(`${plan === "business" ? "biz:" : ""}${PREFS_KEY}`)) || {}; if (p.look && lookFile(p.look)) return p.look; } catch (e) { /* none */ }
+    try { const p = JSON.parse(localStorage.getItem(`${plan === "business" ? "biz:" : ""}${PREFS_KEY}`)) || {}; if (p.look && /^[a-z]{2,24}$/.test(p.look)) return p.look; } catch (e) { /* none */ }
     return plan === "business" ? "business" : "classic";
   }
   function syncAppIcon() {
