@@ -339,15 +339,35 @@
       afterSignIn({ access_token: s.access_token, refresh_token: s.refresh_token, expires_in: Math.max(60, Math.round((s.expiresAt - Date.now()) / 1000)), user: u }, u.email);
     } catch (err) { btn.disabled = false; $("rs-error").textContent = friendlyAuthError(err); }
   });
-  // The email link lands here with #access_token=...&type=recovery
+  // The email link lands here with #access_token=...&type=recovery. When it opened in the phone's
+  // browser instead of the Ervo app, the page offers to hand the sign-in to the app (#recover=<token>).
   function takeRecoveryHash() {
     const h = new URLSearchParams(location.hash.replace(/^#/, ""));
-    if (h.get("type") !== "recovery" || !h.get("access_token")) return false;
-    save(SESSION_KEY, { access_token: h.get("access_token"), refresh_token: h.get("refresh_token") || "", expiresAt: Date.now() + (Number(h.get("expires_in")) || 3600) * 1000 });
+    const handoff = h.get("recover");
+    if (!handoff && (h.get("type") !== "recovery" || !h.get("access_token"))) return false;
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* fine */ }
     show("welcome");
     step("reset");
+    $("rs-error").textContent = "";
+    $("rs-open-app").hidden = true;
+    if (handoff) {
+      // The app got a refresh token from the website's button: trade it for a sign-in
+      $("rs-email").textContent = "your account";
+      auth("token?grant_type=refresh_token", { refresh_token: handoff }).then((j) => {
+        save(SESSION_KEY, { access_token: j.access_token, refresh_token: j.refresh_token, expiresAt: Date.now() + (j.expires_in || 3600) * 1000 });
+        $("rs-email").textContent = (j.user && j.user.email) || "your account";
+      }).catch(() => { $("rs-error").textContent = "That link was already used or has expired. Tap Forgot password to get a new one."; });
+      return true;
+    }
+    save(SESSION_KEY, { access_token: h.get("access_token"), refresh_token: h.get("refresh_token") || "", expiresAt: Date.now() + (Number(h.get("expires_in")) || 3600) * 1000 });
     auth("user", null, "GET", h.get("access_token")).then((u) => { $("rs-email").textContent = u.email || ""; }).catch(() => {});
+    // In Android's browser (not inside Ervo): one tap opens the installed app on this same page
+    if (!native && /Android/i.test(navigator.userAgent) && h.get("refresh_token")) {
+      $("rs-open-app").hidden = false;
+      $("rs-open-app").onclick = () => {
+        location.href = `intent://ervo.company/app/?recover=${encodeURIComponent(h.get("refresh_token"))}#Intent;scheme=https;package=app.ervo;S.browser_fallback_url=${encodeURIComponent("https://ervo.company/app/")};end`;
+      };
+    }
     return true;
   }
   window.ervoHash = () => { takeRecoveryHash(); };

@@ -882,11 +882,14 @@ open class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** The part after # of an https://ervo.company/app link, or null when the intent isn't one. */
+    /** The part after # of an https://ervo.company/app link, or null when the intent isn't one.
+     *  The website's "Open in the Ervo app" button sends ?recover=<token> instead (an intent: link can't carry a #), so that becomes the fragment. */
     private fun linkFragment(intent: Intent?): String? {
         val d = intent?.data ?: return null
         if (intent.action != Intent.ACTION_VIEW || d.host != "ervo.company") return null
-        return d.fragment?.takeIf { it.isNotBlank() }
+        d.fragment?.takeIf { it.isNotBlank() }?.let { return it }
+        val recover = try { d.getQueryParameter("recover") } catch (e: Exception) { null }
+        return recover?.takeIf { it.isNotBlank() }?.let { "recover=" + Uri.encode(it) }
     }
 
     /** Opened from the "Ervo X is ready" notification: go straight to the update. */
