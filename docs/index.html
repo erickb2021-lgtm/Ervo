@@ -11,10 +11,11 @@
   <link rel="apple-touch-icon" href="assets/ervo-app-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css?v=51">
   <link rel="stylesheet" href="css/how.css?v=10">
-  <link rel="stylesheet" href="css/contact.css?v=1">
+  <link rel="stylesheet" href="css/contact.css?v=2">
+  <link rel="stylesheet" href="css/design.css?v=9">
 </head>
 <body>
 
@@ -47,12 +48,12 @@
 </header>
 
 <main>
-  <section class="hero wrap" id="top">
-    <img class="hero-mark" src="assets/ervo-symbol.svg" alt="Ervo logo" data-dark="assets/ervo-symbol-white.svg">
+  <section class="hero wrap show" id="hp-top">
     <h1 class="hero-title">
-      <span class="line">Ervo <button class="mark-chip" id="avatar" type="button" aria-label="Pick Ervo's look" aria-haspopup="dialog" aria-expanded="false" aria-controls="look-picker"><img src="assets/ervo-classic.png" alt="Classic Ervo"></button>, your AI</span>
+      <span class="line">Ervo <button class="mark-chip" id="avatar" type="button" aria-label="Pick Ervo's look" aria-haspopup="dialog" aria-expanded="false" aria-controls="look-picker"><img src="assets/ervo-classic.png" alt="Classic Ervo"></button>, your&nbsp;AI</span>
       <span class="line"><span class="rot" id="rot"><span class="rot-item">assistant 💬</span></span></span>
     </h1>
+    <p class="sub">One helper for everyday life, a second one for your business. It plans, shops, returns and supports, and asks before anything that matters.</p>
 
     <!-- Tap Ervo in the headline: pick any of Ervo's 23 looks (the same looks as in the app) -->
     <div class="look-picker" id="look-picker" role="dialog" aria-label="Pick Ervo's look" hidden>
@@ -60,6 +61,36 @@
       <div class="look-grid" id="look-grid"></div>
     </div>
 
+    <!-- The stage: Ervo at work on a phone, lit from below. An example conversation with a fictional person. -->
+    <div class="hp-spot" aria-hidden="true">
+      <span class="hp-orb o1"><img src="assets/ervo-explorer.png" alt=""></span>
+      <span class="hp-orb o2"><img src="assets/ervo-chef.png" alt=""></span>
+      <span class="hp-orb o3"><img src="assets/ervo-business.png" alt=""></span>
+      <span class="hp-orb o4"><img src="assets/ervo-scholar.png" alt=""></span>
+      <div class="hp-tilt" id="ph-tilt">
+        <div class="hp">
+          <div class="hp-scr">
+            <span class="hp-isl"></span>
+            <div class="hp-st"><span>9:41</span><span class="hp-sig"><i></i><i></i><i></i><b></b></span></div>
+            <div class="hp-top"><img src="assets/ervo-classic.png" alt=""><div><b>Ervo</b><small>Online · here to help</small></div><span class="hp-pill">Personal</span></div>
+            <div class="hp-msgs">
+              <div class="hp-m" style="--i:0">Morning, Morgan ☀️ Two things: your dentist moved to <b>Friday 4:00</b>, and the car is due for an oil change this month. Want me to find a slot this weekend?</div>
+              <div class="hp-m me" style="--i:1">Yes, Saturday morning please.</div>
+              <div class="hp-card" style="--i:2"><b>🔧 Saturday, near you</b>
+                <div class="hp-row"><i>1</i><span>Quick Lube, 9:00<em>$49 · 0.8 mi</em></span></div>
+                <div class="hp-row"><i>2</i><span>Main St Auto, 10:30<em>$55 · 1.2 mi</em></span></div>
+                <div class="hp-row"><i>3</i><span>Dealer, 11:15<em>$79 · 3 mi</em></span></div>
+                <div class="hp-acts"><span>Book 9:00</span><span class="g">Other times</span></div>
+              </div>
+              <div class="hp-typing" style="--i:3" aria-hidden="true"><i></i><i></i><i></i></div>
+              <div class="hp-m late" style="--i:4">Holding 9:00 for you. I'll confirm before anything is paid 👍</div>
+            </div>
+            <div class="hp-comp">Ask Ervo anything…<i>↑</i></div>
+          </div>
+        </div>
+      </div>
+      <span class="hp-floor"></span>
+    </div>
     <!-- Sign up: looks like the app's own sign-in screen -->
     <div class="auth app-look" id="auth">
       <form class="auth-step active" data-step="contact" novalidate>
@@ -113,6 +144,7 @@
       </div>
     </div>
 
+    <p class="stage-note">Example chat with a fictional person. Nothing on this page is sent anywhere.</p>
     <a class="btn btn-ghost learn-more" href="#how">
       Learn more
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
@@ -334,9 +366,8 @@
 
       <div class="plans">
         <article class="plan-card reveal">
-          <span class="plan-tag">Personal use only</span>
           <h3><img src="assets/ervo-symbol.svg" alt="">Ervo Personal</h3>
-          <p class="plan-for">Your own AI for everyday life.</p>
+          <p class="plan-for">Your own AI for everyday life. Personal use only.</p>
           <ul class="does">
             <li>Finds products and handles your returns, and asks before you buy</li>
             <li>Adds, moves and renames calendar events, with Undo</li>
@@ -351,9 +382,8 @@
         </article>
 
         <article class="plan-card biz reveal">
-          <span class="plan-tag">Business use only</span>
           <h3><img src="assets/ervo-symbol-white.svg" alt="">Ervo for Business</h3>
-          <p class="plan-for">An AI support agent for your customers.</p>
+          <p class="plan-for">An AI support agent for your customers. Business use only.</p>
           <ul class="does">
             <li>Answers customers and grants refunds within your policy</li>
             <li>Your team joins with employee IDs; trusted people become co-owners</li>
@@ -416,7 +446,7 @@
             <button class="try" type="button" data-card="lights" aria-pressed="false" data-q="Find bright lights for a soccer field" data-doing="comparing options" data-a="Here are 3 bright picks, from $89. Is there power at the field, or do you want battery lights?"><span aria-hidden="true">🛍️</span>Find lights for a soccer field</button>
             <button class="try" type="button" data-card="call" aria-pressed="false" data-q="Call Mom" data-doing="finding Mom in your contacts" data-a="Calling Mom in 3 seconds… Tap Cancel if you changed your mind."><span aria-hidden="true">📞</span>Call Mom</button>
             <button class="try" type="button" data-card="meet" aria-pressed="false" data-q="Set up a Google Meet with Zephyr on Friday at 3 PM" data-doing="planning your meeting" data-a="Your Meet for Friday at 3:00 PM is ready with a link. Tap Save in Google Calendar to send it to Zephyr."><span aria-hidden="true">🎥</span>Google Meet with Zephyr on Friday</button>
-            <button class="try" type="button" data-card="birthday" aria-pressed="false" data-q="Help me plan Mom's birthday" data-doing="looking at your week" data-a="Her birthday is in 9 days. Want a gift under $50 and dinner for Saturday at 7?"><span aria-hidden="true">🎂</span>Plan Mom's birthday</button>
+            <button class="try" type="button" data-card="birthday" aria-pressed="false" data-q="Plan Jordan's birthday dinner" data-doing="looking at your week" data-a="Jordan's birthday is in 9 days. Want a gift under $50 and dinner for Saturday at 7?"><span aria-hidden="true">🎂</span>Plan Jordan's birthday dinner</button>
           </div>
           <div class="cmp-chat" aria-live="polite">
             <div class="cmp-me">Wake me up in 30 minutes, I'm taking a nap</div>
@@ -467,36 +497,6 @@
     </div>
   </section>
 
-  <section class="block alt" id="learn">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <h2>Built for your life and your business</h2>
-        <p>Give Ervo a goal and it handles the steps in between.</p>
-      </div>
-      <div class="statement reveal">
-        Ervo <span class="inline-chip"><img src="assets/ervo-classic.png" alt=""></span> is your
-        <span class="badge-icon">📅</span> everyday <span class="badge-icon">💼</span> AI helper.
-      </div>
-      <div class="features">
-        <div class="feature reveal">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
-          <h3>Plans</h3>
-          <p>Fits tasks, trips and plans into your calendar.</p>
-        </div>
-        <div class="feature reveal">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg></div>
-          <h3>Shops</h3>
-          <p>Finds what you need and asks before it buys.</p>
-        </div>
-        <div class="feature reveal">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9 12l2 2 4-4"/></svg></div>
-          <h3>Supports</h3>
-          <p>Answers your customers and resolves their tickets.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- Chat with Ervo on a phone: an example chat -->
   <section class="block">
     <div class="wrap split">
@@ -538,6 +538,7 @@
           <div class="mk-composer"><span>Ask Ervo anything…</span><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></i></div>
           <span class="home-bar"></span>
         </div>
+        <p class="stage-note">Example chat with a fictional person.</p>
       </div>
     </div>
   </section>
@@ -553,15 +554,15 @@
         <div class="ideas-card goals">
           <h3>Your goals</h3>
           <label><input type="checkbox" checked> Clean up my inbox</label>
-          <label><input type="checkbox"> Plan Mom's birthday</label>
+          <label><input type="checkbox"> Renew my passport</label>
           <label><input type="checkbox"> Save $300 this month</label>
           <label><input type="checkbox"> Read 2 books</label>
         </div>
         <div class="ideas-card tips">
           <h3>Ideas from Ervo</h3>
-          <div class="idea"><span>🎂</span><div><b>Mom's birthday is in 9 days</b><small>Want me to find a gift under $50 and book dinner for Saturday?</small></div></div>
+          <div class="idea"><span>🛂</span><div><b>Your passport expires in 5 months</b><small>Renewals take about 8 weeks. Want me to book a photo appointment this week?</small></div></div>
           <div class="idea"><span>🗓️</span><div><b>Thursday is packed</b><small>You have 4 meetings back to back. Should I block 30 minutes for lunch?</small></div></div>
-          <div class="idea"><span>💸</span><div><b>Your $89.99 refund arrived</b><small>Want me to add it to your savings goal tracker?</small></div></div>
+          <div class="idea"><span>💡</span><div><b>Electric bill is up 18%</b><small>Mostly evenings this month. Want a quick breakdown, or a reminder to switch the heater schedule?</small></div></div>
         </div>
       </div>
     </div>
@@ -591,11 +592,7 @@
   </section>
 
   <section class="block alt">
-    <div class="wrap split">
-      <div class="reveal">
-        <h2>Connects to the apps you already use</h2>
-        <p>Email, calendar, shopping, health and more. Ervo only sees what you allow.</p>
-      </div>
+    <div class="wrap split apps-split">
       <div class="apps reveal" role="img" aria-label="Ervo connects to apps like email, messages, shopping, calendar, health, documents, travel, video calls and notes.">
         <span class="app blur" style="--c1:#8fb3ff;--c2:#5b7bea"></span>
         <span class="app blur" style="--c1:#ffd36e;--c2:#ff9f43"></span>
@@ -627,26 +624,20 @@
         <span class="app blur" style="--c1:#bbf7d0;--c2:#4ade80"></span>
         <span class="app blur" style="--c1:#ffffff;--c2:#e5e7eb"></span>
       </div>
+      <div class="reveal">
+        <h2>Connects to the apps you already use</h2>
+        <p>Email, calendar, shopping, health and more. Ervo only sees what you allow.</p>
+      </div>
     </div>
   </section>
 
-  <section class="block">
+  <section class="block closing">
     <div class="wrap">
-      <div class="section-head reveal"><h2>One Ervo, many jobs</h2></div>
-      <div class="usecases">
-        <div class="usecase reveal">
-          <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
-          <div><h3>Ervo for families</h3><p>School emails, groceries and the weekly schedule, handled.</p></div>
-        </div>
-        <div class="usecase reveal">
-          <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
-          <div><h3>Ervo for your health</h3><p>Workout plans and gentle nudges that fit your week.</p></div>
-        </div>
-        <div class="usecase reveal">
-          <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
-          <div><h3>Ervo for business</h3><p>Answers customers and keeps work moving while you're busy.</p></div>
-        </div>
+      <div class="statement reveal closing-line">
+        Ervo <span class="inline-chip"><img src="assets/ervo-classic.png" alt=""></span> is your
+        <span class="badge-icon">📅</span> everyday <span class="badge-icon">💼</span> AI helper.
       </div>
+      <p class="closing-sub reveal">It plans your week, shops and returns for you, and answers your customers, and it asks before anything that matters.</p>
     </div>
   </section>
 
@@ -671,9 +662,9 @@
 
 <script src="app/config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-<script src="js/app.js?v=12"></script>
+<script src="js/app.js?v=16"></script>
 <script src="js/how.js?v=10"></script>
-<script src="js/theme.js?v=2"></script>
+<script src="js/theme.js?v=4"></script>
 <script src="js/contact.js?v=1"></script>
 </body>
 </html>

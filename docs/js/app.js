@@ -198,32 +198,28 @@
   window.ervoSetOwl = (src) => { $("done-owl").src = src; };
 })();
 
-// Hero: "your AI ___" cycles through Ervo's jobs, personal and business
+// Hero: "your AI ___" cycles through Ervo's jobs, personal and business.
+// The next word rises in while the old one leaves, so the slot is never empty; the width eases between them.
 (function () {
   const rot = document.getElementById("rot");
   if (!rot) return;
   const words = ["assistant 💬", "planner 📅", "business partner 🤝", "shopper 🛍️", "customer support 🎧", "chef 🍳", "travel buddy ✈️",
     "fitness coach 🏋️", "study buddy 📚", "money saver 💰", "party planner 🎉", "team manager 👥"];
-  const item = rot.querySelector(".rot-item");
-  let i = 0;
-
-  const fit = () => { rot.style.width = item.offsetWidth + "px"; };
-  fit();
-  window.addEventListener("resize", fit);
-  if (document.fonts) document.fonts.ready.then(fit);
+  let item = rot.querySelector(".rot-item");
+  let i = 0, busy = false;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
   setInterval(() => {
-    item.classList.add("leave");
-    setTimeout(() => {
-      i = (i + 1) % words.length;
-      item.textContent = words[i];
-      item.classList.remove("leave");
-      item.classList.add("enter");
-      fit();
-      void item.offsetWidth;
-      item.classList.remove("enter");
-    }, 520);
+    if (busy || document.hidden) return;
+    busy = true;
+    const next = document.createElement("span");
+    next.className = "rot-item enter";
+    next.textContent = words[(i + 1) % words.length];
+    rot.style.width = item.offsetWidth + "px";   // hold the current width
+    item.classList.add("leave");                  // the old word floats above the slot as it leaves
+    rot.appendChild(next);
+    const w = next.offsetWidth;
+    requestAnimationFrame(() => requestAnimationFrame(() => { rot.style.width = w + "px"; next.classList.remove("enter"); }));
+    setTimeout(() => { item.remove(); item = next; i = (i + 1) % words.length; rot.style.width = ""; busy = false; }, 650);
   }, 3600);
 })();
 
@@ -316,7 +312,7 @@ const CMP_CARDS = {
       ["Bouquet", "#fce7f3", "#f9a8d4", "Flower delivery", "$38"],
       ["Candle", "#fef3c7", "#fbbf24", "Candle set", "$32"],
     ].map(([n, a, b, t, p]) => `<button type="button" class="mc-gift" aria-pressed="false"><span class="mc-photo" style="--g1:${a};--g2:${b}">${CMP_PIC(n, t)}</span><b>${t}</b><span>${p}</span></button>`).join("")}</div>
-    <div class="mc mc-event slim"><span class="mc-bar pink"></span><div class="mc-main"><b>Mom's birthday dinner</b><span>Saturday · 7:00 PM · 4 people</span></div></div>`,
+    <div class="mc mc-event slim"><span class="mc-bar pink"></span><div class="mc-main"><b>Jordan's birthday dinner</b><span>Saturday · 7:00 PM · 4 people</span></div></div>`,
   refund: () => `<div class="mc mc-receipt"><div class="mc-row head"><b>Order #4821</b><span class="mc-pill ok">Refund sent</span></div>
     <div class="mc-row"><span>Charge · Nov 2</span><b>$49.00</b></div>
     <div class="mc-row struck"><span>Duplicate charge · Nov 2</span><b>$49.00</b></div>
@@ -478,3 +474,25 @@ fetch("app/version.json", { cache: "no-store" }).then((r) => r.json()).then((v) 
   if (!v || !v.version) return;
   document.querySelectorAll(".dl-note").forEach((n) => { n.textContent = `Free preview, version ${v.version}. Not on the App Store or Google Play yet.`; });
 }).catch(() => {});
+
+// Hero phone: leans a few degrees toward the pointer, eased each frame so it feels weighted, not stuck to the cursor.
+// Only for a fine pointer; touch devices and reduced-motion users see it still.
+(function () {
+  const tilt = document.getElementById("ph-tilt");
+  const spot = tilt && tilt.closest(".spot");
+  if (!spot || !matchMedia("(hover: hover) and (pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0;
+  function frame() {
+    cx += (tx - cx) * 0.12; cy += (ty - cy) * 0.12;
+    tilt.style.transform = `perspective(1200px) rotateX(${(4 + cy).toFixed(2)}deg) rotateY(${(-9 + cx).toFixed(2)}deg) translateZ(0)`;
+    raf = (Math.abs(tx - cx) > 0.01 || Math.abs(ty - cy) > 0.01) ? requestAnimationFrame(frame) : 0;
+  }
+  const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
+  spot.addEventListener("pointermove", (e) => {
+    const r = spot.getBoundingClientRect();
+    tx = ((e.clientX - r.left) / r.width - 0.5) * 10;
+    ty = ((e.clientY - r.top) / r.height - 0.5) * -6;
+    kick();
+  });
+  spot.addEventListener("pointerleave", () => { tx = 0; ty = 0; kick(); });
+})();

@@ -80,6 +80,9 @@
 
 @media (max-width: 520px) {
   .ct { right: 12px; bottom: 12px; }
+  .ct-fab { padding: 0 6px; gap: 0; }
+  .ct-fab span { display: none; }
+  .ct-fab img { width: 40px; height: 40px; }
   .ct-panel { width: calc(100vw - 24px); bottom: 62px; max-height: calc(100vh - 90px); padding: 16px 14px 14px; }
   .ct-topics, .ct-row { grid-template-columns: 1fr; }
 }

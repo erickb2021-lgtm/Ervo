@@ -23,7 +23,12 @@
   // Privacy and Terms are always dark
   if (root.dataset.forceTheme) { apply(root.dataset.forceTheme); return; }
 
-  apply(stored() || (system.matches ? "dark" : "light"));
+  // ?theme=light|dark forces a mode for this load (used for screenshots and testing); nothing is saved
+  const q = new URLSearchParams(location.search);
+  const forced = q.get("theme");
+  // ?shot=<viewport height> fixes the hero's height for full-page screenshots, where the window is as tall as the page
+  if (/^\d{3,4}$/.test(q.get("shot") || "")) { root.dataset.shot = ""; root.style.setProperty("--shot-vh", q.get("shot") + "px"); }
+  apply((forced === "light" || forced === "dark") ? forced : (stored() || (system.matches ? "dark" : "light")));
 
   system.addEventListener("change", (e) => {
     if (!stored()) apply(e.matches ? "dark" : "light");
