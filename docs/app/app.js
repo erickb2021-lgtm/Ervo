@@ -4743,7 +4743,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.2"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.3"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -5254,6 +5254,8 @@
   // Warm the settings icons once the app is idle, so the first open doesn't wait on 16 downloads
   (window.requestIdleCallback || ((fn) => setTimeout(fn, 1500)))(() => {
     document.querySelectorAll("#settings-list .app-ico img").forEach((img) => { if (!img.complete) { const i = new Image(); i.decoding = "async"; i.src = img.src; } });
+    // ...and the milestone badges, so Ervo Stats opens without a dozen downloads
+    MILESTONES.forEach((m) => { const html = e3d(m.e); const src = (html.match(/src="([^"]+)"/) || [])[1]; if (src) { const i = new Image(); i.decoding = "async"; i.src = src; } });
   });
   function toggleMenu(open) { if (open) openSettings(); } // closing is Back
   $("menu-btn").addEventListener("click", openSettings);

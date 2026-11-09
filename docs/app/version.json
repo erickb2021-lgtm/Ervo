@@ -1,6 +1,7 @@
 {
-  "version": "0.5.2",
+  "version": "0.5.3",
   "notes": [
+    "Ervo Stats: the Back button works again and the page moves smoothly; the sky animates on the graphics chip instead of repainting the screen",
     "Switching between Personal and Business is one smooth transition, with no flash in between",
     "Switching between Personal and Business shows the look you picked for that Ervo, with no flash of the default owl",
     "Orders, returns and refunds as cards: a progress bar from Ordered to Delivered (or Requested to Refunded), the arrival date, the tracking number, and buttons to open the store's own orders page or the carrier. Tell Ervo about an order, paste a tracking number or send a photo of the order email",
@@ -11,12 +12,11 @@
     "The status pill only ever says simple things like Researching, Planning or Writing a draft, never your own words",
     "Signed up on ervo.company? The QR code opens Ervo with your email filled in and sends your code right away; if your browser already has the sign-in, you go straight to your chat",
     "Pick which Ervo is your home-screen icon, Personal or Business, with a switch in Ervo's Look. The icon changes quietly once you leave the app, no more getting kicked out",
-    "Ervo's Look scrolls without closing; a quick \"Switching to Business\" curtain when you change Ervos",
-    "Work settings show only for Business; the owner can create co-owner IDs; IDs are longer and never reused"
+    "Ervo's Look scrolls without closing; a quick \"Switching to Business\" curtain when you change Ervos"
   ],
   "highlights": [
+    "Ervo Stats opens faster and its Back button works again",
     "Switching Personal and Business is one smooth transition",
-    "Track orders, returns and refunds as cards with a progress bar",
-    "Ask \"what do I have today\" for your day and a calendar pop-up"
+    "Track orders, returns and refunds as cards with a progress bar"
   ]
 }
