@@ -230,18 +230,19 @@
   const grid = document.getElementById("look-grid");
   if (!btn || !box) return;
   const img = btn.querySelector("img");
+  // In the order of the character sheets: the everyday five, the ten adventures, then the rest.
   const LOOKS = [
-    ["classic", "Classic"], ["business", "Business"], ["king", "Royal"], ["detective", "Detective"], ["explorer", "Explorer"],
-    ["scientist", "Scientist"], ["wizard", "Wizard"], ["ninja", "Ninja"], ["samurai", "Samurai"], ["pirate", "Pirate"],
-    ["pilot", "Pilot"], ["athlete", "Athlete"], ["soccer", "Soccer"], ["musician", "Musician"], ["chef", "Chef"],
-    ["creative", "Artist"], ["gamer", "Gamer"], ["space", "Space"], ["scholar", "Scholar"], ["tech", "Tech"],
-    ["builder", "Builder"], ["winter", "Winter"], ["holiday", "Holiday"],
+    ["classic", "Classic"], ["scholar", "Scholar"], ["gamer", "Gamer"], ["business", "Business"], ["space", "Space"],
+    ["detective", "Detective"], ["explorer", "Explorer"], ["samurai", "Samurai"], ["chef", "Chef"], ["soccer", "Athlete"],
+    ["musician", "Musician"], ["wizard", "Wizard"], ["pilot", "Pilot"], ["ninja", "Ninja"], ["holiday", "Holiday"],
+    ["athlete", "Basketball"], ["king", "Royal"], ["pirate", "Pirate"], ["scientist", "Scientist"], ["creative", "Artist"],
+    ["tech", "Tech"], ["builder", "Builder"], ["winter", "Winter"],
   ];
   const KEY = "ervo-site-look";
   let current = "classic";
   try { current = localStorage.getItem(KEY) || "classic"; } catch (e) { /* fine */ }
   if (!LOOKS.some((l) => l[0] === current)) current = "classic";
-  const src = (id) => `assets/sm/ervo-${id}.webp?v=2`; // small copies; the full-size art stays in assets/
+  const src = (id) => `assets/sm/ervo-${id}.webp?v=3`; // small copies; the full-size art stays in assets/
 
   LOOKS.forEach(([id, name]) => {
     const b = document.createElement("button");
