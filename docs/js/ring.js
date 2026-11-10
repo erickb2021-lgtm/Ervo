@@ -1,19 +1,20 @@
-// The closing ring: a Spline scene (assets/ervo-ring.splinecode) behind the page's last line.
-// A still picture of it is there first. The live scene loads only on computers with a real graphics card,
-// only when the visitor gets near the end of the page, and it stops drawing whenever it is off screen.
-// Starting a 3D scene costs a few slow frames, so it waits for a pause in scrolling to do that.
-// "Reduce motion", "save data", phones and software renderers all keep the still picture.
+// The closing dive: a Spline scene (assets/ervo-ring.splinecode) fills the screen behind the page's last line.
+// The section holds still while the page scrolls (css/depth.css, 5h2), and that scrolling drives the scene's own
+// animation: its camera goes down into the spiral of discs. The scene is shown as it was made; nothing in it is
+// moved or recoloured, except that its ground takes the page's ground colour so it has no edge.
+// A still picture of its first frame is there first. "Reduce motion", "save data", small-memory phones and
+// devices without a graphics card keep that picture, and for them the section is one ordinary screen.
 (() => {
   const stage = document.getElementById("ring-stage");
   if (!stage) return;
+  const section = stage.closest("section");
   const canvas = stage.querySelector("canvas");
   const root = document.documentElement;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
-  const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
   const saveData = !!(navigator.connection && navigator.connection.saveData);
-  const RUNTIME = "https://cdn.jsdelivr.net/npm/@splinetool/runtime@2.0.122/build/runtime.js";
-  const SCENE = "assets/ervo-ring.splinecode?v=1";
-  const END = 0.33;   // how far into the scene's scroll animation the ring gets by the time it leaves the screen
+  const smallMemory = !!navigator.deviceMemory && navigator.deviceMemory < 4;
+  const RUNTIME = "https://cdn.jsdelivr.net/npm/@splinetool/runtime@2.0.159/build/runtime.js";
+  const SCENE = "assets/ervo-ring.splinecode?v=2";
   let app = null, loading = false, failed = false, visible = false;
 
   // A software renderer would draw the scene on the processor and slow the page, so it keeps the picture.
@@ -28,42 +29,36 @@
       return !/swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
     } catch (e) { return false; }
   }
+  if (saveData || smallMemory || !hardwareGL()) return;
 
-  // The scene fades its far side into its own background; both follow the page's light or dark ground.
+  // The class makes the section tall and holds its screen still. It is set now, before the page is first laid
+  // out this far down, so nothing jumps later.
+  const dive = (on) => root.classList.toggle("ring-dive", on);
+  dive(!reduce.matches);
+
+  // The scene's ground follows the page. Dark mode shows the scene with its tones turned over (CSS), so there
+  // its ground is white, which turns over to the page's black.
   function paint() {
     if (!app) return;
-    const dark = root.dataset.theme === "dark";
-    const bg = dark ? "0,0,0" : "247,245,242";
-    try {
-      app.setBackgroundColor(dark ? "#000000" : "#f7f5f2");
-      const ring = app.findObjectByName("Abstract");
-      const layers = ring && ring.material && ring.material.layers;
-      const fade = layers && layers.find((l, i) => i > 0 && l.type === "depth" && l.mode === 2);
-      if (fade && fade.colors) { fade.colors[0] = `rgba(${bg},0)`; fade.colors[1] = `rgba(${bg},1)`; }
-      app.requestRender();
-    } catch (e) { /* the scene keeps its own colours */ }
+    try { app.setBackgroundColor(root.dataset.theme === "dark" ? "#ffffff" : "#f7f5f2"); app.requestRender(); } catch (e) { /* keeps its own colour */ }
   }
 
-  // The scene's own scroll animation (the camera moving in on the ring) was made for the top of a page.
-  // Here it starts when the ring comes into view and reaches END as it leaves the top of the screen.
+  // The scene's scroll animation was set to start 600px down a page and last 1800px.
+  // Here it starts where the section takes hold of the screen and ends where it lets go.
   function anchor() {
     if (!app) return;
     try {
-      const room = innerHeight + stage.offsetHeight;
-      const scroll = app._eventManager.handlers.Scroll;
-      for (const list of scroll.scrollEventsPerObject.values()) for (const ev of list) {
-        Object.assign(ev.data, { startFrom: "enter", enterAnchor: "top", startOffset: 0, endAfter: room / END });
+      const top = Math.round(section.getBoundingClientRect().top + scrollY);
+      const length = Math.max(1, section.offsetHeight - innerHeight);
+      for (const list of app._eventManager.handlers.Scroll.scrollEventsPerObject.values()) for (const ev of list) {
+        if (ev.data.startFrom === "page" && ev.data.startOffset === top && ev.data.endAfter === length) continue;
+        Object.assign(ev.data, { startFrom: "page", startOffset: top, endAfter: length });
         ev.handleResize();
       }
     } catch (e) { /* the scene keeps its own timing */ }
   }
 
-  // The scene frames its ring high and to the left; this puts it in the middle of the stage.
-  function centre() {
-    try { const ring = app.findObjectByName("Abstract"); ring.position.x = 0; ring.position.y = -120; } catch (e) { /* stays where it is */ }
-  }
-
-  // Resolves once the page has been still for a moment.
+  // Resolves once the page has been still for a moment: starting a 3D scene costs a few slow frames.
   let moved = 0;
   addEventListener("scroll", () => { moved = performance.now(); }, { passive: true });
   const settled = () => new Promise((done) => { const check = () => (performance.now() - moved > 350 ? done() : setTimeout(check, 120)); check(); });
@@ -74,35 +69,43 @@
   }
 
   async function load() {
-    if (app || loading || failed || reduce.matches || saveData || !fine) return;
-    if (!hardwareGL()) { failed = true; return; }
+    if (app || loading || failed || reduce.matches) return;
     loading = true;
     try {
       const { Application } = await import(RUNTIME);
       await settled();
-      app = new Application(canvas, { renderMode: "auto" });
+      app = new Application(canvas);
       await app.load(SCENE);
-      centre();
-      anchor();
       paint();
+      anchor();
       run();
+      dispatchEvent(new Event("scroll"));
       // Two frames so the first picture is on the canvas before the still fades out.
       requestAnimationFrame(() => requestAnimationFrame(() => stage.classList.add("is-live")));
     } catch (e) {
       failed = true;
       stage.classList.remove("is-live");
+      dive(false);
       try { if (app) app.dispose(); } catch (err) { /* fine */ }
       app = null;
     }
     loading = false;
   }
 
-  // Starts loading a couple of screens before the section arrives; draws only while it is on screen.
-  new IntersectionObserver((entries) => { if (entries[0].isIntersecting) load(); }, { rootMargin: "1600px 0px" }).observe(stage);
-  new IntersectionObserver((entries) => { visible = entries[0].isIntersecting; run(); }).observe(stage);
+  // Starts loading a few screens before the section arrives; draws only while it is on screen.
+  new IntersectionObserver((entries) => { if (entries[0].isIntersecting) load(); }, { rootMargin: "3000px 0px" }).observe(section);
+  new IntersectionObserver((entries) => { visible = entries[0].isIntersecting; run(); }).observe(section);
   document.addEventListener("visibilitychange", run);
+  // The section's place on the page changes when the window does, or when anything above it changes height.
   let sized = 0;
-  addEventListener("resize", () => { cancelAnimationFrame(sized); sized = requestAnimationFrame(anchor); });
-  reduce.addEventListener("change", () => { stage.classList.toggle("is-live", !!app && !reduce.matches); run(); if (!reduce.matches && visible) load(); });
+  const resized = () => { cancelAnimationFrame(sized); sized = requestAnimationFrame(anchor); };
+  addEventListener("resize", resized);
+  if ("ResizeObserver" in window) new ResizeObserver(resized).observe(document.body);
+  reduce.addEventListener("change", () => {
+    dive(!reduce.matches && !failed);
+    stage.classList.toggle("is-live", !!app && !reduce.matches);
+    run();
+    if (!reduce.matches) { resized(); if (!app) load(); }
+  });
   new MutationObserver(paint).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
 })();

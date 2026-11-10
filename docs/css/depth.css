@@ -260,29 +260,35 @@ html.motion .statement .badge-icon { animation-delay: -1.7s; }
 html.motion .statement .badge-icon ~ .badge-icon { animation-delay: -3.4s; }
 @keyframes chip-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
 
-/* 5h2. The closing ring: the Spline scene (js/ring.js) turns slowly behind the page's last line. A still picture
-   of it shows first and stays for phones, "reduce motion" and computers without a graphics card. */
-section.closing { overflow: clip; padding: 200px 0 180px; }
-.ring-stage { position: absolute; z-index: -1; left: 50%; top: 50%; width: min(1240px, 100vw); height: 720px; transform: translate(-50%, -50%); pointer-events: none; isolation: isolate; background: var(--bg);
-  -webkit-mask-image: radial-gradient(closest-side, #000 55%, transparent 100%); mask-image: radial-gradient(closest-side, #000 55%, transparent 100%); }
+/* 5h2. The closing dive: the Spline scene (js/ring.js) fills the screen behind the page's last line. With
+   html.ring-dive the section is tall and its one screen holds still, and the scrolling drives the scene's own
+   camera down into the spiral. A still picture of the scene's first frame shows until the scene is ready. Without
+   the class ("reduce motion", "save data", no graphics card) the section is one ordinary screen with that picture. */
+section.closing { display: block; min-height: 0; padding: 0; overflow: clip; }
+.ring-pin { position: relative; box-sizing: border-box; min-height: min(100svh, 760px); padding: 96px 0; display: flex; flex-direction: column; justify-content: center; }
+html.ring-dive section.closing { height: calc(100svh + var(--dive, 1700px)); }
+html.ring-dive .ring-pin { position: sticky; top: 0; height: 100svh; min-height: 0; }
+.ring-stage { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--bg);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 80px, #000 calc(100% - 140px), transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 80px, #000 calc(100% - 140px), transparent 100%); }
 .ring-stage > img, .ring-stage > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.ring-still { object-fit: cover; transition: opacity 0.7s ease; }
-.ring-canvas { opacity: 0; transition: opacity 0.7s ease; }
+.ring-still { object-fit: cover; transition: opacity 0.6s ease; }
+.ring-canvas { opacity: 0; transition: opacity 0.6s ease; }
 .ring-stage.is-live .ring-canvas { opacity: 1; }
 .ring-stage.is-live .ring-still { opacity: 0; }
 .ring-stage > .ring-light { display: none; }
 :root:not([data-theme="dark"]) .ring-stage > .ring-dark { display: none; }
 :root:not([data-theme="dark"]) .ring-stage > .ring-light { display: block; }
-/* Ervo's violet laid over the scene's own greys: one blend layer, no filters */
-.ring-stage::after { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: color-dodge; background: #803db8; }
-:root:not([data-theme="dark"]) .ring-stage { opacity: 0.62; }
-:root:not([data-theme="dark"]) .ring-stage::after { mix-blend-mode: screen; background: radial-gradient(60% 70% at 50% 45%, #3f1d8a 0%, #2e1065 100%); }
+/* Dark mode: the same scene with its tones turned over, so the discs are light and fall away into black */
+[data-theme="dark"] .ring-canvas { filter: invert(1) hue-rotate(180deg) brightness(0.7); }
+/* The words stay readable whatever part of the scene is behind them */
+[data-theme="dark"] .closing .statement.closing-line { background: rgba(10, 10, 14, 0.62); -webkit-backdrop-filter: blur(22px) saturate(140%); backdrop-filter: blur(22px) saturate(140%); }
+.closing .closing-sub { width: fit-content; padding: 12px 20px; border-radius: 18px; background: color-mix(in srgb, var(--bg) 74%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 /* 5i. Phones and tablets: lighter effects, nothing leans */
 @media (max-width: 860px) {
   #learn::after, .phone-stand::before, .ideas::before, .cmp::before, .perm-stand::before, .apps-stand::before { width: 440px; height: 440px; margin: -220px 0 0 -220px; left: 50%; }
   main::before { display: none; }
-  section.closing { padding: 130px 0 120px; }
-  .ring-stage { height: 520px; }
+  html.ring-dive section.closing { --dive: 1300px; }
+  .ring-pin { padding: 72px 0; }
   .feature .ico, :root[data-theme] .feature .ico { transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
