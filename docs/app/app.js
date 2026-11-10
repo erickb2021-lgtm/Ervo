@@ -46,7 +46,10 @@
       keys.forEach((k) => { localStorage.setItem(`biz:${companyId}:${k.slice(4)}`, localStorage.getItem(k)); localStorage.removeItem(k); });
     } catch (e) { /* fine */ }
   }
-  const nsKey = (k) => (NS && !SHARED_KEYS.has(k) ? NS + k : k);
+  const keyIn = (ns, k) => (ns && !SHARED_KEYS.has(k) ? ns + k : k);
+  const nsKey = (k) => keyIn(NS, k);
+  // Save into a named Ervo's space (Personal, or one company), for replies that land after a switch
+  const saveIn = (ns, k, v) => { try { localStorage.setItem(keyIn(ns, k), JSON.stringify(v)); } catch (e) { /* ignore */ } };
   const load = (k) => { try { return JSON.parse(localStorage.getItem(nsKey(k))); } catch (e) { return null; } };
   const save = (k, v) => { try { localStorage.setItem(nsKey(k), JSON.stringify(v)); } catch (e) { /* ignore */ } };
   const drop = (k) => { try { localStorage.removeItem(nsKey(k)); } catch (e) { /* ignore */ } };
@@ -2753,26 +2756,34 @@
     }
     return picked;
   }
-  // Ideas from Ervo's AI, fetched quietly once a day once Ervo knows a few things about you
-  let ideasFetching = null;
+  // Ideas from Ervo's AI, fetched quietly once a day once Ervo knows a few things about you.
+  // The fetch is pinned to the Ervo that asked (Personal, or one company): its plan, Psyche and
+  // team go out as they are right now, and the page comes back into that Ervo's own space, even
+  // if the person switches to the other Ervo while Claude is still writing. Before 0.5.13 a switch
+  // mid-fetch saved Personal ideas on the Business page and the other way round, and the other
+  // Ervo reused the fetch in flight instead of asking for its own.
+  let ideasFetching = null; // { ns, promise }: the Ervo that is waiting, and its fetch
   function fetchIdeas() {
-    if (!AI_URL) return Promise.resolve(null);
-    if (ideasFetching) return ideasFetching;
+    if (!AI_URL || !account) return Promise.resolve(null);
+    const ns = NS;
+    if (ideasFetching && ideasFetching.ns === ns) return ideasFetching.promise;
     const learned = psyche().learned || 0;
-    ideasFetching = askServer({ task: "ideas", messages: [] }).then((j) => {
+    const promise = askServer({ task: "ideas", messages: [], plan: account.plan, name: prefs().nickname || account.name, team: teamForAI(), psyche: psycheForServer() }).then((j) => {
       if (j && j.ideas && Array.isArray(j.ideas.groups) && j.ideas.groups.length) {
-        save(IDEAS_KEY, { v: IDEAS_V, day: new Date().toDateString(), learned, data: j.ideas });
-        return j.ideas;
+        saveIn(ns, IDEAS_KEY, { v: IDEAS_V, day: new Date().toDateString(), learned, data: j.ideas });
+        return NS === ns ? j.ideas : null; // the other Ervo's page is kept for it, never shown here
       }
       return null;
-    }).catch(() => null).finally(() => { ideasFetching = null; });
-    return ideasFetching;
+    }).catch(() => null);
+    promise.finally(() => { if (ideasFetching && ideasFetching.promise === promise) ideasFetching = null; });
+    ideasFetching = { ns, promise };
+    return promise;
   }
   function freshenSuggestions() {
     const cached = load(IDEAS_KEY);
     const p = psyche();
     if (OVERLAY || !AI_URL || p.facts.length < 3) return;
-    if (cached && cached.day === new Date().toDateString() && (p.learned || 0) - (cached.learned || 0) < 5) return;
+    if (cached && cached.v === IDEAS_V && cached.day === new Date().toDateString() && (p.learned || 0) - (cached.learned || 0) < 5) return;
     fetchIdeas().then((d) => {
       // Only swap the bar if it's still showing suggestions (not an answer's own options)
       if (d && $("chips").dataset.kind === "suggest") setChips(null);
@@ -5139,7 +5150,7 @@
 
   // ---------- Ideas: things Ervo can do for you, tied to who you are ----------
   const IDEAS_KEY = "ervo-ideas";
-  const IDEAS_V = 2; // 0.5.12: personal ideas stay personal and pictures stop repeating, so older pages are fetched again
+  const IDEAS_V = 3; // 0.5.13: a switch mid-fetch could put one Ervo's ideas on the other's page, so both pages are fetched again once
   const IDEA_ICONS = ["calendar", "map", "plane", "heart", "food", "shop", "home", "ball", "book", "tooth", "doctor", "money", "star", "camera", "music", "car", "sun", "people", "mail", "phone", "clock", "location", "done", "open", "chat", "stats", "box", "bulb", "target", "spark", "brain", "health", "lock", "wait"];
   const DEFAULT_IDEAS_BUSINESS = { groups: [
     { title: "For your business", ideas: [
@@ -5755,7 +5766,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.12"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.13"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);

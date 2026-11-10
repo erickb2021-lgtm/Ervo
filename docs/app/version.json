@@ -1,4 +1,4 @@
-{
+
   "version": "0.5.12",
   "notes": [
     "Personal Ideas stay personal: everyday plans, errands, meals, health, home, trips and people. Running a business belongs to Ervo for Business",
@@ -8,6 +8,19 @@
   "highlights": [
     "Personal Ideas are everyday things only",
     "A different picture on every idea",
+    "Ideas refresh once after the update"
+  ]
+}
+{
+  "version": "0.5.13",
+  "notes": [
+    "Personal and Business Ideas stay on their own pages. Switching Ervos while a page was still being written used to drop it on the other one",
+    "Each Ervo asks for its own Ideas page and keeps it in its own space, so a switch never shows you the other Ervo's ideas",
+    "Both Ideas pages are picked fresh once after this update"
+  ],
+  "highlights": [
+    "Ideas stay with the right Ervo",
+    "Each Ervo fetches its own page",
     "Ideas refresh once after the update"
   ]
 }
