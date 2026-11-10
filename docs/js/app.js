@@ -242,13 +242,14 @@
   let current = "classic";
   try { current = localStorage.getItem(KEY) || "classic"; } catch (e) { /* fine */ }
   if (!LOOKS.some((l) => l[0] === current)) current = "classic";
-  const src = (id) => `assets/sm/ervo-${id}.webp?v=3`; // small copies; the full-size art stays in assets/
+  const src = (id) => `assets/sm/ervo-${id}.webp?v=4`; // small copies; the full-size art stays in assets/
 
-  LOOKS.forEach(([id, name]) => {
+  LOOKS.forEach(([id, name], i) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "look";
     b.dataset.look = id;
+    b.style.setProperty("--i", i);      // its place in the opening run (css/depth.css, 7)
     b.innerHTML = `<span><img src="${src(id)}" alt="" loading="lazy"></span><small>${name}</small>`;
     b.setAttribute("aria-label", `${name} Ervo`);
     b.addEventListener("click", () => { set(id, true); setOpen(false); btn.focus(); });
@@ -475,3 +476,10 @@ fetch("app/version.json", { cache: "no-store" }).then((r) => r.json()).then((v) 
   if (!v || !v.version) return;
   document.querySelectorAll(".dl-note").forEach((n) => { n.textContent = `Free preview, version ${v.version}. Not on the App Store or Google Play yet.`; });
 }).catch(() => {});
+
+// The closing light drifts only while its section is on screen.
+(function () {
+  const sec = document.querySelector("section.closing");
+  if (!sec || !("IntersectionObserver" in window)) return;
+  new IntersectionObserver((entries) => sec.classList.toggle("is-lit", entries[0].isIntersecting), { rootMargin: "120px 0px" }).observe(sec);
+})();
