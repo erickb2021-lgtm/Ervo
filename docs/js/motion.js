@@ -1,5 +1,5 @@
-// Motion for the home page: smooth scrolling (Lenis), a hero entrance, heading and section reveals and one
-// scroll-linked piece (GSAP). Everything here is an extra: the page is complete and readable without it.
+// Motion for the home page: a hero entrance, heading and section reveals and one scroll-linked piece (GSAP).
+// Scrolling itself is the browser's own, so the page never trails the wheel. Everything here is an extra: the page is complete and readable without it.
 // With "reduce motion" on, none of the libraries are even downloaded.
 (() => {
   const root = document.documentElement;
@@ -7,10 +7,6 @@
   const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
   const wide = () => window.innerWidth >= 760;
   const $ = (id) => document.getElementById(id);
-
-  // Scroll areas that keep their own wheel and touch scrolling inside the smooth page.
-  ["download", "look-picker", "ct-panel"].forEach((id) => { const el = $(id); if (el) el.setAttribute("data-lenis-prevent", ""); });
-  document.querySelectorAll("textarea, .cmp-chat").forEach((el) => el.setAttribute("data-lenis-prevent", ""));
 
   // The demo's music is not downloaded with the page. It is fetched once the visitor has scrolled and the
   // player is near the screen. Pressing play before that fetches it too.
@@ -32,7 +28,6 @@
     "gsap@3.15.1/dist/ScrollTrigger.min.js",
     "gsap@3.15.1/dist/SplitText.min.js",
   ];
-  if (fine) LIBS.push("lenis@1.3.27/dist/lenis.min.js"); // touch screens keep their own native scrolling
 
   function loadAll() {
     return Promise.all(LIBS.map((path) => new Promise((ok, fail) => {
@@ -56,41 +51,11 @@
   const breath = () => new Promise((done) => setTimeout(done, 0));
 
   async function init() {
-    const { gsap, ScrollTrigger, SplitText, Lenis } = window;
+    const { gsap, ScrollTrigger, SplitText } = window;
     if (!gsap || !ScrollTrigger) { root.classList.add("motion-on"); return; }
     gsap.registerPlugin(ScrollTrigger);
     if (SplitText) gsap.registerPlugin(SplitText);
     gsap.defaults({ ease: "power3.out", duration: 0.8 });
-
-    // ---- smooth scrolling ----
-    let lenis = null;
-    if (Lenis && fine) {
-      lenis = new Lenis({
-        autoRaf: false, lerp: 0.115, wheelMultiplier: 1, allowNestedScroll: true, stopInertiaOnNavigate: true,
-        // The contact panel is built after this script runs, so it is matched here rather than tagged above.
-        prevent: (node) => node.id === "ct-panel" || node.tagName === "TEXTAREA",
-      });
-      lenis.on("scroll", ScrollTrigger.update);
-      gsap.ticker.add((time) => lenis.raf(time * 1000));
-      gsap.ticker.lagSmoothing(0);
-      window.ervoLenis = lenis;
-    }
-
-    // Links to a place on this page ("See how it works", "Create an account") glide there and stop below the header.
-    const header = document.querySelector(".site-header");
-    document.addEventListener("click", (e) => {
-      if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const a = e.target.closest && e.target.closest('a[href^="#"]');
-      if (!a || !lenis) return;
-      const hash = a.getAttribute("href");
-      const el = hash.length > 1 ? document.getElementById(hash.slice(1)) : null;
-      if (!el && hash !== "#" && hash !== "#top") return;
-      e.preventDefault();
-      if (!el) { lenis.scrollTo(0); return; }
-      const own = parseFloat(getComputedStyle(el).scrollMarginTop) || 0; // Lenis already honours scroll-margin
-      lenis.scrollTo(el, { offset: own ? 0 : -(header ? header.offsetHeight : 0) });
-      if (history.replaceState) history.replaceState(null, "", hash);
-    });
 
     // ---- hero: one entrance, for the cards floating around the owl ----
     const cards = gsap.utils.toArray("#owl-stage .os-in");
