@@ -2761,7 +2761,7 @@
     const learned = psyche().learned || 0;
     ideasFetching = askServer({ task: "ideas", messages: [] }).then((j) => {
       if (j && j.ideas && Array.isArray(j.ideas.groups) && j.ideas.groups.length) {
-        save(IDEAS_KEY, { day: new Date().toDateString(), learned, data: j.ideas });
+        save(IDEAS_KEY, { v: IDEAS_V, day: new Date().toDateString(), learned, data: j.ideas });
         return j.ideas;
       }
       return null;
@@ -5139,7 +5139,8 @@
 
   // ---------- Ideas: things Ervo can do for you, tied to who you are ----------
   const IDEAS_KEY = "ervo-ideas";
-  const IDEA_ICONS = ["calendar", "map", "plane", "heart", "food", "shop", "home", "ball", "book", "tooth", "doctor", "money", "star", "camera", "music", "car", "sun", "people"];
+  const IDEAS_V = 2; // 0.5.12: personal ideas stay personal and pictures stop repeating, so older pages are fetched again
+  const IDEA_ICONS = ["calendar", "map", "plane", "heart", "food", "shop", "home", "ball", "book", "tooth", "doctor", "money", "star", "camera", "music", "car", "sun", "people", "mail", "phone", "clock", "location", "done", "open", "chat", "stats", "box", "bulb", "target", "spark", "brain", "health", "lock", "wait"];
   const DEFAULT_IDEAS_BUSINESS = { groups: [
     { title: "For your business", ideas: [
       { icon: "home", title: "Tell me what your business does. I'll tailor everything to it.", detail: "Your hours, policies, products and tools go in the Business Psyche, so every answer fits.", prompt: "Let me tell you about my business" },
@@ -5206,10 +5207,30 @@
     r.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
     return r;
   }
+  // The same picture on two ideas in a row looks careless: swap repeats for a picture the page has not used yet
+  function uniqueIcons(groups) {
+    const onPage = {};
+    return groups.map((g) => {
+      if (!g || !Array.isArray(g.ideas)) return g;
+      const inGroup = new Set();
+      const ideas = g.ideas.map((it) => {
+        if (!it) return it;
+        let ico = IDEA_ICONS.includes(it.icon) ? it.icon : "star";
+        if (inGroup.has(ico) || (onPage[ico] || 0) >= 2) {
+          const spare = IDEA_ICONS.find((k) => !inGroup.has(k) && !onPage[k]) || IDEA_ICONS.find((k) => !inGroup.has(k));
+          if (spare) ico = spare;
+        }
+        inGroup.add(ico);
+        onPage[ico] = (onPage[ico] || 0) + 1;
+        return Object.assign({}, it, { icon: ico });
+      });
+      return Object.assign({}, g, { ideas });
+    });
+  }
   function drawIdeas(data) {
     const box = $("ideas-list");
     box.innerHTML = "";
-    const groups = data && Array.isArray(data.groups) ? data.groups : (account && account.plan === "business" ? DEFAULT_IDEAS_BUSINESS : DEFAULT_IDEAS).groups;
+    const groups = uniqueIcons(data && Array.isArray(data.groups) ? data.groups : (account && account.plan === "business" ? DEFAULT_IDEAS_BUSINESS : DEFAULT_IDEAS).groups);
     groups.forEach((g) => {
       if (!g || !Array.isArray(g.ideas) || !g.ideas.length) return;
       const h = document.createElement("h2");
@@ -5234,7 +5255,7 @@
   async function renderIdeas(force) {
     const cached = load(IDEAS_KEY);
     const learned = psyche().learned || 0;
-    const fresh = cached && cached.day === new Date().toDateString() && learned - (cached.learned || 0) < 5;
+    const fresh = cached && cached.v === IDEAS_V && cached.day === new Date().toDateString() && learned - (cached.learned || 0) < 5;
     if (cached && cached.data) drawIdeas(cached.data); else drawIdeas(null);
     if (!AI_URL || (fresh && !force)) return;
     $("ideas-sub").textContent = "Finding ideas for you…";
@@ -5734,7 +5755,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.11"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.12"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
