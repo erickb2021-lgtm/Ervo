@@ -241,7 +241,7 @@
   let current = "classic";
   try { current = localStorage.getItem(KEY) || "classic"; } catch (e) { /* fine */ }
   if (!LOOKS.some((l) => l[0] === current)) current = "classic";
-  const src = (id) => `assets/sm/ervo-${id}.webp`; // small copies; the full-size art stays in assets/
+  const src = (id) => `assets/sm/ervo-${id}.webp?v=2`; // small copies; the full-size art stays in assets/
 
   LOOKS.forEach(([id, name]) => {
     const b = document.createElement("button");
