@@ -25,11 +25,34 @@
   }
   function hideHint() { stage.classList.remove("hint-on"); }
 
-  function showLook() {
+  // A new look steps onto the podium. The old one sinks back and fades while the new picture is fetched and
+  // decoded; only then does it rise into place, so there is never a blank beat. A second pick during the change
+  // simply takes over. Going back to Classic with the 3D owl running needs none of this: the canvas fades in.
+  let swap = 0;
+  function showLook(step) {
     stage.dataset.look = look;
-    const src = look === "classic" ? "assets/ervo-classic.webp?v=2" : `assets/ervo-${look}.png?v=4`;
-    if (poster.getAttribute("src") !== src) poster.src = src;
+    const src = look === "classic" ? "assets/ervo-classic.webp?v=2" : `assets/ervo-${look}.png?v=5`;
+    if (poster.getAttribute("src") === src) { sync(); return; }
+    const mine = ++swap;
+    const to3d = look === "classic" && !!api && !failed && !reduce.matches;
+    if (!step || to3d) { poster.classList.remove("is-leaving", "is-arriving", "is-settling"); poster.src = src; sync(); return; }
+    const next = new Image();
+    next.src = src;
+    const ready = next.decode ? next.decode().catch(() => {}) : new Promise((done) => { next.onload = next.onerror = done; });
+    const gone = new Promise((done) => setTimeout(done, 140));
+    poster.classList.remove("is-arriving", "is-settling");
+    poster.classList.add("is-leaving");
     sync();
+    Promise.all([ready, gone]).then(() => {
+      if (mine !== swap) return;
+      poster.src = src;
+      poster.classList.remove("is-leaving");
+      poster.classList.add("is-arriving");
+      void poster.offsetWidth;                         // the start pose is set before the move begins
+      poster.classList.add("is-settling");
+      poster.classList.remove("is-arriving");
+      setTimeout(() => { if (mine === swap) poster.classList.remove("is-settling"); }, 460);
+    });
   }
 
   // Only asks whether the browser has WebGL 2 at all. Making a test canvas here would cost as much as the real one;
@@ -58,7 +81,7 @@
   window.ervoSetOwl = (src) => {
     if (before) before(src);
     look = lookOf(src);
-    showLook();
+    showLook(true);
     if (look === "classic" && started) load();
   };
   showLook();

@@ -65,7 +65,12 @@ html.motion .os-ring.r2::after { animation-duration: 15s; animation-direction: r
 .os-owl { position: absolute; left: 50%; bottom: calc(46px * var(--k)); width: calc(420px * var(--k)); height: calc(420px * var(--k)); margin-left: calc(-210px * var(--k)); z-index: 2; }
 .os-owl::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: 4.6%; height: 6%; border-radius: 50%; background: radial-gradient(50% 50% at 50% 50%, var(--foot), rgba(10, 4, 24, 0) 70%); z-index: -1; transition: opacity 0.3s ease; }
 .os-poster { position: absolute; left: 4.5%; bottom: 3.6%; width: 91%; height: auto; transform-origin: 50% 100%; filter: drop-shadow(0 14px 18px rgba(12, 4, 30, 0.35)); transition: opacity 0.28s ease, filter 0.28s ease, transform 0.28s var(--ease-out); }
-html.motion .os-poster { animation: os-rise 0.9s var(--ease-out) both; }
+html.motion .os-poster { animation: os-rise 0.9s var(--ease-out) backwards; }   /* not held after it ends, so later moves can run */
+/* A new look steps onto the podium (js/hero.js): the old one sinks back and fades, the new one rises into place. */
+.os-poster.is-leaving { opacity: 0; transform: translateY(8px) scale(0.96); transition: opacity 0.14s ease-out, transform 0.14s ease-out; }
+.os-poster.is-arriving { opacity: 0; transform: translateY(20px) scale(0.92); transition: none; }
+.os-poster.is-settling { transition: opacity 0.22s ease-out, filter 0.28s ease, transform 0.42s var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .os-poster.is-leaving, .os-poster.is-arriving { transform: none; } }
 @keyframes os-rise { from { transform: translateY(22px) scale(0.93); } }
 /* The canvas is larger than this square (js/owl3d.js sizes it), so wings and hops are not cut off; the square takes the pointer. */
 .os-canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; display: block; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; outline: none; }
@@ -184,7 +189,7 @@ main .plan-card, main .feature, main .ideas-card, main .cmp-tabs, main .try, mai
 .perm-stand { position: relative; display: grid; justify-items: center; width: 100%; }
 .apps-stand { position: relative; width: fit-content; justify-self: center; }
 @media (min-width: 901px) { .apps-split .apps-stand { justify-self: start; } }
-/* The feature grid has a wide, low light across the section (the closing line has the ring instead) */
+/* The feature grid has a wide, low light across the section (the closing line has its own drifting light, 5h2) */
 #learn::after { content: ""; position: absolute; z-index: -1; pointer-events: none; top: 50%; left: 50%; width: 1100px; height: 520px; margin: -260px 0 0 -550px; border-radius: 50%;
   background: radial-gradient(closest-side, var(--orb-a), transparent); }
 /* Film grain over the whole ground, under every section */
@@ -260,39 +265,30 @@ html.motion .statement .badge-icon { animation-delay: -1.7s; }
 html.motion .statement .badge-icon ~ .badge-icon { animation-delay: -3.4s; }
 @keyframes chip-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
 
-/* 5h2. The closing dive: the Spline scene (js/ring.js) fills the screen behind the page's last line. With
-   html.ring-dive the section is tall and its one screen holds still, and the scrolling drives the scene's own
-   camera down into the spiral. A still picture of the scene's first frame shows until the scene is ready. Without
-   the class ("reduce motion", "save data", no graphics card) the section is one ordinary screen with that picture. */
-section.closing { display: block; min-height: 0; padding: 0; overflow: clip; }
-.ring-pin { position: relative; box-sizing: border-box; min-height: min(100svh, 760px); padding: 96px 0; display: flex; flex-direction: column; justify-content: center; }
-html.ring-dive section.closing { height: calc(100svh + var(--dive, 1700px)); }
-html.ring-dive .ring-pin { position: sticky; top: 0; height: 100svh; min-height: 0; }
-.ring-stage { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--bg);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 80px, #000 calc(100% - 140px), transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 80px, #000 calc(100% - 140px), transparent 100%); }
-.ring-stage > img, .ring-stage > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.ring-still { object-fit: cover; transition: opacity 0.6s ease; }
-.ring-canvas { opacity: 0; transition: opacity 0.6s ease; }
-.ring-stage.is-live .ring-canvas { opacity: 1; }
-.ring-stage.is-live .ring-still { opacity: 0; }
-.ring-stage > .ring-light { display: none; }
-:root:not([data-theme="dark"]) .ring-stage > .ring-dark { display: none; }
-:root:not([data-theme="dark"]) .ring-stage > .ring-light { display: block; }
-/* Dark mode: the same scene with its tones turned over, so the discs are light and fall away into black */
-[data-theme="dark"] .ring-canvas { filter: invert(1) hue-rotate(180deg) brightness(0.7); }
-/* The words stay readable whatever part of the scene is behind them */
-[data-theme="dark"] .closing .statement.closing-line { background: rgba(10, 10, 14, 0.62); -webkit-backdrop-filter: blur(22px) saturate(140%); backdrop-filter: blur(22px) saturate(140%); }
-.closing .closing-sub { width: fit-content; padding: 12px 20px; border-radius: 18px; background: color-mix(in srgb, var(--bg) 74%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+/* 5h2. The closing line stands in a slow violet light: two soft pools that drift past each other. They move only
+   while the section is on screen (js/app.js sets .is-lit) and rest under "reduce motion". Gradients only, no blur. */
+section.closing { overflow: clip; padding: 150px 0 140px; }
+.closing-light { position: absolute; inset: 0; z-index: -1; pointer-events: none; --pool-a: rgba(124, 58, 237, 0.15); --pool-b: rgba(192, 132, 252, 0.16); }
+[data-theme="dark"] .closing-light { --pool-a: rgba(124, 58, 237, 0.36); --pool-b: rgba(168, 85, 247, 0.2); }
+.closing-light i { position: absolute; left: 50%; top: 50%; width: 980px; height: 540px; margin: -270px 0 0 -490px; border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, var(--pool-a) 0%, transparent 70%); transform: translate3d(-10%, -4%, 0); }
+.closing-light i + i { width: 640px; height: 440px; margin: -220px 0 0 -320px; background: radial-gradient(50% 50% at 50% 50%, var(--pool-b) 0%, transparent 70%); transform: translate3d(18%, 10%, 0); }
+html.motion .closing.is-lit .closing-light i { animation: pool-a 16s ease-in-out infinite alternate; }
+html.motion .closing.is-lit .closing-light i + i { animation: pool-b 12s ease-in-out infinite alternate; }
+@keyframes pool-a { from { transform: translate3d(-14%, -6%, 0) scale(1); } to { transform: translate3d(12%, 8%, 0) scale(1.12); } }
+@keyframes pool-b { from { transform: translate3d(22%, 12%, 0) scale(1.1); } to { transform: translate3d(-20%, -10%, 0) scale(0.92); } }
 /* 5i. Phones and tablets: lighter effects, nothing leans */
 @media (max-width: 860px) {
   #learn::after, .phone-stand::before, .ideas::before, .cmp::before, .perm-stand::before, .apps-stand::before { width: 440px; height: 440px; margin: -220px 0 0 -220px; left: 50%; }
   main::before { display: none; }
-  html.ring-dive section.closing { --dive: 1300px; }
-  .ring-pin { padding: 72px 0; }
+  section.closing { padding: 96px 0 88px; }
+  .closing-light i { width: 560px; height: 440px; margin: -220px 0 0 -280px; }
+  .closing-light i + i { width: 400px; height: 340px; margin: -170px 0 0 -200px; }
   .feature .ico, :root[data-theme] .feature .ico { transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   html .statement .inline-chip, html .statement .badge-icon { animation: none; }
+  html .closing-light i { animation: none; }
 }
 
 /* ---------- 6. Contact, Privacy and Terms: the same room, quieter ---------- */
@@ -396,3 +392,29 @@ main.doc:has(> .jump) .toc a:hover { background: none; color: var(--doc-text); }
 .hero .rot { transition: width 1.1s cubic-bezier(0.65, 0, 0.35, 1); }
 .hero .rot-item { transition: transform 0.95s cubic-bezier(0.65, 0, 0.35, 1) 0.15s, opacity 0.7s ease 0.22s, filter 0.7s ease 0.22s; }
 .hero .rot-item.leave { transition: transform 0.95s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.65s ease, filter 0.65s ease; }
+
+/* ---------- 7. Motion finish: every press answers, hover lifts stay with the mouse, the look picker opens from its chip ---------- */
+/* Under a finger :hover sticks after the tap, so the lifts are for mice only (the press below still answers) */
+@media (hover: none) {
+  button.mark-chip:hover:not(:active), .look:hover:not(:active) span, .big-play:hover:not(:active), .ct-fab:hover:not(:active), .ct-send:hover:not(:active), .app:not(.blur):hover { transform: none; }
+}
+.look, button.mark-chip, .cmp-tabs button, .chapters button, .big-play { -webkit-tap-highlight-color: transparent; }
+.look span { transition: transform 0.16s var(--ease-out), box-shadow 0.16s ease; }
+.look:active span { transform: scale(0.93); transition-duration: 0.1s; }
+button.mark-chip { transition: transform 0.2s var(--ease-out); }
+button.mark-chip:active { transform: scale(0.93); transition-duration: 0.1s; }
+.cmp-tabs button, .chapters button { transition: transform 0.14s var(--ease-out), background-color 0.18s ease, color 0.18s ease; }
+.cmp-tabs button:active, .chapters button:active { transform: scale(0.97); }
+.big-play { transition: transform 0.16s var(--ease-out); }
+.big-play:active { transform: scale(0.95); }
+/* The picker grows out of the avatar chip above it; its tiles follow in a quick run */
+.look-picker { transform-origin: 38% 0; animation: look-in 0.2s var(--ease-out) both; }
+@keyframes look-in { from { opacity: 0; transform: translateY(-8px) scale(0.97); } }
+.look { animation: look-tile 0.26s var(--ease-out) both; animation-delay: calc(40ms + var(--i, 0) * 11ms); }
+@keyframes look-tile { from { opacity: 0; transform: translateY(6px) scale(0.94); } }
+@media (prefers-reduced-motion: reduce) {
+  .look-picker { animation: look-fade 0.16s ease both; }
+  .look { animation: none; }
+  .look:active span, button.mark-chip:active, .cmp-tabs button:active, .chapters button:active, .big-play:active { transform: none; }
+}
+@keyframes look-fade { from { opacity: 0; } }
