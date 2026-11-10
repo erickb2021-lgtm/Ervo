@@ -27,7 +27,7 @@
 
   function showLook() {
     stage.dataset.look = look;
-    const src = look === "classic" ? "assets/ervo-classic.webp?v=2" : `assets/ervo-${look}.png?v=2`;
+    const src = look === "classic" ? "assets/ervo-classic.webp?v=2" : `assets/ervo-${look}.png?v=3`;
     if (poster.getAttribute("src") !== src) poster.src = src;
     sync();
   }
