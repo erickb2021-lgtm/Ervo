@@ -10,6 +10,8 @@
   const PREFS_KEY = "ervo-prefs";
   const CONN_KEY = "ervo-connections";
   const ACTIVITY_KEY = "ervo-activity";
+  const PENDING_KEY = "ervo-pending"; // questions Ervo is waiting on, shown in the Feed
+  const ADDR_KEY = "ervo-addresses"; // saved addresses; they stay on this phone
   const PLACE_KEY = "ervo-place";
   // Testing on this computer: ?ai=http://localhost:8787 talks to a server running here (wrangler dev)
   const AI_URL = ((/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get("ai")) || (window.ERVO_CONFIG || {}).aiUrl || "").replace(/\/+$/, "");
@@ -96,7 +98,7 @@
     const v = (name) => css.getPropertyValue(name).trim();
     const screen = document.querySelector(".screen.active");
     const id = screen ? screen.id : "";
-    const grouped = ["stats", "activity", "library", "psyche", "ideas"].includes(id);
+    const grouped = !!(screen && screen.classList.contains("stats"));
     const sky = id === "stats" ? getComputedStyle(screen).getPropertyValue("--sky-1").trim() : "";
     const top = id === "chat" ? v("--surface") : sky || (grouped ? v("--group") : v("--bg"));
     const bottom = sky ? getComputedStyle(screen).getPropertyValue("--sky-3").trim() : grouped ? v("--group") : v("--bg");
@@ -108,12 +110,12 @@
   // ---------- screens ----------
   // How deep each screen sits, so moving in slides from the right and going back slides away
   // to the right, like every iPhone app (Apple: navigation is a stack you push and pop)
-  const DEPTH = { splash: 0, welcome: 0, lock: 0, chat: 0, ideas: 0, goalpage: 0, team: 0, library: 0, settings: 1, stats: 2, psyche: 2, teamchat: 2, appsPage: 2, bizpage: 2, activity: 3 };
-  // The four tabs at the bottom, and which screen each one shows (Business owners get Team where Goals is)
-  const TAB_OF = { chat: "tab-chat", ideas: "open-ideas", goalpage: "tab-goals", team: "tab-goals", library: "open-library" };
-  // Back goes to where you came from: Settings when you opened it there, else the chat
+  const DEPTH = { splash: 0, welcome: 0, lock: 0, chat: 0, feed: 0, calpage: 0, library: 0, settings: 0, ideas: 1, goalpage: 1, team: 1, stats: 2, teamchat: 2, bizpage: 2, addrpage: 2, psyche: 3, appsPage: 3, activity: 3 };
+  // The five tabs at the bottom, and which screen each one shows
+  const TAB_OF = { chat: "tab-chat", feed: "tab-feed", calpage: "tab-cal", library: "open-library", settings: "tab-you" };
+  // Back goes to the page that opened this one, else the chat
   const openedFrom = {};
-  const backTo = (id) => (openedFrom[id] === "settings" ? "settings" : "chat");
+  const backTo = (id) => openedFrom[id] || "chat";
   function show(id) {
     const chatWas = $("chat").classList.contains("active");
     if (chatWas && id !== "chat") savedScroll = $("thread").scrollTop;
@@ -127,7 +129,8 @@
       if (d) setTimeout(() => { from.classList.remove("pop-out", "under"); to.classList.remove("push-in", "under"); }, 420);
     }
     document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("active", s.id === id));
-    if (from && from !== to) openedFrom[id] = from.id;
+    // Remember where a page was opened from, unless this move is the way back
+    if (from && from !== to && openedFrom[from.id] !== id && (DEPTH[id] || 0) >= (DEPTH[from.id] || 0)) openedFrom[id] = from.id;
     $("tabbar").hidden = !TAB_OF[id];
     document.body.classList.toggle("tabs-on", !!TAB_OF[id]);
     document.querySelectorAll("#tabbar button").forEach((b) => { if (TAB_OF[id] === b.id) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
@@ -135,6 +138,7 @@
     if (id === "chat" && !chatWas && savedScroll !== null) { const keep = savedScroll; savedScroll = null; requestAnimationFrame(() => { if (!stuck) $("thread").scrollTop = keep; else $("thread").scrollTop = $("thread").scrollHeight; }); }
     syncBars();
     syncDock();
+    syncFeedDot();
   }
 
   // ---------- Personal vs Business ----------
@@ -144,14 +148,14 @@
       hint: "Personal use only: planning, shopping, your own returns and more.",
       question: "What should Ervo call you?", nameLabel: "Your name", placeholder: "Alex", nameError: "Enter your name.",
       chips: ["Book a table for 4 tonight", "Gym Friday at 6pm", "Buy paper towels", "What's coming up?", "Weather"],
-      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "amazon", "orders", "health", "location"],
+      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "amazon", "orders", "health", "location", "addresses"],
     },
     business: {
       label: "Business", avatar: "img/ervo-business.png",
       hint: "Business use only: customer support, refunds by your policy, scheduling and more.",
       question: "What's your name?", nameLabel: "Your name", placeholder: "Alex", nameError: "Enter your name.",
       chips: ["Refund order #5512", "Summarize today's tickets", "Call with Northwind Thursday at 2pm", "Draft a reply to an upset customer"],
-      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "mail", "orders", "location"],
+      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "mail", "orders", "location", "addresses"],
     },
   };
   let plan = "personal";
@@ -563,7 +567,33 @@
     save("ervo-cal-reset-027", 1);
   }
   const connections = () => load(CONN_KEY) || {};
-  const allowed = (key) => (connections()[key] || {}).status === "allowed";
+  // "Always allow" is remembered. "Allow once" covers the request it was given for and nothing after it.
+  const always = (key) => (connections()[key] || {}).status === "allowed";
+  const ONCE_MS = 5 * 60000;
+  let onceGrants = {}; // key -> when it was given; kept in memory only
+  let keepOnce = false; // the next message is the request an Allow was given for, so its grants stay
+  let lastAsk = ""; // what they last asked, so the Feed can say why Ervo did something
+  let lastAskAt = 0;
+  let ensureSpoke = 0; // when ensure() last answered a "no" itself
+  const onceOn = (key) => !!onceGrants[key] && Date.now() - onceGrants[key] < ONCE_MS;
+  const allowed = (key) => always(key) || onceOn(key);
+  // "Not this time" holds for a day before Ervo brings it up by itself again
+  const declinedLately = (key) => { const c = connections()[key]; return !!(c && c.status === "denied" && Date.now() - new Date(c.at).getTime() < 24 * 3600000); };
+  // Packages they asked Ervo to watch keep updating, whether they chose Always allow or Allow once
+  const canTrack = () => ["allowed", "once"].includes((connections().orders || {}).status);
+  // Questions Ervo is waiting on: the Feed shows them under "Needs you"
+  const asksWaiting = () => load(PENDING_KEY) || [];
+  function addPending(p) {
+    const list = asksWaiting().filter((x) => x.key !== p.key);
+    list.unshift(Object.assign({ id: Date.now().toString(36), at: new Date().toISOString() }, p));
+    save(PENDING_KEY, list.slice(0, 20));
+    syncFeedDot();
+  }
+  function dropPending(key) {
+    const list = asksWaiting();
+    const next = list.filter((x) => x.key !== key);
+    if (next.length !== list.length) save(PENDING_KEY, next);
+  }
   function setConnection(key, status) {
     const c = connections();
     c[key] = { status, at: new Date().toISOString() };
@@ -572,9 +602,12 @@
   const activity = () => load(ACTIVITY_KEY) || [];
   function logActivity(item) {
     const list = activity();
-    list.unshift(Object.assign({ id: Date.now().toString(36), at: new Date().toISOString() }, item));
+    // Keep what they asked for with it, so the Feed can answer "why did Ervo do this?"
+    const why = item.kind !== "milestone" && lastAsk && Date.now() - lastAskAt < 3 * 60000 ? { ask: lastAsk.slice(0, 140) } : {};
+    list.unshift(Object.assign({ id: Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36), at: new Date().toISOString() }, why, item));
     save(ACTIVITY_KEY, list.slice(0, 100));
-    if (item.kind !== "milestone") { const c = counts(); c.done += 1; save(COUNT_KEY, c); setTimeout(() => checkMilestones(false), 1800); }
+    feedSoon();
+    if (item.kind !== "milestone" && item.kind !== "allow") { const c = counts(); c.done += 1; save(COUNT_KEY, c); setTimeout(() => checkMilestones(false), 1800); }
   }
 
   // ---------- icons (plain shapes, not real brand logos) ----------
@@ -609,6 +642,13 @@
     sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg>',
     people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5.5 5.5"/></svg>',
     brain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M8.5 4.5A3.5 3.5 0 0 0 5 8a3.5 3.5 0 0 0-1 6.5A3.5 3.5 0 0 0 8.5 20M15.5 4.5A3.5 3.5 0 0 1 19 8a3.5 3.5 0 0 1 1 6.5 3.5 3.5 0 0 1-4.5 5.5"/></svg>',
+    feed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 4 12 2.5-6h5"/></svg>',
+    target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>',
+    bulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>',
+    box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7v10l8 4 8-4V7z"/><path d="M4 7l8 4 8-4M12 11v10"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+    wait: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+    spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>',
   };
 
   // Big emoji show as 3D pictures (Microsoft's Fluent emoji, MIT). Offline, the plain emoji shows instead.
@@ -648,6 +688,7 @@
     calendar: "📅", shop: "🛍️", health: "🫀", location: "📍", mail: "✉️", done: "✅", food: "🍽️", undo: "↩️", open: "🔗", phone: "📞", clock: "⏰",
     mic: "🎙️", stats: "📊", chat: "💬", map: "🗺️", plane: "✈️", heart: "❤️", home: "🏠", ball: "⚽", book: "📚", tooth: "🦷", doctor: "🩺", money: "💵",
     star: "⭐", camera: "📷", music: "🎵", car: "🚗", sun: "☀️", people: "👥", brain: "🧠", look: "😎", gem: "💎", swap: "🔄",
+    target: "🎯", bulb: "💡", box: "📦", lock: "🔒", wait: "⏳", spark: "✨",
   };
   // A row's icon: the 3D picture when we have one (and it loads), else the flat coloured square
   function setRowIcon(el, ico) {
@@ -671,21 +712,24 @@
     ["", [
       ["open-switch", "swap", "#5e5ce6", "Switch to Ervo for Business", "Same email, separate chats and settings", "switch"],
     ]],
+    ["Yours", [
+      ["open-psyche", "brain", "#bf5af2", "Psyche", "What Ervo knows about you"],
+      ["open-goals", "target", "#ff453a", "Goals", "What you're working toward"],
+      ["open-ideas", "bulb", "#ffcc00", "Ideas", "Things Ervo can do for you"],
+      ["open-addr", "location", "#34c759", "Addresses", "Home, work and where things ship"],
+      ["open-stats", "stats", "#ff375f", "Ervo Stats", "Steps, upcoming, activity"],
+    ]],
     ["Ervo", [
       ["open-look", "look", "#7a4be0", "Ervo's Look", "Pick an outfit"],
       ["open-wake", "mic", "#30d158", "Hey Ervo", "Hands-free"],
+      ["open-apps", "open", "#5e5ce6", "Connected Apps", "Calendar, Health, Location, stores"],
+      ["open-plans", "gem", "#ffd60a", "Plans", "Free for now · more plans coming soon"],
+      ["open-chats", "chat", "#64d2ff", "Chats", "Side chats"],
     ]],
     ["Work", [
       ["open-team", "people", "#0a84ff", "Team", "Employees, their chats and employee IDs"],
       ["open-hours", "clock", "#ff9f0a", "Office Hours", "When you're working"],
       ["open-biz", "home", "#30d158", "My Businesses", "Switch, add, verify or delete"],
-    ]],
-    ["You", [
-      ["open-psyche", "brain", "#bf5af2", "Psyche", "What Ervo knows about you"],
-      ["open-stats", "stats", "#ff375f", "Ervo Stats", "Steps, upcoming, activity"],
-      ["open-apps", "open", "#5e5ce6", "Connected Apps", "Calendar, Health, Location, stores"],
-      ["open-plans", "gem", "#ffd60a", "Plans", "Free for now · more plans coming soon"],
-      ["open-chats", "chat", "#64d2ff", "Chats", "Side chats"],
     ]],
     ["Sign-in", [
       ["open-keep", "done", "#30d158", "Keep me logged in", "On: you stay signed in until you sign out"],
@@ -760,6 +804,11 @@
       name: "Location", ico: "location",
       does: ["Show the weather in your greeting", "Find local news and places near you", "Only your city is used, never your exact address"],
       note: "Your phone will ask you one more time. You can turn it off anytime.",
+    },
+    addresses: {
+      name: "Saved addresses", ico: "location",
+      does: ["Fill in an address you saved when you ask for directions, a delivery or a form", "Only for this request, unless you choose Always allow", "Ervo never buys anything with them on its own"],
+      note: "Your addresses stay on this phone. Ervo only sends one along with the request you allow.",
     },
     contacts: {
       name: "Contacts & calls", ico: "phone",
@@ -841,9 +890,12 @@
     setTimeout(() => { $("message").focus(); syncComposer(); }, 100);
   }
 
-  // ---------- Allow / Deny ----------
+  // ---------- Allow once / Always allow / Not this time ----------
   let permResolve = null;
-  function askPermission(key, reason) {
+  // Resolves "once", "always" or "no", or "later" when they close the sheet without choosing.
+  // simple: the Connected Apps switch, where the choices are Allow and Not Now.
+  function askPermission(key, reason, simple) {
+    if (permResolve) answerPermission("later");
     const c = CONNECTORS[key];
     $("perm-ico").className = `app-ico big ${c.ico}`;
     $("perm-ico").innerHTML = ICON[c.ico];
@@ -855,38 +907,67 @@
       $("perm-list").append(li);
     });
     $("perm-note").textContent = c.note;
+    $("perm-once").hidden = !!simple;
+    $("perm-always").textContent = simple ? "Allow" : "Always allow";
+    $("perm-always").classList.toggle("ghost", !simple);
+    $("perm-deny").textContent = simple ? "Not Now" : "Not this time";
     $("perm").hidden = false;
-    $("perm-allow").focus();
+    (simple ? $("perm-always") : $("perm-once")).focus();
     return new Promise((resolve) => { permResolve = resolve; });
   }
-  function answerPermission(ok) {
+  function answerPermission(answer) {
     $("perm").hidden = true;
     const r = permResolve;
     permResolve = null;
-    if (r) r(ok);
+    if (r) r(answer);
   }
-  $("perm-allow").addEventListener("click", () => answerPermission(true));
-  $("perm-deny").addEventListener("click", () => answerPermission(false));
-  $("perm").addEventListener("click", (e) => { if (e.target === $("perm")) answerPermission(false); });
+  $("perm-once").addEventListener("click", () => answerPermission("once"));
+  $("perm-always").addEventListener("click", () => answerPermission("always"));
+  $("perm-deny").addEventListener("click", () => answerPermission("no"));
+  $("perm").addEventListener("click", (e) => { if (e.target === $("perm")) answerPermission("later"); });
 
-  // Asks once; remembers Allow. Returns true if Ervo may use the app.
+  // Records the answer. Returns true if Ervo may use the app now.
+  // ask: what they had asked for, when the answer is given outside the chat ("" for the Connected Apps switch)
+  function applyAnswer(key, answer, ask) {
+    const c = CONNECTORS[key];
+    const why = ask === undefined ? {} : { ask };
+    dropPending(key);
+    if (answer === "always") {
+      setConnection(key, "allowed");
+      logActivity(Object.assign({ kind: "connect", key, ico: c.ico, title: `Connected ${c.name}`, detail: "Always allowed" }, why));
+    } else if (answer === "once") {
+      setConnection(key, "once");
+      onceGrants[key] = Date.now();
+      logActivity(Object.assign({ kind: "allow", key, ico: c.ico, title: `Allowed ${c.name} once`, detail: "For one request" }, why));
+    } else if (answer === "no") setConnection(key, "denied");
+    feedChanged();
+    return answer === "always" || answer === "once";
+  }
+  // Runs a request again once it is allowed. The Allow given for it stays on for this one message.
+  function redo(ask) {
+    show("chat");
+    keepOnce = true;
+    send(ask);
+  }
+
+  // Asks unless they chose Always allow. Returns true if Ervo may use the app for this request.
   async function ensure(key, reason, quiet) {
     if (allowed(key)) return true;
-    const ok = await askPermission(key, reason);
-    setConnection(key, ok ? "allowed" : "denied");
-    if (ok) logActivity({ kind: "connect", ico: CONNECTORS[key].ico, title: `Connected ${CONNECTORS[key].name}` });
-    else if (!quiet) {
-      const c = CONNECTORS[key];
+    const c = CONNECTORS[key];
+    const ask = lastAsk;
+    const answer = await askPermission(key, reason);
+    const ok = applyAnswer(key, answer);
+    if (answer === "later") addPending({ key, reason: reason || "", ask });
+    if (!ok && !quiet) {
       hideTyping();
       idleStatus();
-      ervoSays(`No problem, I won't use ${c.name}. If you change your mind, tap Allow, or turn it on later in Settings under Connected Apps.`, {
-        instant: true,
-        acts: [{ label: `Allow ${c.name}`, icon: c.ico, onClick: async () => {
-          const yes = await askPermission(key, reason);
-          setConnection(key, yes ? "allowed" : "denied");
-          if (yes) { logActivity({ kind: "connect", ico: c.ico, title: `Connected ${c.name}` }); ervoSays(`${c.name} is connected ✅ Ask me again and I'll use it.`); }
-        } }],
-      });
+      ensureSpoke = Date.now();
+      const again = { label: `Allow ${c.name}`, icon: c.ico, onClick: async () => {
+        if (!applyAnswer(key, await askPermission(key, reason))) return;
+        if (ask) redo(ask); else ervoSays(`${c.name} is on ✅ Ask me again and I'll use it.`);
+      } };
+      if (answer === "later") ervoSays("Okay, that can wait. I left the question in your Feed under Needs you.", { instant: true, acts: [again, { label: "Open Feed", icon: "feed", onClick: () => openFeed() }] });
+      else ervoSays(`No problem, I won't use ${c.name} this time. I'll ask again when I need it.`, { instant: true, acts: [again] });
     }
     return ok;
   }
@@ -2436,11 +2517,13 @@
     $("status-text").textContent = text;
     $("status").classList.add("busy");
     if (liveTyping && text && !/^typing$/i.test(text)) showTyping(text, ico);
+    feedSoon();
   }
   function idleStatus() {
     setIco($("status-ico"), "");
     $("status-text").textContent = account ? PLAN[account.plan].label : "";
     $("status").classList.remove("busy");
+    feedSoon();
   }
 
   // The messages scroll behind the see-through header and bottom bar
@@ -2498,6 +2581,8 @@
   let lastWasVoice = false;
   async function ervoSays(text, opts) {
     opts = opts || {};
+    // ensure() already answered their "no" a moment ago; saying "Okay, I won't ..." again would repeat it
+    if (typeof text === "string" && /^Okay[,.] I won't\b/.test(text) && Date.now() - ensureSpoke < 1500) return;
     if (!opts.instant) showTyping(opts.status ? opts.status[1] : liveTyping ? null : "typing");
     if (opts.status) setStatus(opts.status[0], opts.status[1]);
     else setStatus("", "Typing…");
@@ -3065,6 +3150,7 @@
             now: new Date().toString(),
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             location: place ? { city: place.city, region: place.region, country: place.country } : null,
+            addresses: addressesForAI(),
           },
         }, extra || {})),
       });
@@ -3232,7 +3318,7 @@
   const SELF_REPORTING = new Set(["add_calendar_event", "set_timer", "set_alarm", "dismiss_alarm", "edit_calendar_event", "remove_calendar_event", "call_contact", "plan_meeting"]);
   async function askAI(d, extra) {
     // "Find a pickup soccer game near me": ask once for location instead of asking for a city or zip
-    if (!extra && d && NEAR_RE.test(d.t || "") && !allowed("location") && (connections().location || {}).status !== "denied") {
+    if (!extra && d && NEAR_RE.test(d.t || "") && !allowed("location") && !declinedLately("location")) {
       await ensure("location", "Find things near you");
     }
     const status = guessStatus(d);
@@ -3345,6 +3431,17 @@
           const m = String(a.date || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
           const asked = parseRemove(d);
           afters.push(() => removeEvents({ title: String(a.title || ""), count: asked.count, all: asked.all, range: m ? dayRange(new Date(+m[1], +m[2] - 1, +m[3])) : asked.range }));
+        } else if (a.type === "request_address") {
+          // Ervo needs an address they saved: ask once, then run the request again with it filled in
+          afters.push(async () => {
+            if (!addresses().length) { ervoSays("I don't have an address saved for you yet. Add one and I'll fill it in next time.", { instant: true, acts: [{ label: "Add an address", icon: "location", onClick: () => { openAddresses(); openAddrForm(null); } }] }); return; }
+            if (allowed("addresses")) return;
+            const ask = lastAsk;
+            if (await ensure("addresses", String(a.why || "Fill in the address you asked about"))) redo(ask);
+          });
+        } else if (a.type === "save_address" && (a.line1 || a.city)) {
+          saveAddress(a, "chat");
+          out.acts = (out.acts || []).concat({ label: "Addresses", icon: "location", onClick: openAddresses });
         } else if (a.type === "update_settings") {
           const p = prefs();
           if (a.nickname) p.nickname = String(a.nickname).slice(0, 30);
@@ -3942,7 +4039,7 @@
       case "thanks": return ervoSays("Anytime! 😊");
       case "help": return ervoSays(biz
         ? "Here's what I can do:\n• Answer customers and summarize tickets\n• Refunds by your policy\n• Book meetings on your calendar\n• Draft replies for your email\n\nJust tell me in your own words, like \"Call with Northwind Thursday at 2pm\"."
-        : "Here's what I can do:\n• Plan reservations and events and put them on your calendar\n• Find things on Amazon, start returns and track orders\n• Set, change and turn off alarms and timers, and call people in your contacts\n• Add, move, rename and remove calendar events, with Undo\n• Set up Google Meet, Zoom or Teams meetings\n• Look at photos: meals (calories), receipts, labels, flyers\n• Learn you over time: see your Psyche in the menu\n• Ideas picked for you, and side chats for things you want to keep apart\n• Show your steps, plans and recent activity in Ervo Stats\n• Weather and news in your greeting\n\nJust say it your way, like \"dinner for 4 in two weeks at 7\".");
+        : "Here's what I can do:\n• Plan reservations and events and put them on your calendar\n• Find things on Amazon, start returns and track orders\n• Set, change and turn off alarms and timers, and call people in your contacts\n• Add, move, rename and remove calendar events, with Undo\n• Set up Google Meet, Zoom or Teams meetings\n• Look at photos: meals (calories), receipts, labels, flyers\n• Learn you over time: see your Psyche in the You tab\n• Keep a Feed of what I'm doing, what's next and what needs your OK\n• Fill in your saved addresses (You tab, Addresses) once you allow it\n• Ideas picked for you, and side chats for things you want to keep apart\n• Show your steps, plans and recent activity in Ervo Stats\n• Weather and news in your greeting\n\nJust say it your way, like \"dinner for 4 in two weeks at 7\".");
       case "time": return ervoSays(`It's ${new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`);
       case "date": return ervoSays(`Today is ${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}.`);
       case "weather": return weatherReply();
@@ -4056,44 +4153,69 @@
     const key = `${month.getFullYear()}-${month.getMonth()}`;
     if (calCache[key]) return calCache[key];
     const from = new Date(month.getFullYear(), month.getMonth(), 1), to = new Date(month.getFullYear(), month.getMonth() + 1, 1);
-    const list = activity().filter((a) => a.when && new Date(a.when) >= from && new Date(a.when) < to).map((a) => ({ title: a.title, start: new Date(a.when), allDay: a.allDay, source: "Ervo" }));
+    const list = activity().filter((a) => a.when && new Date(a.when) >= from && new Date(a.when) < to).map((a) => ({ title: a.title, start: new Date(a.when), allDay: a.allDay, source: "Ervo", act: a }));
     if (native && native.findEvents && native.calendarAllowed && native.calendarAllowed()) {
       try { const r = await readCalendar("", { from, to }); if (r.status === "ready") r.events.forEach((e) => list.push({ title: e.title || "(No title)", start: new Date(e.start), allDay: e.allDay, source: e.calendar || "Calendar" })); } catch (e) { /* fine */ }
     }
     calCache[key] = list;
     return list;
   }
-  async function openCalendar(day) {
-    toggleMenu(false);
+  // The same month draws in two places: the pop-up in the chat, and the Calendar tab
+  const CAL_UI = {
+    sheet: { title: "cal-title", grid: "cal-grid", day: "cal-day-title", events: "cal-events" },
+    page: { title: "calp-title", grid: "calp-grid", day: "calp-day-title", events: "calp-events" },
+  };
+  const calUi = () => ($("calsheet").hidden ? CAL_UI.page : CAL_UI.sheet);
+  const calDayText = () => calDay.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  function pickCalDay(day) {
     calDay = new Date(day || new Date());
     calMonth = new Date(calDay.getFullYear(), calDay.getMonth(), 1);
     calCache = {};
+  }
+  async function openCalendar(day) {
+    toggleMenu(false);
+    pickCalDay(day);
     $("calsheet").hidden = false;
     await renderCalendar();
   }
+  // The Calendar tab: the same month as a page. Tapping the tab again comes back to today.
+  function openCalPage(day) {
+    $("calsheet").hidden = true;
+    pickCalDay(day);
+    show("calpage");
+    $("calpage-body").scrollTop = 0;
+    return renderCalendar();
+  }
+  let calTurn = 0;
   async function renderCalendar() {
-    $("cal-title").textContent = calMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    const grid = $("cal-grid");
+    const ui = calUi();
+    const onPage = ui === CAL_UI.page;
+    const turn = ++calTurn;
+    const month = calMonth;
+    $(ui.title).textContent = month.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const events = await monthEvents(month);
+    if (turn !== calTurn) return; // a newer tap is already drawing
+    const grid = $(ui.grid);
     grid.innerHTML = "";
     ["S", "M", "T", "W", "T", "F", "S"].forEach((d) => { const h = document.createElement("span"); h.className = "cal-dow"; h.textContent = d; grid.append(h); });
-    const events = await monthEvents(calMonth);
     const busy = new Set(events.map((e) => startOfDay(e.start).getTime()));
-    const first = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1);
+    const first = new Date(month.getFullYear(), month.getMonth(), 1);
     for (let i = 0; i < first.getDay(); i++) { const s = document.createElement("span"); grid.append(s); }
-    const days = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate();
+    const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
     for (let n = 1; n <= days; n++) {
-      const d = new Date(calMonth.getFullYear(), calMonth.getMonth(), n);
+      const d = new Date(month.getFullYear(), month.getMonth(), n);
       const b = document.createElement("button");
       b.type = "button";
       b.className = `cal-day${sameDay(d, new Date()) ? " today" : ""}${sameDay(d, calDay) ? " picked" : ""}${busy.has(d.getTime()) ? " busy" : ""}`;
       b.setAttribute("role", "gridcell");
-      b.setAttribute("aria-label", d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }));
+      b.setAttribute("aria-label", `${d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${busy.has(d.getTime()) ? ", has plans" : ""}`);
+      if (sameDay(d, calDay)) b.setAttribute("aria-selected", "true");
       b.innerHTML = `<span>${n}</span><i></i>`;
       b.addEventListener("click", () => { calDay = d; renderCalendar(); buzz("tick"); });
       grid.append(b);
     }
-    $("cal-day-title").textContent = `${sameDay(calDay, new Date()) ? "Today, " : ""}${calDay.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}`;
-    const box = $("cal-events");
+    $(ui.day).textContent = `${sameDay(calDay, new Date()) ? "Today, " : ""}${calDayText()}`;
+    const box = $(ui.events);
     box.innerHTML = "";
     const todays = events.filter((e) => sameDay(e.start, calDay)).sort((a, b) => (a.allDay ? -1 : 0) - (b.allDay ? -1 : 0) || a.start - b.start);
     if (!todays.length) { const p = document.createElement("p"); p.className = "cc-empty"; p.textContent = "Nothing planned. Tell Ervo and it goes here."; box.append(p); }
@@ -4104,17 +4226,133 @@
       row.innerHTML = `<span class="cc-emoji">${e3d(eventEmoji(ev.title))}</span><span class="cc-time">${t}</span><span class="cc-title"></span><small class="cc-src"></small>`;
       row.querySelector(".cc-title").textContent = ev.title;
       row.querySelector(".cc-src").textContent = ev.source === "Ervo" ? "Ervo" : "";
+      // On the Calendar tab, a plan Ervo made opens with its reason and a way to take it back
+      if (onPage && ev.act) { row.append(chevron()); tapRow(row, () => openFeedItem(ev.act)); }
       box.append(row);
     });
+    // Planning a day that is already over makes no sense
+    if (onPage) $("calp-plan").hidden = startOfDay(calDay) < startOfDay(new Date());
   }
-  $("cal-prev").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); });
-  $("cal-next").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); });
-  $("cal-done").addEventListener("click", () => { $("calsheet").hidden = true; });
-  $("calsheet").addEventListener("click", (e) => { if (e.target === $("calsheet")) $("calsheet").hidden = true; });
-  $("cal-open-app").addEventListener("click", () => {
+  const calStep = (n) => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + n, 1); renderCalendar(); };
+  function openCalApp() {
     const ms = new Date(calDay.getFullYear(), calDay.getMonth(), calDay.getDate(), 9).getTime();
     if (native && native.openUrl) openOutside(`content://com.android.calendar/time/${ms}`);
     else openOutside(`https://calendar.google.com/calendar/u/0/r/day/${calDay.getFullYear()}/${calDay.getMonth() + 1}/${calDay.getDate()}`);
+  }
+  $("cal-prev").addEventListener("click", () => calStep(-1));
+  $("cal-next").addEventListener("click", () => calStep(1));
+  $("cal-done").addEventListener("click", () => { $("calsheet").hidden = true; });
+  $("calsheet").addEventListener("click", (e) => { if (e.target === $("calsheet")) $("calsheet").hidden = true; });
+  $("cal-open-app").addEventListener("click", openCalApp);
+  $("calp-prev").addEventListener("click", () => calStep(-1));
+  $("calp-next").addEventListener("click", () => calStep(1));
+  $("calp-open-app").addEventListener("click", openCalApp);
+  // "Add to this day" starts the sentence for them; "Plan this day" asks Ervo right away
+  $("calp-add").addEventListener("click", () => {
+    const text = `On ${calDayText()}, add `;
+    show("chat");
+    $("message").value = text;
+    setTimeout(() => { const m = $("message"); m.focus(); m.setSelectionRange(text.length, text.length); syncComposer(); }, 100);
+  });
+  $("calp-plan").addEventListener("click", () => {
+    const ask = sameDay(calDay, new Date()) ? "Plan my day" : `Plan my day for ${calDayText()}`;
+    show("chat");
+    send(ask);
+  });
+
+  // ---------- Addresses: home, work and where things ship. They stay on the phone; Ervo asks before it uses one ----------
+  const addresses = () => load(ADDR_KEY) || [];
+  const addrLine = (a) => [a.line1, a.line2, [a.city, a.region].filter(Boolean).join(", "), a.zip].filter(Boolean).join(", ") || "No street yet";
+  // What the server gets: only the label and city, until they allow Saved addresses for a request
+  function addressesForAI() {
+    const list = addresses();
+    if (!list.length) return [];
+    const full = allowed("addresses");
+    return list.map((a) => (full
+      ? { label: a.label, name: a.name, line1: a.line1, line2: a.line2, city: a.city, region: a.region, zip: a.zip, country: a.country, phone: a.phone, main: !!a.main }
+      : { label: a.label, city: a.city, region: a.region, main: !!a.main, locked: true }));
+  }
+  const ADDR_FIELDS = ["label", "name", "line1", "line2", "city", "region", "zip", "country", "phone"];
+  let addrEditing = null;
+  function openAddresses() {
+    renderAddresses();
+    show("addrpage");
+    $("addr-body").scrollTop = 0;
+  }
+  function renderAddresses() {
+    const box = $("addr-list");
+    box.innerHTML = "";
+    const list = addresses();
+    if (!list.length) { box.append(empty("Nothing saved yet. Add home first, then anywhere things ship.")); return; }
+    list.forEach((a) => {
+      const r = row("location", a.label || "Address", addrLine(a), a.main ? "Main" : "");
+      r.classList.add("compact");
+      r.append(chevron());
+      tapRow(r, () => openAddrForm(a));
+      box.append(r);
+    });
+  }
+  function openAddrForm(a) {
+    addrEditing = a || null;
+    const first = !a && !addresses().length;
+    $("addr-title").textContent = a ? "Change this address" : "Add an address";
+    ADDR_FIELDS.forEach((k) => {
+      const f = $(`addr-${k}`);
+      f.value = a ? a[k] || "" : k === "country" ? "United States" : k === "label" && first ? "Home" : "";
+      f.classList.remove("bad");
+    });
+    $("addr-main").checked = a ? !!a.main : first;
+    $("addr-del").hidden = !a;
+    $("addr").hidden = false;
+    setTimeout(() => $(a || first ? "addr-line1" : "addr-label").focus(), 60);
+  }
+  function closeAddrForm() { $("addr").hidden = true; addrEditing = null; }
+  // Saves one address, from the form or from what they told Ervo in the chat. The same label replaces the old one.
+  function saveAddress(fields, from) {
+    const list = addresses();
+    const clean = {};
+    ADDR_FIELDS.forEach((k) => { clean[k] = String(fields[k] || "").trim().slice(0, 80); });
+    if (!clean.label) clean.label = "Home";
+    const old = fields.id ? list.find((x) => x.id === fields.id) : list.find((x) => x.label.toLowerCase() === clean.label.toLowerCase());
+    const main = fields.main !== undefined ? !!fields.main : old ? !!old.main : !list.length;
+    const item = Object.assign({}, old || { id: Date.now().toString(36), at: new Date().toISOString() }, clean, { main });
+    let next = old ? list.map((x) => (x.id === old.id ? item : x)) : [item].concat(list);
+    if (main) next = next.map((x) => (x.id === item.id ? x : Object.assign({}, x, { main: false })));
+    else if (!next.some((x) => x.main)) next[0].main = true;
+    save(ADDR_KEY, next);
+    // From the chat, the Feed says what they asked; from the form, that they saved it themselves
+    logActivity(Object.assign({ kind: "address", ico: "location", addrId: item.id, title: `${old ? "Updated" : "Saved"} ${item.label}`, detail: addrLine(item) }, from === "chat" ? {} : { ask: "" }));
+    return item;
+  }
+  function removeAddress(id) {
+    const list = addresses();
+    const a = list.find((x) => x.id === id);
+    if (!a) return;
+    let next = list.filter((x) => x.id !== id);
+    if (a.main && next.length) next = next.map((x, i) => Object.assign({}, x, { main: i === 0 }));
+    save(ADDR_KEY, next);
+    logActivity({ kind: "address-remove", ico: "location", title: `Deleted ${a.label}`, detail: addrLine(a), ask: "" });
+    renderAddresses();
+    toast("Address deleted");
+  }
+  $("open-addr").addEventListener("click", openAddresses);
+  $("addrpage-back").addEventListener("click", () => show(backTo("addrpage")));
+  $("addr-add").addEventListener("click", () => openAddrForm(null));
+  $("addr-cancel").addEventListener("click", closeAddrForm);
+  $("addr").addEventListener("click", (e) => { if (e.target === $("addr")) closeAddrForm(); });
+  $("addr-del").addEventListener("click", () => { if (addrEditing) removeAddress(addrEditing.id); closeAddrForm(); });
+  $("addr-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const f = { id: addrEditing ? addrEditing.id : undefined, main: $("addr-main").checked };
+    ADDR_FIELDS.forEach((k) => { f[k] = $(`addr-${k}`).value; });
+    const missing = ["line1", "city"].filter((k) => !f[k].trim());
+    ["line1", "city"].forEach((k) => $(`addr-${k}`).classList.toggle("bad", missing.includes(k)));
+    if (missing.length) { $(`addr-${missing[0]}`).focus(); buzz("warn"); return; }
+    saveAddress(f, "form");
+    closeAddrForm();
+    renderAddresses();
+    buzz("tick");
+    toast("Saved");
   });
 
   // ---------- Orders, returns and refunds: cards with a progress bar, like the video ----------
@@ -4174,15 +4412,16 @@
     else if ($("chat").classList.contains("active")) { ervoSays(`${title}. ${text}`, { instant: true }); buzz("confirm"); }
   }
   async function refreshAllTrackers(force) {
-    if (!AI_URL || !account || !allowed("orders")) return;
+    if (!AI_URL || !account || !canTrack()) return;
     for (const t of trackers().filter((x) => !x.done && x.tracking && x.kind === "order")) await refreshTracker(t, { force, quiet: true });
+    feedChanged();
   }
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshAllTrackers(false); });
   setInterval(() => { if (!document.hidden) refreshAllTrackers(false); }, 30 * 60000);
   // Android keeps a copy of the live cards so it can check the carrier and notify while Ervo is closed
   function syncNativeTrackers() {
     if (!native || !native.syncTrackers || !AI_URL) return;
-    const list = allowed("orders") ? trackers().filter((t) => !t.done && t.tracking && t.kind === "order").map((t) => ({ id: t.id, number: t.tracking, carrier: t.carrier || "", title: t.title, step: t.step, text: (t.last && t.last.text) || "", server: AI_URL, origin: location.origin })) : [];
+    const list = canTrack() ? trackers().filter((t) => !t.done && t.tracking && t.kind === "order").map((t) => ({ id: t.id, number: t.tracking, carrier: t.carrier || "", title: t.title, step: t.step, text: (t.last && t.last.text) || "", server: AI_URL, origin: location.origin })) : [];
     try { native.syncTrackers(JSON.stringify(list)); } catch (e) { /* older Ervo */ }
   }
   function storeKey(name) {
@@ -4231,7 +4470,7 @@
     t.done = t.step >= t.steps.length - 1;
     saveTrackers(list);
     scheduleTrackerNotices(t);
-    logActivity({ kind: "track", ico: "shop", title: `${kind === "order" ? "Tracking" : kind === "return" ? "Return" : "Refund"}: ${t.title}`, detail: `${t.storeName || ""} · ${t.steps[t.step]}` });
+    logActivity({ kind: "track", ico: "shop", title: `${kind === "order" ? "Tracking" : kind === "return" ? "Return" : "Refund"}: ${t.title}`, detail: `${t.storeName || ""} · ${t.steps[t.step]}`, trackId: t.id });
     return t;
   }
   const SOURCES = ["you", "store", "carrier"];
@@ -4426,6 +4665,10 @@
   function send(text, byVoice) {
     const v = text.trim();
     if (!v || !account) return;
+    // A new request: any "Allow once" from the last one ends here
+    if (!keepOnce) onceGrants = {};
+    keepOnce = false;
+    lastAsk = v; lastAskAt = Date.now();
     thread.querySelectorAll(".choices button:not(:disabled)").forEach((b) => { b.disabled = true; });
     bubble(v, "me");
     buzz("tap");
@@ -5030,12 +5273,269 @@
     syncBars();
   }
 
-  function activityRow(a) {
-    const sub = a.when ? `For ${whenText(a)}` : a.detail || "Done by Ervo";
-    const r = row(icoClass(a.ico), a.title, sub, ago(a.at), a.link);
-    setRowIcon(r, ICON[a.ico] ? a.ico : "done");
+  // A row you can tap, for people using a keyboard or a screen reader too
+  function tapRow(r, fn) {
+    r.classList.add("tap");
+    r.setAttribute("role", "button");
+    r.tabIndex = 0;
+    r.addEventListener("click", fn);
+    r.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } });
     return r;
   }
+  // One thing Ervo did. Tap it to see why, and to take it back when that is possible.
+  function activityRow(a) {
+    const sub = a.when ? `For ${whenText(a)}` : a.detail || "Done by Ervo";
+    const r = row(icoClass(a.ico), a.title, sub, ago(a.at));
+    setRowIcon(r, ICON[a.ico] ? a.ico : "done");
+    r.append(chevron());
+    return tapRow(r, () => openFeedItem(a));
+  }
+
+  // ---------- Feed: what Ervo needs from you, is doing, will do next, and has done ----------
+  // What is waiting on the person: questions Ervo left for later, a package in trouble, an update
+  function needsNow() {
+    return {
+      asks: asksWaiting().filter((p) => CONNECTORS[p.key]),
+      late: trackers().filter((t) => !t.done && t.last && t.last.trouble),
+      ready: update,
+    };
+  }
+  // The dot on the Feed tab: something needs an answer
+  function syncFeedDot() {
+    try {
+      const tab = $("tab-feed");
+      if (!tab) return;
+      const n = needsNow();
+      const count = n.asks.length + n.late.length + (n.ready ? 1 : 0);
+      tab.classList.toggle("has-dot", count > 0);
+      tab.setAttribute("aria-label", count ? `Feed, ${count === 1 ? "1 thing needs" : `${count} things need`} you` : "Feed");
+    } catch (e) { /* still starting up */ }
+  }
+  // Many things change the Feed, so wait a moment and draw it once (only when it is the screen in front)
+  let feedTimer = 0;
+  function feedSoon() {
+    try {
+      if (!$("feed").classList.contains("active")) return;
+      clearTimeout(feedTimer);
+      feedTimer = setTimeout(renderFeed, 120);
+    } catch (e) { /* still starting up */ }
+  }
+  function feedChanged() { syncFeedDot(); feedSoon(); }
+  function openFeed() {
+    renderFeed();
+    show("feed");
+    $("feed-body").scrollTop = 0;
+  }
+  function feedRow(ico, title, sub, side, fn) {
+    const r = row(ico, title, sub, side);
+    return fn ? tapRow(r, fn) : r;
+  }
+  function seeAll(title, sub, fn) {
+    const all = document.createElement("button");
+    all.type = "button";
+    all.className = "row see-all";
+    const txt = document.createElement("span");
+    txt.className = "txt";
+    const b = document.createElement("b");
+    b.textContent = title;
+    const s = document.createElement("small");
+    s.textContent = sub;
+    txt.append(b, s);
+    all.append(txt, chevron());
+    all.addEventListener("click", fn);
+    return all;
+  }
+  function renderFeed() {
+    const n = needsNow();
+    // Needs you: answer right here, without going back to the chat
+    const needs = $("feed-needs");
+    needs.innerHTML = "";
+    n.asks.forEach((p) => needs.append(askCard(p)));
+    if (n.ready || n.late.length) {
+      const c = document.createElement("div");
+      c.className = "card list";
+      if (n.ready) c.append(feedRow("spark", `Ervo ${n.ready.version} is ready`, "Tap to see what's new and update", "›", () => showUpdate(n.ready)));
+      n.late.forEach((t) => c.append(feedRow("box", t.title, t.last.text || t.last.status || "The carrier reported a problem", "›", () => openTracker(t.id))));
+      needs.append(c);
+    }
+    if (!needs.children.length) {
+      const c = document.createElement("div");
+      c.className = "card list";
+      c.append(empty("Nothing needs you right now."));
+      needs.append(c);
+    }
+
+    // Doing now: the reply being written, and packages Ervo keeps an eye on
+    const nowBox = $("feed-now");
+    nowBox.innerHTML = "";
+    if ($("status").classList.contains("busy")) {
+      const doing = $("status-text").textContent;
+      nowBox.append(feedRow("wait", /^typing$/i.test(doing) || !doing ? "Writing a reply" : doing, lastAsk ? `You asked: "${short(lastAsk, 70)}"` : "In your chat", "›", () => show("chat")));
+    }
+    const watched = canTrack() ? trackers().filter((t) => !t.done && t.tracking && t.kind === "order") : [];
+    if (watched.length === 1) nowBox.append(feedRow("box", `Watching ${watched[0].title}`, "Checks the carrier and tells you when it moves", "›", () => openTracker(watched[0].id)));
+    else if (watched.length) nowBox.append(feedRow("box", `Watching ${watched.length} packages`, "Checks the carrier and tells you when one moves", "›", () => openLibrary("orders")));
+    if (!nowBox.children.length) nowBox.append(empty("Nothing right now. Ask in Chat and Ervo starts on it."));
+
+    // Up next: the coming week
+    drawFeedNext([]);
+    comingUp(7, drawFeedNext);
+
+    // Done: the newest things Ervo did
+    const done = $("feed-done");
+    done.innerHTML = "";
+    const items = activity();
+    if (!items.length) done.append(empty("When Ervo does something for you, it shows up here."));
+    items.slice(0, 6).forEach((a) => done.append(activityRow(a)));
+    if (items.length > 6) done.append(seeAll("See all activity", `${items.length} things Ervo has done for you`, openActivity));
+  }
+  // What is coming: things Ervo planned, then the phone's calendar when Ervo may read it
+  function comingUp(days, draw) {
+    const now = new Date();
+    const end = addDays(startOfDay(now), days + 1);
+    const dayKey = (title, start) => `${String(title || "").trim().toLowerCase()}|${startOfDay(new Date(start)).getTime()}`;
+    const keys = new Set();
+    const planned = activity().filter((a) => a.when && new Date(a.when) > now && new Date(a.when) < end)
+      .map((a) => ({ title: a.title, start: new Date(a.when), allDay: a.allDay, ico: a.ico, detail: a.detail }))
+      .filter((p) => { const k = dayKey(p.title, p.start); if (keys.has(k)) return false; keys.add(k); return true; });
+    draw(planned);
+    if (native && native.findEvents && native.calendarAllowed && native.calendarAllowed()) {
+      readCalendar("", { from: now, to: end }).then((r) => {
+        if (r.status !== "ready") return;
+        const seen = new Set(r.events.map((e) => dayKey(e.title, e.start)));
+        draw(planned.filter((p) => !seen.has(dayKey(p.title, p.start))).concat(r.events.map((e) => ({ title: e.title || "(No title)", start: new Date(e.start), allDay: e.allDay, ico: "calendar", detail: e.calendar }))));
+      }).catch(() => { /* the planned list is already showing */ });
+    }
+  }
+  function drawFeedNext(events) {
+    const box = $("feed-next");
+    box.innerHTML = "";
+    const today = startOfDay(new Date());
+    const end = addDays(today, 8);
+    const arriving = trackers().filter((t) => !t.done && t.kind === "order").map((t) => ({ t, eta: etaDateOf(t) }))
+      .filter((x) => x.eta && x.eta >= today && x.eta < end)
+      .map((x) => ({ title: `${x.t.title} arrives`, start: x.eta, allDay: true, ico: "box", detail: x.t.storeName, track: x.t.id }));
+    const list = events.concat(arriving).sort((a, b) => a.start - b.start);
+    if (!list.length) box.append(empty("Nothing planned for the next 7 days."));
+    list.slice(0, 5).forEach((a) => {
+      const when = `${fmtDate(a.start)}${a.allDay ? "" : ` at ${a.start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}`;
+      const r = feedRow(icoClass(a.ico), a.title, `${when}${a.detail ? " · " + a.detail : ""}`, untilText(a.start), () => (a.track ? openTracker(a.track) : openCalPage(a.start)));
+      setRowIcon(r, ICON[a.ico] ? a.ico : "calendar");
+      box.append(r);
+    });
+    box.append(seeAll("Open Calendar", list.length > 5 ? `${list.length - 5} more this week` : "The whole month, day by day", () => openCalPage()));
+  }
+  function openTracker(id) {
+    const t = trackers().find((x) => x.id === id);
+    if (!t) { toast("That tracker was removed"); return; }
+    show("chat");
+    showTracker(t);
+  }
+
+  // A question Ervo left for later, with the three answers right on the card
+  function askCard(p) {
+    const c = CONNECTORS[p.key];
+    const card = document.createElement("div");
+    card.className = "card need";
+    const top = document.createElement("div");
+    top.className = "need-top";
+    const ico = document.createElement("span");
+    ico.className = `app-ico ${c.ico}`;
+    setRowIcon(ico, c.ico);
+    const txt = document.createElement("span");
+    txt.className = "txt";
+    const b = document.createElement("b");
+    b.textContent = `Allow Ervo to use ${c.name}?`;
+    const s = document.createElement("small");
+    s.textContent = p.reason || c.does[0] || "";
+    txt.append(b, s);
+    top.append(ico, txt);
+    card.append(top);
+    if (p.ask) {
+      const why = document.createElement("p");
+      why.className = "need-why";
+      why.textContent = `You asked: "${short(p.ask, 90)}"`;
+      card.append(why);
+    }
+    const acts = document.createElement("div");
+    acts.className = "need-acts";
+    [["Allow once", "pill", "once"], ["Always allow", "pill ghost", "always"], ["Not this time", "pill quiet", "no"]].forEach(([label, cls, answer]) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = cls;
+      btn.textContent = label;
+      btn.addEventListener("click", () => answerPending(p, answer));
+      acts.append(btn);
+    });
+    card.append(acts);
+    return card;
+  }
+  function answerPending(p, answer) {
+    const c = CONNECTORS[p.key];
+    const ok = applyAnswer(p.key, answer, p.ask || "");
+    buzz(ok ? "confirm" : "tick");
+    renderFeed();
+    if (!ok) { toast(`Okay, Ervo won't use ${c.name}`); return; }
+    if (!p.ask) { toast(`${c.name} is on`); return; }
+    // A fresh request runs right away. An old one goes back in the message box, so they can look at it first.
+    if (Date.now() - new Date(p.at).getTime() < 30 * 60000) { redo(p.ask); return; }
+    show("chat");
+    keepOnce = true;
+    $("message").value = p.ask;
+    setTimeout(() => { $("message").focus(); syncComposer(); }, 100);
+  }
+
+  // One finished thing: what it was, when, why Ervo did it, and a way to take it back
+  let feedItem = null;
+  function undoFor(a) {
+    if (a.kind === "connect" || a.kind === "allow") {
+      const key = a.key || Object.keys(CONNECTORS).find((k) => a.title === `Connected ${CONNECTORS[k].name}`);
+      const st = key && CONNECTORS[key] ? (connections()[key] || {}).status : "";
+      if (st === "allowed" || st === "once") return { label: `Turn off ${CONNECTORS[key].name}`, run: () => toggleApp(key, true) };
+    }
+    if (a.kind === "track" && a.trackId && trackers().some((t) => t.id === a.trackId)) return { label: "Stop tracking", run: () => removeTracker(a.trackId) };
+    if (a.kind === "address" && a.addrId && addresses().some((x) => x.id === a.addrId)) return { label: "Delete this address", run: () => removeAddress(a.addrId) };
+    if (a.when && a.kind !== "remove" && new Date(a.when) > new Date()) return { label: "Remove from calendar", run: () => { show("chat"); send(`Remove "${a.title}" from my calendar`); } };
+    return null;
+  }
+  function whyFor(a) {
+    if (a.ask) return `You asked: "${a.ask}"`;
+    if (a.kind === "milestone") return "You reached this by using Ervo.";
+    if (a.kind === "connect") return "You turned this on.";
+    if (a.kind === "disconnect") return "You turned this off.";
+    if (a.kind === "allow") return "You tapped Allow once.";
+    if (a.kind === "address") return "You saved it on your Addresses page.";
+    if (a.kind === "address-remove") return "You deleted it on your Addresses page.";
+    return "It came from a request in your chat.";
+  }
+  function openFeedItem(a) {
+    feedItem = a;
+    $("fi-ico").className = `app-ico big ${icoClass(a.ico)}`;
+    setRowIcon($("fi-ico"), ICON[a.ico] ? a.ico : "done");
+    $("fi-title").textContent = a.title;
+    const at = new Date(a.at);
+    const stamp = `${at.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} at ${at.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+    $("fi-sub").textContent = [a.when ? `For ${whenText(a)}` : a.detail, stamp].filter(Boolean).join(" · ");
+    $("fi-why").textContent = whyFor(a);
+    const u = undoFor(a);
+    $("fi-undo").hidden = !u;
+    if (u) $("fi-undo").textContent = u.label;
+    $("fi-open").hidden = !a.link;
+    $("feeditem").hidden = false;
+    $("fi-done").focus();
+  }
+  $("fi-undo").addEventListener("click", () => {
+    const u = feedItem && undoFor(feedItem);
+    $("feeditem").hidden = true;
+    if (!u) return;
+    buzz("confirm");
+    u.run();
+    feedChanged();
+    if ($("activity").classList.contains("active")) setTimeout(renderActivity, 60);
+  });
+  $("fi-open").addEventListener("click", () => { $("feeditem").hidden = true; if (feedItem && feedItem.link) openOutside(feedItem.link); });
+  $("fi-done").addEventListener("click", () => { $("feeditem").hidden = true; });
+  $("feeditem").addEventListener("click", (e) => { if (e.target === $("feeditem")) $("feeditem").hidden = true; });
 
   // ---------- All activity: everything Ervo did, filtered by year and month ----------
   const MONTH_NAMES = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleDateString(undefined, { month: "long" }));
@@ -5076,7 +5576,14 @@
   }
   $("f-year").addEventListener("change", renderActivity);
   $("f-month").addEventListener("change", renderActivity);
-  $("activity-back").addEventListener("click", () => { renderStats(); show("stats"); });
+  // Activity opens from Ervo Stats or from the Feed: Back returns to whichever it was, freshly drawn
+  function leaveActivity() {
+    const to = backTo("activity");
+    if (to === "stats") renderStats();
+    if (to === "feed") renderFeed();
+    show(to);
+  }
+  $("activity-back").addEventListener("click", leaveActivity);
 
   // Connected apps: one short row each, with a switch. Calendar has one row that says where new events go.
   function renderApps() {
@@ -5086,7 +5593,7 @@
     const keys = PLAN[account.plan].apps.concat(account.plan === "personal" ? used : []).filter((k) => k !== "calendar" && k !== "phonecal");
 
     // Calendar: where new events go, with Change
-    const calOn = allowed("phonecal") || allowed("calendar");
+    const calOn = always("phonecal") || always("calendar");
     const cal = row("calendar", "Calendar", calOn && prefs().calendar ? `New events go to ${calChoiceName()}` : "Ervo asks where new events go");
     cal.classList.add("compact");
     const ch = document.createElement("button");
@@ -5102,7 +5609,7 @@
       if (key === "health" && !(native && native.stepsStatus)) return; // phones without the Android app can't share steps yet
       const state = connections()[key];
       const on = !!(state && state.status === "allowed");
-      const sub = on ? "On" : state && state.status === "denied" ? "Not allowed" : "Off";
+      const sub = on ? "On" : state && state.status === "once" ? "Asks each time" : "Off";
       const r = row(c.ico, c.name, sub);
       r.classList.add("compact");
       r.append(appSwitch(on, () => toggleApp(key, on)));
@@ -5134,7 +5641,10 @@
     const c = CONNECTORS[key];
     if (on) {
       setConnection(key, "off");
-      logActivity({ kind: "disconnect", ico: c.ico, title: `Turned off ${c.name}` });
+      delete onceGrants[key];
+      dropPending(key);
+      logActivity({ kind: "disconnect", key, ico: c.ico, title: `Turned off ${c.name}`, ask: "" });
+      feedChanged();
       // Turning off the calendar: stop using it, and ask where events go next time
       if (key === "phonecal" || key === "calendar") {
         setConnection(key === "phonecal" ? "calendar" : "phonecal", "off");
@@ -5147,10 +5657,8 @@
       return;
     }
     if (key === "phonecal" || key === "calendar") { await changeCalendar(); renderStats(); return; }
-    const ok = await askPermission(key);
-    if (!ok) { setConnection(key, "denied"); renderApps(); return; }
-    setConnection(key, "allowed");
-    logActivity({ kind: "connect", ico: c.ico, title: `Connected ${c.name}` });
+    const answer = await askPermission(key, "", true);
+    if (!applyAnswer(key, answer, "")) { renderApps(); return; }
     if (key === "health" && native && native.requestSteps) native.requestSteps();
     else if (key === "phonecal") { /* nothing to sign in to */ }
     else if (key === "location") getPlace().catch(() => { /* the phone said no */ }).then(renderStats);
@@ -5226,7 +5734,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.10"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.11"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
@@ -5283,6 +5791,7 @@
     const b = $("check-update");
     b.classList.add("ready");
     b.lastChild.textContent = `Update to ${found.version}`;
+    feedChanged();
   }
   function showUpdate(found) {
     update = found;
@@ -5809,8 +6318,14 @@
   $("set-hero").addEventListener("click", () => openLook());
   // Bottom tabs
   $("tab-chat").addEventListener("click", () => show("chat"));
-  $("tab-goals").addEventListener("click", () => (account && account.team && isAdminRole(account.team.role) ? openTeam() : openGoals()));
-  $("goals-back").addEventListener("click", () => show("chat"));
+  $("tab-feed").addEventListener("click", openFeed);
+  $("tab-cal").addEventListener("click", () => openCalPage());
+  $("tab-you").addEventListener("click", openSettings);
+  $("feed-back").addEventListener("click", () => show("chat"));
+  $("calpage-back").addEventListener("click", () => show("chat"));
+  // Goals and Ideas live on the You page now
+  $("open-goals").addEventListener("click", openGoals);
+  $("goals-back").addEventListener("click", () => show(backTo("goalpage")));
   $("goal-add").addEventListener("click", () => {
     show("chat");
     ervoSays("What's a goal you're working toward? Tell me, like \"run a 5K by spring\" or \"save $500 this month\", and I'll keep it in your Psyche and help you get there.");
@@ -5829,7 +6344,7 @@
   $("chats-panel").addEventListener("click", (e) => { if (e.target === $("chats-panel")) closeChats(); });
   $("chats-btn").addEventListener("click", openChats);
   $("psyche-back").addEventListener("click", () => show(backTo("psyche")));
-  $("ideas-back").addEventListener("click", () => show("chat"));
+  $("ideas-back").addEventListener("click", () => show(backTo("ideas")));
   $("ideas-refresh").addEventListener("click", () => renderIdeas(true));
   $("psyche-tell").addEventListener("click", () => { show("chat"); setTimeout(() => $("message").focus(), 100); });
   $("open-library").addEventListener("click", () => openLibrary());
@@ -5857,7 +6372,7 @@
   });
   function resetErvo() {
     buzz("reject");
-    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY, TRACK_KEY].forEach(drop);
+    [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, PLACE_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", "ervo-intro", HIDDEN_CHIPS_KEY, "ervo-seen-version", USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY, TRACK_KEY, PENDING_KEY, ADDR_KEY].forEach(drop);
     history = [];
     closeChats();
     openChat(account, true);
@@ -5866,7 +6381,7 @@
   function signOut() {
     buzz("reject");
     if (realAuth && session()) freshToken().then((t) => t && auth("logout", null, "POST", t)).catch(() => { /* signed out on this phone anyway */ });
-    const mine = [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", HIDDEN_CHIPS_KEY, USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY, TRACK_KEY];
+    const mine = [PREFS_KEY, CONN_KEY, ACTIVITY_KEY, "ervo-memory", CHAT_KEY, ARCHIVE_KEY, SIDES_KEY, ACTIVE_KEY, GREETED_KEY, PSYCHE_KEY, IDEAS_KEY, "ervo-suggest-salt", HIDDEN_CHIPS_KEY, USAGE_KEY, MILESTONE_KEY, COUNT_KEY, MIRROR_KEY, TRACK_KEY, PENDING_KEY, ADDR_KEY];
     mine.forEach((k) => { try { localStorage.removeItem(k); localStorage.removeItem(`biz:${k}`); } catch (e) { /* ignore */ } });
     [ACCOUNT_KEY, PROFILES_KEY, PLACE_KEY, SESSION_KEY, "ervo-intro", "ervo-seen-version"].forEach(drop);
     setNS("personal");
@@ -5886,30 +6401,22 @@
     if ($("welcome").classList.contains("active") && document.querySelector('.step.active[data-step="team"], .step.active[data-step="name"]') && !$("team-cancel").hidden) { cancelSetup(); return true; }
     if (document.querySelector(".msg-menu")) { closeMsgMenu(); return true; }
     if (!$("confirm").hidden) { $("confirm").hidden = true; return true; }
-    if (!$("perm").hidden) { answerPermission(false); return true; }
+    if (!$("perm").hidden) { answerPermission("later"); return true; }
+    if (!$("feeditem").hidden) { $("feeditem").hidden = true; return true; }
     if (!$("update").hidden) { $("update").hidden = true; return true; }
     if (!$("greet").hidden) { $("greet").hidden = true; return true; }
     if (!voice.hidden) { $("voice-cancel").click(); return true; }
-    if ($("activity").classList.contains("active")) { renderStats(); show("stats"); return true; }
-    if ($("stats").classList.contains("active")) { show(backTo("stats")); return true; }
     if ($("lock").classList.contains("active")) return false;
-    if ($("appsPage").classList.contains("active")) { show(backTo("appsPage")); return true; }
-    if ($("bizpage").classList.contains("active")) { show(backTo("bizpage")); return true; }
-    if (!$("verify").hidden) { $("verify").hidden = true; return true; }
-    if (!$("bizdel").hidden) { $("bizdel").hidden = true; return true; }
-    if ($("settings").classList.contains("active")) { show("chat"); return true; }
+    // Sheets and panels close first, then the page under them goes back
+    for (const id of ["verify", "bizdel", "newid", "calsheet", "plans", "hours", "company", "addr"]) if (!$(id).hidden) { $(id).hidden = true; return true; }
     if (!$("chats-panel").hidden && !docked()) { closeChats(); return true; }
-    if ($("psyche").classList.contains("active")) { show(backTo("psyche")); return true; }
-    if ($("teamchat").classList.contains("active")) { show("team"); return true; }
-    if (!$("newid").hidden) { $("newid").hidden = true; return true; }
-    if (!$("calsheet").hidden) { $("calsheet").hidden = true; return true; }
-    if (!$("plans").hidden) { $("plans").hidden = true; return true; }
-    if (!$("hours").hidden) { $("hours").hidden = true; return true; }
-    if (!$("company").hidden) { $("company").hidden = true; return true; }
-    if ($("ideas").classList.contains("active") || $("goalpage").classList.contains("active") || $("team").classList.contains("active")) { show("chat"); return true; }
     if (document.querySelector(".photo-view")) { document.querySelector(".photo-view").remove(); return true; }
     if (!$("calpick").hidden) { answerCalendar(null); return true; }
-    if ($("library").classList.contains("active")) { show("chat"); return true; }
+    // Pages go back to where they were opened from; the tabs go back to the chat
+    if ($("activity").classList.contains("active")) { leaveActivity(); return true; }
+    for (const id of ["stats", "appsPage", "bizpage", "psyche", "ideas", "goalpage", "team", "addrpage"]) if ($(id).classList.contains("active")) { show(backTo(id)); return true; }
+    if ($("teamchat").classList.contains("active")) { show("team"); return true; }
+    for (const id of ["feed", "calpage", "library", "settings"]) if ($(id).classList.contains("active")) { show("chat"); return true; }
     if (!$("attach-sheet").hidden) { closeAttach(); return true; }
     if (!$("link-row").hidden) { $("link-row").hidden = true; return true; }
     const active = document.querySelector(".step.active");
@@ -6324,11 +6831,6 @@
     $("open-hours").hidden = !t;
     $("open-biz").hidden = !t;
     document.querySelectorAll('#settings-list [data-group="Work"]').forEach((el) => { el.hidden = !t; });
-    const tab = $("tab-goals");
-    tab.querySelector("span").textContent = owner ? "Team" : "Goals";
-    tab.querySelector("svg").innerHTML = owner
-      ? '<circle cx="9" cy="8" r="3.4"/><path d="M3 19a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 19H21a5 5 0 0 0-3-4.6"/>'
-      : '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>';
     if (t) startInbox(); else stopInbox();
   }
 
@@ -6450,7 +6952,7 @@
     });
     $("team-peer").checked = !!t.peer;
   }
-  $("team-back").addEventListener("click", () => show("chat"));
+  $("team-back").addEventListener("click", () => show(backTo("team")));
   $("open-team").addEventListener("click", openTeam);
   $("team-peer").addEventListener("change", async () => {
     try { account.team = teamFromView(await teamApi("settings", { peerMessages: $("team-peer").checked })); save(ACCOUNT_KEY, account); toast($("team-peer").checked ? "Employees can message each other" : "Employees can message only you"); }
@@ -6946,4 +7448,5 @@
     else if (OVERLAY && account) startVoice();
     else if (native && native.takeShortcut) { const s = native.takeShortcut(); if (s) ervoShortcut(s); }
   }, OVERLAY ? 150 : 400);
+  syncFeedDot();
 })();

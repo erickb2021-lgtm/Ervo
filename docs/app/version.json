@@ -1,13 +1,14 @@
 {
-  "version": "0.5.10",
+  "version": "0.5.11",
   "notes": [
-    "Your thumbs up or down now reaches Ervo's maker: the question, the answer, which model wrote it and what was off, with no name attached, so repeated mistakes get fixed for everyone",
-    "Ervo says each thing once: no repeated sentences or the same question asked twice in one reply",
-    "Only Ervo's owner can call a business Ervo; anyone else is told the name is Ervo's own and asked for their real company name"
+    "New Feed tab: what Ervo is doing, what's next, what it did, and what needs your OK, with a reason on each item and Undo where it's possible",
+    "Every permission asks three ways: Allow once, Always allow or Not this time. Skip it and the question waits in the Feed under Needs you",
+    "Five tabs: Chat, Feed, Calendar, Files and You. The Calendar tab shows your month with Add and Plan this day; You holds Psyche, Goals, Ideas, Addresses, Ervo Stats and settings",
+    "Saved addresses: home, work and where things ship. They stay on your phone, and Ervo fills one in only after you allow it"
   ],
   "highlights": [
-    "Thumbs up or down helps fix Ervo for everyone",
-    "No more repeated questions in one reply",
-    "Nobody but the owner can claim the name Ervo"
+    "Feed tab: what Ervo is doing and what needs you",
+    "Allow once, Always allow or Not this time",
+    "Calendar and You tabs, plus saved addresses"
   ]
 }

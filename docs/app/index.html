@@ -160,7 +160,7 @@
         <span class="chat-name" id="chat-name" hidden></span>
       </span>
     </div>
-    <button class="icon-btn" id="menu-btn" type="button" aria-label="Settings">
+    <button class="icon-btn" id="menu-btn" type="button" aria-label="You and settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </button>
   </header>
@@ -305,6 +305,55 @@
   </div>
 </section>
 
+<!-- Feed: what Ervo needs from you, is doing, will do next and has done -->
+<section class="screen stats" id="feed" aria-labelledby="feed-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="feed-back" aria-label="Back to chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span class="nav-title" aria-hidden="true"></span>
+  </header>
+  <div class="stats-body" id="feed-body">
+    <h1 id="feed-title">Feed</h1>
+    <p class="stats-weather">What Ervo is doing for you, and what it needs from you.</p>
+    <h2>Needs you</h2>
+    <div class="feed-needs" id="feed-needs"></div>
+    <h2>Doing now</h2>
+    <div class="card list" id="feed-now"></div>
+    <h2>Up next</h2>
+    <div class="card list" id="feed-next"></div>
+    <h2>Done</h2>
+    <div class="card list" id="feed-done"></div>
+  </div>
+</section>
+
+<!-- Calendar: the month, and everything on the day you tap -->
+<section class="screen stats" id="calpage" aria-labelledby="calpage-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="calpage-back" aria-label="Back to chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span class="nav-title" aria-hidden="true"></span>
+  </header>
+  <div class="stats-body" id="calpage-body">
+    <h1 id="calpage-title">Calendar</h1>
+    <p class="stats-weather">Tap a day to see it, add to it, or have Ervo plan it.</p>
+    <div class="card calp">
+      <div class="cal-head">
+        <button class="cal-nav" type="button" id="calp-prev" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <b class="cal-month" id="calp-title" aria-live="polite"></b>
+        <button class="cal-nav" type="button" id="calp-next" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+      <div class="cal-grid" id="calp-grid" role="grid" aria-label="Days of the month"></div>
+    </div>
+    <h2 id="calp-day-title"></h2>
+    <div class="card calp-day">
+      <div class="cal-events" id="calp-events"></div>
+    </div>
+    <div class="calp-acts">
+      <button class="pill" type="button" id="calp-add">Add to this day</button>
+      <button class="pill ghost" type="button" id="calp-plan">Plan this day</button>
+    </div>
+    <button class="pill quiet calp-open" type="button" id="calp-open-app">Open calendar app</button>
+  </div>
+</section>
+
 <!-- 6. Files: photos, links and earlier chats -->
 <section class="screen stats" id="library" aria-labelledby="library-title">
   <header class="stats-header">
@@ -380,7 +429,7 @@
     <span class="nav-title" aria-hidden="true"></span>
   </header>
   <div class="stats-body">
-    <h1 id="settings-title">Settings</h1>
+    <h1 id="settings-title">You</h1>
     <button class="card set-hero" type="button" id="set-hero" aria-label="Change Ervo's look">
       <img id="set-owl" src="img/ervo-classic.png" alt="">
       <span class="txt"><b>Ervo</b><small id="menu-who"></small></span>
@@ -388,7 +437,7 @@
     </button>
     <div id="settings-list"></div>
     <p class="foot-note menu-ai">Ervo uses AI and can make mistakes. Check important info.</p>
-    <p class="foot-note menu-version" id="menu-version">Ervo version 0.5.10 (preview)</p>
+    <p class="foot-note menu-version" id="menu-version">Ervo version 0.5.11 (preview)</p>
   </div>
 </section>
 
@@ -426,12 +475,13 @@
 <!-- Switching between Ervo Personal and Ervo for Business -->
 <div class="switching" id="switching" hidden aria-live="polite"><img id="switching-owl" src="img/ervo-classic.png" alt=""><b id="switching-text">Switching</b></div>
 
-<!-- Bottom tabs: Chat, Ideas, Goals, Files -->
+<!-- Bottom tabs: Chat, Feed, Calendar, Files, You -->
 <nav class="tabbar" id="tabbar" aria-label="Main" hidden>
   <button type="button" id="tab-chat" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/></svg><span>Chat</span></button>
-  <button type="button" id="open-ideas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg><span>Ideas</span></button>
-  <button type="button" id="tab-goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg><span>Goals</span></button>
+  <button type="button" id="tab-feed" aria-label="Feed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2.5-6 4 12 2.5-6h5"/></svg><span>Feed</span></button>
+  <button type="button" id="tab-cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>Calendar</span></button>
   <button type="button" id="open-library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h4l2 2.5h7A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg><span>Files</span></button>
+  <button type="button" id="tab-you"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.2" r="3.7"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg><span>You</span></button>
 </nav>
 
 <!-- Connected apps: what Ervo may use, and the switch to turn each off -->
@@ -444,6 +494,21 @@
     <h1 id="apps-title">Connected Apps</h1>
     <p class="stats-weather">Ervo only uses an app after you allow it. Turn any of them off here.</p>
     <div class="card list compact" id="apps"></div>
+  </div>
+</section>
+
+<!-- Addresses: home, work and where things ship. Saved on the phone; Ervo asks before it uses one -->
+<section class="screen stats" id="addrpage" aria-labelledby="addrpage-title">
+  <header class="stats-header">
+    <button class="back" type="button" id="addrpage-back" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span class="nav-title" aria-hidden="true"></span>
+  </header>
+  <div class="stats-body" id="addr-body">
+    <h1 id="addrpage-title">Addresses</h1>
+    <p class="stats-weather">Home, work and where things ship. Ervo fills one in when you ask for directions, a delivery or a form, after you allow it.</p>
+    <div class="card list compact" id="addr-list"></div>
+    <button class="pill addr-add" type="button" id="addr-add">Add an address</button>
+    <p class="addr-note">Your addresses stay on this phone. Ervo never buys anything with one on its own.</p>
   </div>
 </section>
 
@@ -581,6 +646,37 @@
   </form>
 </div>
 
+<!-- One address: add or change -->
+<div class="sheet-wrap" id="addr" hidden>
+  <form class="sheet" role="dialog" aria-modal="true" aria-labelledby="addr-title" id="addr-form" novalidate>
+    <h2 id="addr-title">Add an address</h2>
+    <p class="muted">Saved on this phone only. Ervo asks before it uses it.</p>
+    <label class="field-label" for="addr-label">What to call it</label>
+    <input class="field soft" id="addr-label" type="text" placeholder="Home, Work, Mom's" autocomplete="off" maxlength="30">
+    <label class="field-label" for="addr-name">Name on deliveries</label>
+    <input class="field soft" id="addr-name" type="text" autocomplete="name" maxlength="60">
+    <label class="field-label" for="addr-line1">Street</label>
+    <input class="field soft" id="addr-line1" type="text" autocomplete="address-line1" maxlength="80">
+    <input class="field soft" id="addr-line2" type="text" placeholder="Apt, suite or floor (optional)" aria-label="Apartment, suite or floor" autocomplete="address-line2" maxlength="80">
+    <div class="addr-grid">
+      <div><label class="field-label" for="addr-city">City</label><input class="field soft" id="addr-city" type="text" autocomplete="address-level2" maxlength="60"></div>
+      <div><label class="field-label" for="addr-region">State</label><input class="field soft" id="addr-region" type="text" autocomplete="address-level1" maxlength="40"></div>
+    </div>
+    <div class="addr-grid">
+      <div><label class="field-label" for="addr-zip">ZIP code</label><input class="field soft" id="addr-zip" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="12"></div>
+      <div><label class="field-label" for="addr-country">Country</label><input class="field soft" id="addr-country" type="text" autocomplete="country-name" maxlength="40"></div>
+    </div>
+    <label class="field-label" for="addr-phone">Phone for deliveries (optional)</label>
+    <input class="field soft" id="addr-phone" type="tel" autocomplete="tel" maxlength="24">
+    <label class="addr-main"><input type="checkbox" id="addr-main"><span>Use this one unless I say otherwise</span></label>
+    <div class="sheet-actions">
+      <button class="pill ghost" type="button" id="addr-cancel">Cancel</button>
+      <button class="pill" type="submit">Save</button>
+    </div>
+    <button class="pill quiet addr-del" type="button" id="addr-del" hidden>Delete this address</button>
+  </form>
+</div>
+
 <!-- My company (employee) -->
 <div class="sheet-wrap" id="company" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="company-title">
@@ -602,16 +698,17 @@
   </aside>
 </div>
 
-<!-- Allow / Deny before Ervo uses another app -->
+<!-- Allow once / Always allow / Not this time, before Ervo uses another app -->
 <div class="sheet-wrap" id="perm" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="perm-title">
     <span class="app-ico big" id="perm-ico"></span>
     <h2 id="perm-title"></h2>
     <ul class="perm-list" id="perm-list"></ul>
     <p class="perm-note" id="perm-note"></p>
-    <div class="sheet-actions">
-      <button class="pill ghost" type="button" id="perm-deny">Not Now</button>
-      <button class="pill" type="button" id="perm-allow">Allow</button>
+    <div class="sheet-actions stack">
+      <button class="pill" type="button" id="perm-once">Allow once</button>
+      <button class="pill ghost" type="button" id="perm-always">Always allow</button>
+      <button class="pill ghost" type="button" id="perm-deny">Not this time</button>
     </div>
   </div>
 </div>
@@ -720,6 +817,22 @@
     </ul>
     <div class="sheet-actions">
       <button class="pill" type="button" id="intro-ok">Get Started</button>
+    </div>
+  </div>
+</div>
+
+<!-- One thing Ervo did: what, when, why, and a way to take it back -->
+<div class="sheet-wrap action" id="feeditem" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="fi-title">
+    <span class="app-ico big" id="fi-ico" aria-hidden="true"></span>
+    <h2 id="fi-title"></h2>
+    <p class="muted" id="fi-sub"></p>
+    <p class="fi-label">Why Ervo did this</p>
+    <p class="fi-why" id="fi-why"></p>
+    <div class="sheet-actions">
+      <button class="pill" type="button" id="fi-undo">Undo</button>
+      <button class="pill ghost" type="button" id="fi-open">Open</button>
+      <button class="pill ghost" type="button" id="fi-done">Done</button>
     </div>
   </div>
 </div>

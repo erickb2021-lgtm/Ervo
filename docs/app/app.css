@@ -1659,3 +1659,60 @@ body.kbd .thread { padding-bottom: calc(var(--dock-h, 110px) + 24px); }
 html, body { overscroll-behavior: none; }
 .sheet-wrap { overscroll-behavior: none; }
 .sheet { overscroll-behavior: contain; }
+
+/* ---------- 0.5.11: Feed, three-choice approvals, five tabs, Calendar tab ---------- */
+/* Allow once / Always allow / Not this time: three full-width buttons, the careful one on top */
+.sheet-actions.stack { flex-direction: column; }
+.sheet-actions.stack .pill { flex: none; width: 100%; }
+.pill.quiet { background: none; color: var(--text-2); }
+
+/* Bottom tabs: Chat, Feed, Calendar, Files, You */
+.tabbar { grid-template-columns: repeat(5, 1fr); }
+.tabbar button { position: relative; }
+body.tabs-on #feed .back, body.tabs-on #calpage .back, body.tabs-on #library .back, body.tabs-on #settings .back { visibility: hidden; }
+/* The dot on Feed: something is waiting for an answer */
+#tab-feed.has-dot::after { content: ""; position: absolute; top: 7px; left: calc(50% + 7px); width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 2px var(--bg); }
+
+/* Feed */
+.feed-needs { display: grid; gap: 10px; }
+.card.need { padding: 14px 14px 12px; }
+.need-top { display: flex; align-items: center; gap: 12px; }
+.need-top .txt { flex: 1; min-width: 0; }
+.need-top .txt b { display: block; font-size: var(--fs-body); font-weight: 600; }
+.need-top .txt small { display: block; margin-top: 1px; font-size: var(--fs-foot); color: var(--text-2); }
+.need-why { margin: 10px 0 0; padding: 8px 12px; border-radius: 12px; background: var(--fill-2); font-size: var(--fs-foot); color: var(--text-2); overflow-wrap: anywhere; }
+.need-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.need-acts .pill { width: 100%; margin-top: 0; min-height: 44px; font-size: var(--fs-sub); }
+.need-acts .pill.quiet { grid-column: 1 / -1; }
+.need-acts .pill.quiet:active { background: var(--fill-2); }
+/* One finished thing: why Ervo did it */
+.fi-label { margin: 16px 0 4px; font-size: var(--fs-cap2); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-2); }
+.fi-why { margin: 0; padding: 10px 14px; border-radius: 14px; background: var(--fill-2); font-size: var(--fs-sub); overflow-wrap: anywhere; }
+.app-ico.feed, .app-ico.spark { background: var(--tint-fill); }
+.app-ico.target { background: #ff375f; }
+.app-ico.bulb { background: #ffcc00; color: #3a2a00; }
+.app-ico.box { background: #a2845e; }
+.app-ico.lock { background: #636366; }
+.app-ico.wait { background: #ff9f0a; }
+
+/* Calendar tab: the pop-up's month, as a page */
+.card.calp { padding: 12px 10px 6px; }
+.cal-month { flex: 1; text-align: center; font-size: var(--fs-title3); font-weight: 700; }
+.calp .cal-grid { margin-bottom: 4px; }
+.calp .cal-day { aspect-ratio: auto; height: 46px; }
+.card.calp-day { padding: 10px; }
+.calp-day .cal-events { min-height: 0; max-height: none; overflow: visible; }
+.cc-row.tap { cursor: pointer; }
+.cc-row.tap:active { background: var(--fill-2); }
+.calp-acts { display: flex; gap: 10px; margin-top: 14px; }
+.stats-body .pill.calp-open { display: block; width: 100%; margin-top: 6px; }
+
+/* Addresses: a list on the You page, and one form sheet */
+.stats-body .pill.addr-add { display: block; width: 100%; margin-top: 14px; }
+.addr-note { margin: 14px 6px 0; font-size: var(--fs-foot); color: var(--text-2); }
+#addr .field-label { margin-top: 12px; }
+#addr .field + .field { margin-top: 8px; }
+.addr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.addr-main { display: flex; align-items: center; gap: 10px; margin: 16px 4px 0; font-size: var(--fs-sub); color: var(--text-2); }
+.addr-main input { width: 20px; height: 20px; margin: 0; accent-color: var(--tint); }
+.sheet .pill.quiet.addr-del { display: block; width: 100%; margin-top: 4px; color: var(--red); }
