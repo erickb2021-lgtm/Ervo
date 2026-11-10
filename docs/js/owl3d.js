@@ -47,7 +47,7 @@ function studio(renderer) {
   return tex;
 }
 
-const SHELLS = 14;
+const SHELLS = 10;
 const NECK = 0.42; // where the head pivots on the shoulders
 
 function furMaterial(length, density) {
@@ -288,7 +288,18 @@ const breath = () => new Promise((done) => setTimeout(done, 0));
 export async function mountOwl(host, opts = {}) {
   const coarse = matchMedia("(pointer: coarse)").matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.5 : 2));
+  // A software renderer (no graphics card, a remote desktop) would draw the owl on the processor and slow the whole
+  // page, so those browsers keep the still picture. ?force3d in the address overrides this for testing.
+  try {
+    const gl = renderer.getContext(), info = gl.getExtension("WEBGL_debug_renderer_info");
+    const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : "";
+    if (/swiftshader|llvmpipe|softpipe|software|basic render/i.test(name) && !/force3d/.test(location.search)) {
+      renderer.dispose(); throw new Error("software renderer: " + name);
+    }
+  } catch (e) { if (/software renderer/.test(String(e && e.message))) throw e; }
+  const maxRatio = coarse ? 1.25 : 1.5;
+  let ratio = Math.min(window.devicePixelRatio || 1, maxRatio);
+  renderer.setPixelRatio(ratio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1.0;
@@ -328,6 +339,10 @@ export async function mountOwl(host, opts = {}) {
   let grow = opts.introSpin === undefined ? 0.88 : 1, growV = 0;
   let t = 0, last = 0, raf = 0, visible = true, active = true, dragging = false, moved = false, lastX = 0, lastT = 0, pointerSeen = false;
   let nextBlink = 1.6, blinkAt = -1, blinks = 1;
+  // Drawing is the costly part. The owl is drawn at up to 60 pictures a second while something moves, and about
+  // 30 while it only breathes and sways. If the page still cannot keep up, the picture gets smaller twice, and
+  // if that is not enough the still picture takes over.
+  let lastDraw = 0, slow = 0, steps = 0, lastStep = 0;
   let ready = false; // nothing is drawn until the shaders are compiled
 
   function spring(x, v, target, k, c, dt) { const a = -k * (x - target) - c * v; v += a * dt; return [x + v * dt, v]; }
@@ -335,11 +350,12 @@ export async function mountOwl(host, opts = {}) {
   function frame(now) {
     raf = 0;
     // The first frame after a pause has no earlier frame to measure from: take one normal step.
-    const dt = last ? Math.max(0.001, Math.min(0.05, (now - last) / 1000)) : 0.016; last = now; t += dt;
+    const gap = last ? now - last : 16;
+    const dt = Math.max(0.001, Math.min(0.05, gap / 1000)); last = now; t += dt;
     if (!dragging) [spin, spinV] = spring(spin, spinV, spinTarget, 34, 9.4, dt);
     if (!pointerSeen && !opts.hold) { yawT = Math.sin(t * 0.7) * 0.2; pitchT = Math.sin(t * 0.53 + 1) * 0.05; }
-    [yaw, yawV] = spring(yaw, yawV, yawT, 70, 15, dt);
-    [pitch, pitchV] = spring(pitch, pitchV, pitchT, 70, 15, dt);
+    [yaw, yawV] = spring(yaw, yawV, yawT, 120, 21, dt);
+    [pitch, pitchV] = spring(pitch, pitchV, pitchT, 120, 21, dt);
     [grow, growV] = spring(grow, growV, 1, 60, 11, dt);
     if (hopY > 0 || hopV > 0) {
       hopV -= 19 * dt; hopY += hopV * dt;
@@ -373,7 +389,21 @@ export async function mountOwl(host, opts = {}) {
     const lift = clamp(hopY / 1.2, 0, 1);
     shadow.scale.setScalar(1 - lift * 0.35);
     shadow.material.opacity = (0.9 - lift * 0.45) * shadowBase;
-    renderer.render(scene, camera);
+    const busy = dragging || hopY > 0 || blinkAt >= 0 || Math.abs(spinV) > 0.01 || Math.abs(spin - spinTarget) > 0.003
+      || Math.abs(squash) > 0.002 || Math.abs(wing) > 0.002 || Math.abs(grow - 1) > 0.002
+      || Math.abs(yaw - yawT) > 0.01 || Math.abs(pitch - pitchT) > 0.01 || Math.abs(yawV) > 0.05;
+    if (now - lastDraw >= (busy ? 15 : 31)) {
+      lastDraw = now;
+      renderer.render(scene, camera);
+      // Long gaps between frames, kept up for about two seconds, mean the page is struggling.
+      slow = slow * 0.94 + (gap > 28 ? 0.06 : 0);
+      if (slow > 0.5 && now - lastStep > 2500 && t > 2) {
+        lastStep = now; slow = 0; steps += 1;
+        if (steps === 1) { ratio = Math.min(ratio, 1); renderer.setPixelRatio(ratio); resize(); }
+        else if (steps === 2) { ratio = Math.min(ratio, 0.75); renderer.setPixelRatio(ratio); resize(); }
+        else { active = false; if (opts.onFail) opts.onFail(); return; }
+      }
+    }
     if (visible && active && !document.hidden) raf = requestAnimationFrame(frame);
   }
   function wake() { if (ready && !raf && visible && active && !document.hidden) { last = 0; raf = requestAnimationFrame(frame); } }
@@ -387,7 +417,7 @@ export async function mountOwl(host, opts = {}) {
     canvas.style.width = side + 2 * mx + "px"; canvas.style.height = side + my + "px";
     camera.aspect = 1;
     camera.setViewOffset(side, side, -mx, -my, side + 2 * mx, side + my);
-    if (ready && !raf) renderer.render(scene, camera);
+    if (ready && !raf) { lastDraw = performance.now(); renderer.render(scene, camera); }
   }
   const ro = new ResizeObserver(resize); ro.observe(host);
   const io = new IntersectionObserver((e) => { visible = e[0].isIntersecting; wake(); }, { rootMargin: "80px" }); io.observe(host);
