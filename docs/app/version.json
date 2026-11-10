@@ -1,13 +1,13 @@
 {
-  "version": "0.5.13",
+  "version": "0.5.14",
   "notes": [
-    "Personal and Business Ideas stay on their own pages. Switching Ervos while a page was still being written used to drop it on the other one",
-    "Each Ervo asks for its own Ideas page and keeps it in its own space, so a switch never shows you the other Ervo's ideas",
-    "Both Ideas pages are picked fresh once after this update"
+    "Plans show up: a week of meals, a grocery list and reminders no longer get cut off mid-reply, and anything Ervo announces is in that same reply as words, cards or calendar events",
+    "Long messages with several asks go to Ervo's AI and get every part answered; a message that only mentions Hey Ervo in passing no longer gets the hands-free blurb",
+    "Ideas pages are tagged for the Ervo they were written for, so Personal never shows Business ideas or the other way round"
   ],
   "highlights": [
-    "Ideas stay with the right Ervo",
-    "Each Ervo fetches its own page",
-    "Ideas refresh once after the update"
+    "Plans and schedules actually appear",
+    "Long, multi-part messages are answered in full",
+    "Ideas stay with the right Ervo"
   ]
 }

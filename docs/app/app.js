@@ -1234,7 +1234,7 @@
     else if (is(/\b(warn|alert|notify|tell|ping|text|let) me( know)?\b.*\b(weather|rain|snow|storms?|umbrella|jacket|cold|heat)\b|\b(weather|rain|storm)\b.*\b(before i (leave|head out|go)|when i leave|heads.?up|alerts?|notifications?)\b/)) d.intent = "leaveAlert";
     else if (is(/^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|sounds good|please do|book it|add it|confirm|let'?s do it|correct|perfect)\b/)) d.intent = "yes";
     else if (is(/^(no|nope|nah|not now|skip|stop|never ?mind|don'?t)\b|^cancel( it| that| this)?[.!]?$/) && !is(/\b(alarms?|timers?|music|reminders?|calls?|calendar)\b/)) d.intent = "no";
-    else if (is(/\bhey ervo\b.*\b(on|off|settings?|set ?up|work)\b|\b(turn on|turn off|enable|disable|set up|setup)\b.*\b(hey ervo|wake word|hands.?free|voice activation)\b/)) { d.intent = "wake"; d.wakeTurn = /\b(off|disable)\b/.test(t) ? false : /\b(on|enable)\b/.test(t) ? true : undefined; }
+    else if (t.split(/\s+/).length <= 10 && is(/\bhey ervo\b.*\b(on|off|settings?|set ?up|work)\b|\b(turn on|turn off|enable|disable|set up|setup)\b.*\b(hey ervo|wake word|hands.?free|voice activation)\b/)) { d.intent = "wake"; d.wakeTurn = /\b(off|disable)\b/.test(t) ? false : /\b(on|enable)\b/.test(t) ? true : undefined; }
     else if (is(/\b(timer|countdown)\b/) && !is(/\b(cancel|stop|delete)\b/) && !(is(/\b(buy|purchase|recommend\w*|best|good|app|apps|which|review\w*|shop\w*|amazon)\b/) && !parseDuration(t))) { d.intent = "timer"; d.seconds = parseDuration(t) || ((m) => (m ? +m[1] * 60 : 0))(t.match(/\b(?:timer|countdown)(?: for)? (\d{1,3})$/)); const lb = t.match(/\b(?:for|called|named) (?:the |my )?([a-z][a-z ]{1,25})$/); d.label = lb && !parseDuration(lb[1]) ? cap(lb[1].trim()) : ""; }
     else if (is(/\balarms?\b/) && is(/\b(cancel|delete|remove|turn off|switch off|clear|get rid of|dismiss|disable|stop)\b/)) { d.intent = "alarmOff"; d.alarm = parseAlarm(t.replace(/\b(all|every)\b/g, "")); if (is(/\b(all|every|my alarms)\b/)) d.alarm.h = null; }
     else if (is(/\balarm\b/) && is(/\b(change|move|reset|re-set|push|switch|update|make)\b.*\bto\b/)) d.intent = "alarmChange";
@@ -1268,6 +1268,9 @@
       else if (is(/\b(buy|purchase|shop|add to (my )?cart|get me|amazon|reorder|find me|look(ing)? for|recommend|shopping for)\b|^order\b|^(i need|we need|we'?re out of|i'?m out of) |\bbest [a-z ]+ (for|under)\b/) || (storeIn(t) && /\b(get|order|find|search|want|need|some)\b/.test(t))) d.intent = "shop";
       else if (is(/schedule|calendar|remind|appointment|meeting|meet with|call with|\bbook\b|\bplan\b|set up|gym|workout|dentist|doctor|haircut|lunch with|coffee with|dinner with|\bfit\b|block (off|out)|\badd\b/) || when.date) d.intent = "event";
     }
+    // A long message (several asks, a story, a plan for the week) is for Ervo's AI, which has the same
+    // phone tools; the one-line command rules above are for short commands and misread long text
+    if (["wake", "timer", "alarm", "alarmOff", "alarmChange", "meeting", "edit", "remove", "alarms", "call", "look", "leaveAlert", "settings"].includes(d.intent) && t.split(/\s+/).length > 14) { d.intent = "unknown"; d.settings = null; }
     if (d.intent === "reserve") d.cuisine = CUISINES.find((c) => new RegExp(`\\b${c}\\b`).test(t)) || null;
     if (d.intent === "reserve") { const m = raw.match(/\bat ([A-Z][\w'&]*(?: [A-Z][\w'&]*)*)/); d.place = m ? m[1] : null; }
     return d;
@@ -2612,10 +2615,10 @@
     else if (/^I couldn't\b/.test(String(said))) buzz("reject");
     // The AI remembers what it showed, so "the second one" or "those lights" still make sense later
     const shown = opts.products && opts.products.length ? `\n[Showed product cards: ${opts.products.map((p) => [p.name, p.price].filter(Boolean).join(" ")).join("; ")}]` : "";
-    const listed = opts.list ? `\n[Showed a ${opts.list.kind} list "${opts.list.title}": ${opts.list.items.map((i) => `${i.time ? i.time + " " : ""}${i.text}`).join("; ")}]` : "";
+    const listed = (opts.lists || (opts.list ? [opts.list] : [])).map((l) => `\n[Showed a ${l.kind} list "${l.title}": ${l.items.map((i) => `${i.time ? i.time + " " : ""}${i.text}`).join("; ")}]`).join("");
     history.push({ role: "assistant", text: said + shown + listed + (opts.picture ? `\n[Drew a picture: ${String(opts.prompt || "").slice(0, 120)}]` : "") });
     if (opts.products && opts.products.length) showProducts(opts.products);
-    if (opts.list && opts.list.items.length) showList(opts.list);
+    (opts.lists || (opts.list ? [opts.list] : [])).forEach((l) => { if (l.items.length) showList(l); });
     if (opts.trackers && opts.trackers.length) opts.trackers.forEach((tr) => { showTracker(tr); record({ t: "tracker", id: tr.id }); });
     if (opts.calendar) showCalendarCard(opts.calendar.date, opts.calendar.events, true);
     if (opts.acts && opts.acts.length) showActs(opts.acts);
@@ -2678,7 +2681,7 @@
     pick(p.facts.filter((f) => f.kind === "goal")).slice(0, 1).forEach((f) => add(`Next step: ${short(goalText(f.text), 26)}`, `Help me with my goal to ${goalText(f.text).replace(/[.!]+$/, "")}`, true));
     // 3. Today's ideas from Ervo's AI (made from your Psyche)
     const cached = load(IDEAS_KEY);
-    const ideaList = cached && cached.data && Array.isArray(cached.data.groups) ? cached.data.groups.flatMap((g) => (g && Array.isArray(g.ideas) ? g.ideas : [])) : [];
+    const ideaList = cached && ideasMine(cached) && cached.data && Array.isArray(cached.data.groups) ? cached.data.groups.flatMap((g) => (g && Array.isArray(g.ideas) ? g.ideas : [])) : [];
     pick(ideaList.filter((it) => it && it.prompt && it.prompt.length <= 48)).slice(0, 2).forEach((it) => add(short(it.prompt, 34), it.prompt, true));
     // 4. What Ervo knows about you
     const kinds = {};
@@ -2765,12 +2768,12 @@
   let ideasFetching = null; // { ns, promise }: the Ervo that is waiting, and its fetch
   function fetchIdeas() {
     if (!AI_URL || !account) return Promise.resolve(null);
-    const ns = NS;
+    const ns = NS, plan = account.plan;
     if (ideasFetching && ideasFetching.ns === ns) return ideasFetching.promise;
     const learned = psyche().learned || 0;
-    const promise = askServer({ task: "ideas", messages: [], plan: account.plan, name: prefs().nickname || account.name, team: teamForAI(), psyche: psycheForServer() }).then((j) => {
-      if (j && j.ideas && Array.isArray(j.ideas.groups) && j.ideas.groups.length) {
-        saveIn(ns, IDEAS_KEY, { v: IDEAS_V, day: new Date().toDateString(), learned, data: j.ideas });
+    const promise = askServer({ task: "ideas", messages: [], plan, name: prefs().nickname || account.name, team: teamForAI(), psyche: psycheForServer() }).then((j) => {
+      if (j && j.ideas && Array.isArray(j.ideas.groups) && j.ideas.groups.length && (!j.ideas.plan || j.ideas.plan === plan)) {
+        saveIn(ns, IDEAS_KEY, { v: IDEAS_V, plan, day: new Date().toDateString(), learned, data: j.ideas });
         return NS === ns ? j.ideas : null; // the other Ervo's page is kept for it, never shown here
       }
       return null;
@@ -2779,11 +2782,13 @@
     ideasFetching = { ns, promise };
     return promise;
   }
+  // A cached Ideas page is this Ervo's own when it says so (pages from before 0.5.14 say nothing and are trusted)
+  const ideasMine = (c) => !!c && (!c.plan || c.plan === (account && account.plan));
   function freshenSuggestions() {
     const cached = load(IDEAS_KEY);
     const p = psyche();
     if (OVERLAY || !AI_URL || p.facts.length < 3) return;
-    if (cached && cached.v === IDEAS_V && cached.day === new Date().toDateString() && (p.learned || 0) - (cached.learned || 0) < 5) return;
+    if (cached && cached.v === IDEAS_V && ideasMine(cached) && cached.day === new Date().toDateString() && (p.learned || 0) - (cached.learned || 0) < 5) return;
     fetchIdeas().then((d) => {
       // Only swap the bar if it's still showing suggestions (not an answer's own options)
       if (d && $("chips").dataset.kind === "suggest") setChips(null);
@@ -3373,7 +3378,6 @@
       const out = { text: said, products: [], chips: null, model: j.model };
       const afters = [];
       out.learned = learnedNow;
-      out.quiet = (j.actions || []).some((a) => SELF_REPORTING.has(a.type));
       (j.actions || []).forEach((a) => {
         if (a.type === "send_to_teammate" && a.to && a.text) {
           afters.push(() => teamSend(String(a.to), String(a.text)));
@@ -3385,7 +3389,7 @@
           if (tr) (out.trackers = out.trackers || []).push(tr);
         } else if (a.type === "make_list") {
           const l = cleanList(a);
-          if (l.items.length) out.list = l;
+          if (l.items.length) { if (out.list) (out.lists = out.lists || [out.list]).push(l); else out.list = l; }
         } else if (a.type === "offer_choices" && Array.isArray(a.options)) {
           out.choices = a.options.map((o) => String(o).trim().slice(0, 80)).filter(Boolean).slice(0, 4);
         } else if (a.type === "show_products" && Array.isArray(a.products)) {
@@ -3462,6 +3466,12 @@
           if (a.theme === "dark" || a.theme === "light") themeHelp(a.theme);
         }
       });
+      // Alarms, events and calls show their own message, so a short "Setting it now" would only repeat it.
+      // A reply that also carries a plan, a list, links or real words is never dropped (before 0.5.14 it was,
+      // which is why a schedule with reminders showed nothing at all).
+      const acts = j.actions || [];
+      out.quiet = acts.some((a) => SELF_REPORTING.has(a.type)) && acts.every((a) => SELF_REPORTING.has(a.type) || a.type === "update_psyche")
+        && !out.list && !out.products.length && !out.acts && !out.choices && !out.trackers && said.length <= 200;
       if (afters.length) out.after = async () => { for (const f of afters) await f(); };
       if (!out.text) {
         out.text = out.after ? "Done." : out.products.length || out.list || out.acts || out.choices ? "Here you go."
@@ -3470,7 +3480,7 @@
       // Long answers (meal plans, packing lists, how-tos) get a Share button: Notes, Keep, Messages, email...
       if (out.text.length > 380 || out.list) {
         const title = out.list ? out.list.title : (d.raw || "From Ervo").slice(0, 60);
-        const body = out.list ? `${out.text}\n\n${listText(out.list)}` : out.text;
+        const body = out.list ? `${out.text}\n\n${(out.lists || [out.list]).map(listText).join("\n\n")}` : out.text;
         out.acts = (out.acts || []).concat({ label: "Share", icon: "open", onClick: () => shareText(title, body) });
       }
       return out;
@@ -5266,8 +5276,8 @@
   async function renderIdeas(force) {
     const cached = load(IDEAS_KEY);
     const learned = psyche().learned || 0;
-    const fresh = cached && cached.v === IDEAS_V && cached.day === new Date().toDateString() && learned - (cached.learned || 0) < 5;
-    if (cached && cached.data) drawIdeas(cached.data); else drawIdeas(null);
+    const fresh = cached && cached.v === IDEAS_V && ideasMine(cached) && cached.day === new Date().toDateString() && learned - (cached.learned || 0) < 5;
+    if (cached && cached.data && ideasMine(cached)) drawIdeas(cached.data); else drawIdeas(null);
     if (!AI_URL || (fresh && !force)) return;
     $("ideas-sub").textContent = "Finding ideas for you…";
     $("ideas-refresh").disabled = true;
@@ -5766,7 +5776,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.13"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.14"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
