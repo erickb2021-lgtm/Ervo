@@ -1725,3 +1725,24 @@ body.tabs-on #feed .back, body.tabs-on #calpage .back, body.tabs-on #library .ba
 /* Pills that act (Allow, See Milestones, Undo) sit on gray glass */
 .acts .pill, .pill.quiet { background: var(--tint-soft); color: var(--tint); }
 .acts .pill.primary, .pill.primary { background: var(--tint-fill); color: var(--on-tint); }
+
+/* ---------- 0.5.16: Ervo Shopping ---------- */
+/* While the store window takes the lower part of the screen, the app lives in the upper part */
+html.shop-mini .screen { bottom: 46vh !important; }
+html.shop-mini .tabbar { display: none; }
+.card.shopcard { padding: 12px 14px; margin: 6px 0 10px; }
+.sc-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.sc-title { font-size: var(--fs-callout); }
+.sc-step { font-size: var(--fs-cap); color: var(--text-3); }
+.sc-status { margin: 4px 0 8px; font-size: var(--fs-sub); color: var(--text-2); }
+.sc-items { display: flex; flex-direction: column; gap: 4px; }
+.sc-item { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 8px; font-size: var(--fs-sub); }
+.sc-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-3); }
+.sc-item.added .sc-dot { background: var(--green); }
+.sc-item.needs_you .sc-dot { background: #ff9f0a; }
+.sc-item.skipped .sc-dot { background: var(--red); }
+.sc-item.skipped .sc-text { text-decoration: line-through; color: var(--text-3); }
+.sc-note { color: var(--text-3); font-size: var(--fs-cap); max-width: 44%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sc-acts .pill { min-height: 32px; padding: 0 12px; font-size: var(--fs-sub); }
+.store-pick .pill.shop-go { margin-top: 8px; width: 100%; }

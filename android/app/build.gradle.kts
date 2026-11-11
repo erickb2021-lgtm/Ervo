@@ -11,8 +11,8 @@ android {
         applicationId = "app.ervo"
         minSdk = 26
         targetSdk = 34
-        versionCode = 45
-        versionName = "0.5.15"
+        versionCode = 46
+        versionName = "0.5.16"
     }
 
     // Every update must be signed with the same key, or phones refuse to install it.

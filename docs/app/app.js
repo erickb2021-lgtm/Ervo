@@ -151,14 +151,14 @@
       hint: "Personal use only: planning, shopping, your own returns and more.",
       question: "What should Ervo call you?", nameLabel: "Your name", placeholder: "Alex", nameError: "Enter your name.",
       chips: ["Book a table for 4 tonight", "Gym Friday at 6pm", "Buy paper towels", "What's coming up?", "Weather"],
-      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "amazon", "orders", "health", "location", "addresses"],
+      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "amazon", "orders", "health", "location", "addresses", "shopping"],
     },
     business: {
       label: "Business", avatar: "img/ervo-business.png",
       hint: "Business use only: customer support, refunds by your policy, scheduling and more.",
       question: "What's your name?", nameLabel: "Your name", placeholder: "Alex", nameError: "Enter your name.",
       chips: ["Refund order #5512", "Summarize today's tickets", "Call with Northwind Thursday at 2pm", "Draft a reply to an upset customer"],
-      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "mail", "orders", "location", "addresses"],
+      apps: ["phonecal", "calendar", "contacts", "clock", "meet", "zoom", "teams", "mail", "orders", "location", "addresses", "shopping"],
     },
   };
   let plan = "personal";
@@ -787,6 +787,11 @@
       name: "Google Calendar", ico: "calendar", login: "https://calendar.google.com/calendar/",
       does: ["Add events and reservations Ervo plans for you", "You pick which Google calendar and tap Save"],
       note: "Ervo opens Google Calendar (or its sign-in page). Ervo never sees your password.",
+    },
+    shopping: {
+      name: "Ervo Shopping", ico: "shop",
+      does: ["Open a store's website in Ervo's own window and fill the cart while you watch", "Search, pick, swap items and set amounts; ask you when something is missing"],
+      note: "Android only for now. You sign in and pay yourself, in that same window. Ervo never sees your password or card.",
     },
     amazon: {
       name: "Amazon", ico: "shop", login: "https://www.amazon.com/gp/css/homepage.html",
@@ -2457,7 +2462,13 @@
       if (first) openItemAt(l, first);
     }
     draw();
-    box.append(label, seg, other);
+    // 0.5.16: Ervo can do the shopping itself, in its own window
+    const doit = document.createElement("button");
+    doit.type = "button";
+    doit.className = "pill primary shop-go";
+    doit.textContent = "Shop it for me";
+    doit.addEventListener("click", () => startShopping({ store: l.store || prefs().store || "", items: l.items.map((it) => ({ text: it.text, qty: it.qty || 1 })) }));
+    box.append(label, seg, other, doit);
     return box;
   }
   const storeName = (k) => (STORES[k] ? STORES[k].name : String(k || "").replace(/^other:/, ""));
@@ -3573,6 +3584,8 @@
           const f = day(a.from), to = day(a.to), one = day(a.date);
           const range = f && to ? { from: startOfDay(f), to: addDays(startOfDay(to), 1), label: `from ${fmtDate(f)} to ${fmtDate(to)}` } : one ? dayRange(one) : asked.range;
           afters.push(() => removeEvents({ title: String(a.title || ""), count: asked.count, all: !!a.all || asked.all, clearing: asked.clearing || !!a.all, range }));
+        } else if (a.type === "shop_run" && Array.isArray(a.items)) {
+          afters.push(() => startShopping({ store: a.store, storeUrl: a.store_url, items: a.items, fulfillment: a.fulfillment, notes: a.notes }));
         } else if (a.type === "request_address") {
           // Ervo needs an address they saved: ask once, then run the request again with it filled in
           afters.push(async () => {
@@ -3627,6 +3640,300 @@
     if (live && (typeof r === "string" || !r || !r.text)) { live.remove(); live = null; }
     await ervoSays(r, { status, instant: !!live, replace: live, ai: typeof r === "object" && !!r, asked: d && d.raw });
     if (r && r.after) return r.after();
+  }
+
+  // ---------- Ervo Shopping (0.5.16): the store's website in Ervo's own window ----------
+  // On Android, Ervo opens the store's site in a small window over the chat and shops the list
+  // while you watch: it searches, picks, adds to the cart, swaps and changes amounts, and asks
+  // when something is missing. Sign-in and payment stay yours, in that same window. The page
+  // script (shop.js) reads each page for Ervo's AI, which picks one step at a time (shop.ts).
+  const SHOP_STORES = {
+    heb: "https://www.heb.com/", walmart: "https://www.walmart.com/", target: "https://www.target.com/", amazon: "https://www.amazon.com/",
+    sprouts: "https://shop.sprouts.com/", instacart: "https://www.instacart.com/", costco: "https://www.costco.com/", kroger: "https://www.kroger.com/",
+    wholefoods: "https://www.wholefoodsmarket.com/", cvs: "https://www.cvs.com/", walgreens: "https://www.walgreens.com/", homedepot: "https://www.homedepot.com/",
+    lowes: "https://www.lowes.com/", bestbuy: "https://www.bestbuy.com/", doordash: "https://www.doordash.com/", ubereats: "https://www.ubereats.com/", grubhub: "https://www.grubhub.com/",
+  };
+  const SHOP_NAMES = { costco: "Costco", kroger: "Kroger", wholefoods: "Whole Foods", cvs: "CVS", walgreens: "Walgreens", homedepot: "Home Depot", lowes: "Lowe's", bestbuy: "Best Buy" };
+  const shopStoreName = (k) => SHOP_NAMES[k] || storeName(k) || String(k || "").replace(/^other:/, "");
+  function storeKeyFor(s) {
+    const raw = String(s || "").trim();
+    const flat = raw.toLowerCase().replace(/[^a-z]/g, "");
+    if (!flat) return "";
+    const known = { heb: "heb", walmart: "walmart", target: "target", amazon: "amazon", sprouts: "sprouts", instacart: "instacart", costco: "costco", kroger: "kroger", wholefoods: "wholefoods", cvs: "cvs", walgreens: "walgreens", homedepot: "homedepot", lowes: "lowes", bestbuy: "bestbuy", doordash: "doordash", ubereats: "ubereats", grubhub: "grubhub" };
+    if (known[flat]) return known[flat];
+    const hit = Object.keys(known).find((k) => flat.includes(k));
+    return hit || (raw.startsWith("other:") ? raw : `other:${raw}`);
+  }
+  let SHOP = null; // the trip in progress
+  const shopWaiters = {};
+  let shopSeq = 0;
+  const shopCall = (fn, ms) => new Promise((resolve) => {
+    const id = `s${++shopSeq}`;
+    shopWaiters[id] = resolve;
+    try { fn(id); } catch (e) { delete shopWaiters[id]; resolve(null); return; }
+    setTimeout(() => { if (shopWaiters[id]) { delete shopWaiters[id]; resolve(null); } }, ms || 15000);
+  });
+  window.ervoShopResult = (json) => {
+    let m;
+    try { m = JSON.parse(json); } catch (e) { return; }
+    const w = shopWaiters[m.id];
+    if (!w) return;
+    delete shopWaiters[m.id];
+    w(m);
+  };
+  window.ervoShopEvent = (json) => {
+    let ev;
+    try { ev = JSON.parse(json); } catch (e) { return; }
+    if (!SHOP) return;
+    if (ev.type === "load") { SHOP.loaded = true; SHOP.url = ev.url || SHOP.url; }
+    else if (ev.type === "mode") {
+      SHOP.mode = ev.mode;
+      if (ev.mode === "full" && SHOP.active && !SHOP.paused) { SHOP.paused = true; SHOP.pausedBy = "you"; shopCard("Paused while you have the window"); }
+      else if (ev.mode === "mini" && SHOP.active && SHOP.paused && (SHOP.handoffFor || SHOP.pausedBy === "you")) shopResume();
+    } else if (ev.type === "close") {
+      if (!SHOP.active) return shopClose();
+      ervoSays("Stop shopping and close the window?", { acts: [
+        { label: "Stop and close", icon: "shop", onClick: (e) => { e.currentTarget.closest(".acts").remove(); shopFinish("Stopped.", false); shopClose(); } },
+        { label: "Keep going", icon: "shop", onClick: (e) => { e.currentTarget.closest(".acts").remove(); } },
+      ] });
+    }
+  };
+  async function shopEval(js) {
+    const m = await shopCall((id) => native.shopEval(id, js));
+    if (!m) return null;
+    let v = m.result;
+    try { v = JSON.parse(v); } catch (e) { /* a plain string */ }
+    if (typeof v === "string") { try { v = JSON.parse(v); } catch (e) { /* fine */ } }
+    return v;
+  }
+  async function shopSnap() {
+    const js = "window.__ervo && window.__ervo.snap ? JSON.stringify(window.__ervo.snap(120)) : \"\"";
+    let s = await shopEval(js);
+    if (!s || typeof s !== "object") { native.shopInject(); await delay(500); s = await shopEval(js); }
+    return s && typeof s === "object" ? s : null;
+  }
+  const shopWaitLoad = (ms) => new Promise((resolve) => {
+    const start = Date.now();
+    const tick = () => { if (!SHOP || SHOP.loaded || Date.now() - start > ms) { if (SHOP) SHOP.loaded = true; resolve(); } else setTimeout(tick, 150); };
+    tick();
+  });
+  function shopAddress() {
+    if (!allowed("addresses")) return "";
+    const a = addresses().find((x) => x.main) || addresses()[0];
+    return a ? addrLine(a) : "";
+  }
+  function shopItems(list) {
+    return (list || []).map((it, i) => ({ id: `i${i + 1}`, text: String(typeof it === "string" ? it : it.text || "").trim().slice(0, 90), qty: Math.min(50, Math.max(1, Number(typeof it === "object" && it ? it.qty : 1) || 1)), status: "todo" })).filter((it) => it.text);
+  }
+  // Which store, when nothing said it: the usual one, or a quick pick
+  function shopPickStore(opts) {
+    const keys = [prefs().store].concat(GROCERY_STORES).filter((k, i, a) => k && a.indexOf(k) === i && STORES[k]).slice(0, 5);
+    return ervoSays("Which store should I shop at?", { acts: keys.map((k) => ({ label: storeName(k), icon: "shop", onClick: (e) => { e.currentTarget.closest(".acts").remove(); startShopping(Object.assign({}, opts, { store: k })); } })) });
+  }
+  async function startShopping(opts) {
+    opts = opts || {};
+    if (SHOP && SHOP.active) return ervoSays("I'm already shopping. Tell me what to change, or say stop.");
+    const items = shopItems(opts.items);
+    if (!items.length) return ervoSays("What should I get? Give me the list and I'll shop for it.");
+    const key = storeKeyFor(opts.store);
+    if (!key) return shopPickStore(opts);
+    const name = opts.storeName || shopStoreName(key);
+    const plain = key.replace(/^other:/, "");
+    const url = opts.storeUrl || SHOP_STORES[key] || (STORES[key] ? STORES[key].search("").replace(/[?&][a-z_]*=.*$/i, "").replace(/\/(s|search)\/?$/, "/") : "") || `https://www.google.com/search?q=${encodeURIComponent(plain + " online store")}`;
+    if (!(native && native.shopOpen)) {
+      // iPhone and the web: no window yet, so the store's own search for each item
+      const acts = items.slice(0, 6).map((it) => ({ label: `${it.text} at ${name}`, icon: "shop", href: STORES[key] ? STORES[key].search(encodeURIComponent(it.text)) : `https://www.google.com/search?q=${encodeURIComponent(`${plain} ${it.text}`)}` }));
+      return ervoSays(`Ervo Shopping, where I fill the cart while you watch, works in the Ervo Android app. Here, tap an item and I'll open ${name}'s search for it.`, { acts });
+    }
+    const ok = await ensure("shopping", `Shop at ${name} in Ervo's window: I search, pick and fill the cart while you watch. You sign in and pay yourself.`);
+    if (!ok) return ervoSays("Okay, I won't shop there. Tap the store buttons on your list anytime.");
+    SHOP = {
+      id: Date.now().toString(36), active: true, store: key, name, url, items, notes: String(opts.notes || "").slice(0, 300),
+      fulfillment: opts.fulfillment || prefs().fulfillment || "", step: 0, max: 120, history: [], mode: "mini", paused: false, pausedBy: "",
+      handoffFor: null, startedAt: Date.now(), instruction: "", answer: "", waitingAnswer: false, needImage: false, failures: 0, loaded: false, url2: "",
+      status: "Opening the store", card: null, logId: null,
+    };
+    document.documentElement.classList.add("shop-mini");
+    shopCard("Opening the store");
+    const log = { kind: "shop", ico: "shop", title: `Shopping at ${name}`, detail: `${items.length} ${items.length === 1 ? "item" : "items"}, in Ervo's window` };
+    logActivity(log);
+    native.shopOpen(url, name);
+    await shopWaitLoad(9000);
+    shopLoop();
+  }
+  async function shopLoop() {
+    if (!SHOP || SHOP.looping) return;
+    SHOP.looping = true;
+    try {
+      while (SHOP && SHOP.active && !SHOP.paused) {
+        if (SHOP.step >= SHOP.max || Date.now() - SHOP.startedAt > 15 * 60000) return shopFinish("I ran out of steps for this trip. Here's where I got to; the window is yours to finish.", false);
+        if (!SHOP.loaded) await shopWaitLoad(6000);
+        await delay(SHOP.step ? 700 : 400);
+        const snapshot = await shopSnap();
+        if (!snapshot) {
+          if (++SHOP.failures > 3) return shopFinish("I couldn't read the store's page. The window is yours; I'll try again if you say so.", false);
+          await delay(800);
+          continue;
+        }
+        if (snapshot.sensitive && !SHOP.handoffFor) {
+          const why = snapshot.sensitive === "sign-in" ? `Sign in to ${SHOP.name} in the window` : snapshot.sensitive === "payment" ? "Your card and checkout go in the window, that part is yours" : `${SHOP.name} wants to check you're a person`;
+          return shopHandoff(why);
+        }
+        let image = "";
+        if (SHOP.needImage && native.shopShot) { const m = await shopCall((id) => native.shopShot(id, 720), 8000); image = (m && m.image) || ""; }
+        SHOP.step++;
+        shopCard();
+        let j = null;
+        try {
+          j = await askServer({ task: "shop", messages: [], psyche: undefined, memory: undefined, shop: {
+            store: SHOP.store, storeName: SHOP.name, items: SHOP.items, fulfillment: SHOP.fulfillment, notes: SHOP.notes, car: prefs().car || "", address: shopAddress(),
+            history: SHOP.history.slice(-14), snapshot, image: image || undefined, answer: SHOP.answer || undefined, instruction: SHOP.instruction || undefined,
+            budget: { step: SHOP.step, max: SHOP.max },
+          } });
+        } catch (e) { j = null; }
+        if (!SHOP || !SHOP.active) return;
+        SHOP.answer = ""; SHOP.instruction = ""; SHOP.needImage = false;
+        const step = j && j.step;
+        if (!step) {
+          if (++SHOP.failures > 3) return shopFinish("I lost my connection to Ervo's server. The window is yours; say \"keep shopping\" to try again.", false);
+          await delay(1500);
+          continue;
+        }
+        SHOP.failures = 0;
+        await shopApply(step);
+      }
+    } finally {
+      if (SHOP) SHOP.looping = false;
+    }
+  }
+  async function shopApply(step) {
+    if (step.say) { try { native.shopSay(step.say); } catch (e) { /* fine */ } SHOP.status = step.say; }
+    (step.items || []).forEach((u) => { const it = SHOP.items.find((x) => x.id === u.id); if (it) { it.status = u.status || it.status; if (u.note) it.note = String(u.note).slice(0, 90); } });
+    if (step.remember && step.remember.key && step.remember.value) {
+      const p = prefs();
+      p[step.remember.key] = String(step.remember.value).slice(0, 80);
+      save(PREFS_KEY, p);
+      if (step.remember.key === "fulfillment") SHOP.fulfillment = p.fulfillment;
+    }
+    SHOP.history.push({ n: SHOP.step, act: step.act, note: step.say, url: SHOP.url });
+    shopCard();
+    const run = (cmd) => shopEval(`JSON.stringify(window.__ervo && window.__ervo.act ? window.__ervo.act(${JSON.stringify(cmd)}) : { ok: false })`);
+    switch (step.act) {
+      case "tap": { const r = await run({ a: "tap", r: step.ref }); SHOP.history[SHOP.history.length - 1].note = `${step.say}${r && r.note ? ` (${r.note})` : ""}`; SHOP.loaded = false; await shopWaitLoad(2500); break; }
+      case "type": { const r = await run({ a: "type", r: step.ref, text: step.text || "", enter: !!step.enter }); if (r && r.ok === false) SHOP.history[SHOP.history.length - 1].note = `${step.say} (${r.note})`; if (step.enter) { SHOP.loaded = false; await shopWaitLoad(3000); } break; }
+      case "select": await run({ a: "select", r: step.ref, value: step.value || "" }); break;
+      case "scroll": await run({ a: "scroll", dy: step.dy, to: step.to }); await delay(500); break;
+      case "go": if (/^https?:\/\//.test(step.url || "")) { SHOP.loaded = false; native.shopGo(step.url); await shopWaitLoad(9000); } break;
+      case "back": SHOP.loaded = false; await run({ a: "back" }); await shopWaitLoad(5000); break;
+      case "wait": await delay(1800); break;
+      case "look": SHOP.needImage = true; break;
+      case "ask": shopAsk(step.question || step.say, step.options || []); break;
+      case "handoff": shopHandoff(step.say || "This part is yours"); break;
+      case "done": shopFinish(step.summary || step.say || "Your cart is ready.", true); break;
+      case "stop": shopFinish(step.summary || step.say || "I stopped.", false); break;
+      default: break;
+    }
+  }
+  function shopAsk(question, options) {
+    SHOP.paused = true;
+    SHOP.pausedBy = "ask";
+    SHOP.waitingAnswer = true;
+    shopCard("Waiting for your answer");
+    ervoSays(question, options.length ? { choices: options.slice(0, 4) } : {});
+  }
+  function shopHandoff(why) {
+    SHOP.paused = true;
+    SHOP.pausedBy = "handoff";
+    SHOP.handoffFor = why;
+    try { native.shopMode("full"); } catch (e) { /* fine */ }
+    SHOP.mode = "full";
+    shopCard("The window is yours");
+    ervoSays(`${why}. I never see what you type there. When you're done, tap Give back to Ervo.`, { acts: [{ label: "Give back to Ervo", icon: "shop", onClick: (e) => { e.currentTarget.closest(".acts").remove(); shopResume(); } }] });
+  }
+  function shopResume() {
+    if (!SHOP || !SHOP.active) return;
+    SHOP.handoffFor = null;
+    SHOP.paused = false;
+    SHOP.pausedBy = "";
+    SHOP.waitingAnswer = false;
+    if (SHOP.mode !== "mini") { try { native.shopMode("mini"); } catch (e) { /* fine */ } SHOP.mode = "mini"; }
+    SHOP.loaded = true;
+    shopCard("Back to it");
+    shopLoop();
+  }
+  function shopClose() {
+    try { native.shopClose(); } catch (e) { /* fine */ }
+    document.documentElement.classList.remove("shop-mini");
+    if (SHOP) SHOP.mode = "hidden";
+    SHOP = null;
+  }
+  function shopFinish(text, ok) {
+    if (!SHOP) return;
+    SHOP.active = false;
+    SHOP.paused = true;
+    const added = SHOP.items.filter((i) => i.status === "added").length;
+    const needs = SHOP.items.filter((i) => i.status === "needs_you");
+    const skipped = SHOP.items.filter((i) => i.status === "skipped");
+    shopCard(ok ? "Cart ready" : "Stopped");
+    try { native.shopSay(ok ? "Cart ready, checkout is yours" : "Stopped"); } catch (e) { /* fine */ }
+    logActivity({ kind: "shop", ico: "shop", title: ok ? `Cart ready at ${SHOP.name}` : `Stopped shopping at ${SHOP.name}`, detail: `${added} of ${SHOP.items.length} added${needs.length ? `, ${needs.length} need you` : ""}${skipped.length ? `, ${skipped.length} skipped` : ""}`, ask: "" });
+    const lines = [].concat(needs.map((i) => `• ${i.text}: ${i.note || "needs you"}`), skipped.map((i) => `• ${i.text}: ${i.note || "skipped"}`));
+    ervoSays(`${text}${lines.length ? `\n${lines.join("\n")}` : ""}${ok ? "\nCheckout and paying are yours: tap Open the window, go to the cart and finish there. I never pay for you." : ""}`, { acts: [
+      { label: "Open the window", icon: "shop", onClick: () => { try { native.shopMode("full"); } catch (e) { /* fine */ } if (SHOP) SHOP.mode = "full"; } },
+      { label: "Close the window", icon: "undo", onClick: (e) => { e.currentTarget.closest(".acts").remove(); shopClose(); } },
+    ] });
+    buzz(ok ? "done" : "reject");
+  }
+  // What you type while Ervo shops goes to the trip, not to a new chat
+  function shopHear(v) {
+    const t = v.toLowerCase();
+    if (/^(stop|cancel|quit|never ?mind|forget it)\b/.test(t)) { shopFinish("Stopped.", false); return; }
+    if (/^(pause|hold on|wait)\b/.test(t)) { SHOP.paused = true; SHOP.pausedBy = "you"; shopCard("Paused"); return ervoSays("Paused. Say \"keep shopping\" when you're ready."); }
+    if (/^(take over|let me|my turn)\b/.test(t)) { SHOP.paused = true; SHOP.pausedBy = "you"; try { native.shopMode("full"); } catch (e) { /* fine */ } SHOP.mode = "full"; shopCard("The window is yours"); return ervoSays("The window is yours. Tap Give back to Ervo when you want me to continue."); }
+    if (/^(keep (going|shopping)|continue|resume|go on|give (it )?back|your turn|done|ok(ay)?,? (go|continue))\b/.test(t)) { ervoSays("Back to it."); return shopResume(); }
+    if (SHOP.waitingAnswer) { SHOP.answer = v; SHOP.waitingAnswer = false; SHOP.paused = false; SHOP.pausedBy = ""; shopCard(); return shopLoop(); }
+    SHOP.instruction = v;
+    ervoSays("Got it, I'll do that in the window.");
+    if (SHOP.paused && SHOP.pausedBy !== "handoff") { SHOP.paused = false; SHOP.pausedBy = ""; shopLoop(); }
+  }
+  // The card in the chat: the list with a dot per item, the status line, and the controls
+  function shopCard(statusLine) {
+    if (!SHOP) return;
+    if (statusLine) SHOP.status = statusLine;
+    let card = SHOP.card;
+    if (!card || !card.isConnected) {
+      card = document.createElement("div");
+      card.className = "card shopcard";
+      card.innerHTML = '<div class="sc-top"><b class="sc-title"></b><span class="sc-step"></span></div><p class="sc-status"></p><div class="sc-items"></div><div class="sc-acts"></div>';
+      thread.append(card);
+      SHOP.card = card;
+    }
+    card.querySelector(".sc-title").textContent = SHOP.active ? `Ervo is shopping at ${SHOP.name}` : `Shopping at ${SHOP.name}`;
+    card.querySelector(".sc-step").textContent = SHOP.step ? `step ${SHOP.step}` : "";
+    card.querySelector(".sc-status").textContent = SHOP.status || "";
+    const items = card.querySelector(".sc-items");
+    items.innerHTML = "";
+    SHOP.items.forEach((it) => {
+      const row = document.createElement("div");
+      row.className = `sc-item ${it.status}`;
+      row.innerHTML = `<span class="sc-dot" aria-hidden="true"></span><span class="sc-text"></span><span class="sc-note"></span>`;
+      row.querySelector(".sc-text").textContent = `${it.qty > 1 ? `${it.qty} × ` : ""}${it.text}`;
+      row.querySelector(".sc-note").textContent = it.status === "added" ? (it.note || "in the cart") : it.status === "needs_you" ? (it.note || "needs you") : it.status === "skipped" ? (it.note || "skipped") : "";
+      items.append(row);
+    });
+    const acts = card.querySelector(".sc-acts");
+    acts.innerHTML = "";
+    const pill = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "pill quiet"; b.textContent = label; b.addEventListener("click", fn); acts.append(b); };
+    if (SHOP.active) {
+      if (SHOP.paused && SHOP.pausedBy !== "ask") pill("Keep shopping", () => shopResume());
+      else if (!SHOP.paused) pill("Pause", () => { SHOP.paused = true; SHOP.pausedBy = "you"; shopCard("Paused"); });
+      pill(SHOP.mode === "full" ? "Give back to Ervo" : "Take over", () => { if (SHOP.mode === "full") shopResume(); else { SHOP.paused = true; SHOP.pausedBy = "you"; try { native.shopMode("full"); } catch (e) { /* fine */ } SHOP.mode = "full"; shopCard("The window is yours"); } });
+      pill("Stop", () => shopFinish("Stopped.", false));
+    } else {
+      pill("Open the window", () => { try { native.shopMode("full"); } catch (e) { /* fine */ } SHOP.mode = "full"; });
+      pill("Close", () => shopClose());
+    }
+    toBottom();
   }
 
   // ---------- phone: timers, alarms, calls and "Hey Ervo" (Android) ----------
@@ -4821,6 +5128,7 @@
   function send(text, byVoice) {
     const v = text.trim();
     if (!v || !account) return;
+    if (SHOP && SHOP.active) { bubble(v, "me"); history.push({ role: "user", text: v }); $("chips").innerHTML = ""; $("chips").dataset.sig = ""; return shopHear(v); }
     // A new request: any "Allow once" from the last one ends here
     if (!keepOnce) onceGrants = {};
     keepOnce = false;
@@ -5685,6 +5993,7 @@
     if (a.kind === "disconnect") return "You turned this off.";
     if (a.kind === "allow") return "You tapped Allow once.";
     if (a.kind === "address") return "You saved it on your Addresses page.";
+    if (a.kind === "shop") return "You asked Ervo to shop for you in its window.";
     if (a.kind === "address-remove") return "You deleted it on your Addresses page.";
     return "It came from a request in your chat.";
   }
@@ -5914,9 +6223,11 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.15"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.16"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
+  const RELEASES_LIST = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases?per_page=8"; // newest first
+  const releaseNotes = (body) => String(body || "").split("\n").filter((l) => /^\s*[-*•]\s+/.test(l)).map((l) => l.replace(/^\s*[-*•]\s+/, "").replace(/\*\*/g, ""));
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);
   let update = null; // { version, notes, apkUrl }
 
@@ -5931,18 +6242,32 @@
 
   async function findUpdate() {
     if (native && native.downloadUpdate) {
-      const r = await fetch(RELEASES_API, { headers: { Accept: "application/vnd.github+json" }, cache: "no-store" });
-      if (!r.ok) throw new Error("releases");
-      const rel = await r.json();
-      const apk = (rel.assets || []).find((a) => a.name === "Ervo.apk");
-      if (!apk || !newer(rel.tag_name, currentVersion())) return null;
-      const notes = String(rel.body || "").split("\n").filter((l) => /^\s*[-*•]\s+/.test(l)).map((l) => l.replace(/^\s*[-*•]\s+/, "").replace(/\*\*/g, ""));
-      return { version: rel.tag_name.replace(/^v/, ""), notes, apkUrl: apk.browser_download_url };
+      // Every APK is the whole app, so the newest release is always the one to install, however many were
+      // skipped; the notes of each release in between come along so nothing new goes unmentioned
+      let list = [];
+      const r = await fetch(RELEASES_LIST, { headers: { Accept: "application/vnd.github+json" }, cache: "no-store" });
+      if (r.ok) list = await r.json();
+      else {
+        const one = await fetch(RELEASES_API, { headers: { Accept: "application/vnd.github+json" }, cache: "no-store" });
+        if (!one.ok) throw new Error("releases");
+        list = [await one.json()];
+      }
+      const fresh = (Array.isArray(list) ? list : []).filter((rel) => rel && !rel.draft && !rel.prerelease && (rel.assets || []).some((a) => a.name === "Ervo.apk") && newer(rel.tag_name, currentVersion()));
+      if (!fresh.length) return null;
+      fresh.sort((a, b) => (newer(a.tag_name, b.tag_name) ? -1 : 1));
+      const rel = fresh[0];
+      const apk = rel.assets.find((a) => a.name === "Ervo.apk");
+      const many = fresh.length > 1;
+      const notes = fresh.slice(0, 4).flatMap((x) => releaseNotes(x.body).slice(0, many ? 3 : 5).map((n) => (many ? `${x.tag_name.replace(/^v/, "")}: ${n}` : n)));
+      return { version: rel.tag_name.replace(/^v/, ""), notes, apkUrl: apk.browser_download_url, skipped: fresh.length - 1 };
     }
     const r = await fetch(`version.json?t=${Date.now()}`, { cache: "no-store" });
     if (!r.ok) throw new Error("version");
     const v = await r.json();
-    return newer(v.version, APP_VERSION) ? { version: v.version, notes: v.notes || [] } : null;
+    if (!newer(v.version, APP_VERSION)) return null;
+    const older = (v.previous || []).filter((p) => p && p.version && newer(p.version, APP_VERSION));
+    const notes = (v.notes || []).slice(0, 3).map((n) => (older.length ? `${v.version}: ${n}` : n)).concat(older.flatMap((p) => (p.notes || p.highlights || []).slice(0, 3).map((n) => `${p.version}: ${n}`)));
+    return { version: v.version, notes, skipped: older.length };
   }
 
   // Quietly checks a few times a day; from the menu it always checks and says if you're up to date
@@ -5976,9 +6301,9 @@
   function showUpdate(found) {
     update = found;
     $("update-title").textContent = "Update available";
-    $("update-sub").textContent = `Ervo ${found.version} is ready. You have ${currentVersion()}.`;
+    $("update-sub").textContent = `Ervo ${found.version} is ready. You have ${currentVersion()}.${found.skipped ? ` It brings ${found.skipped + 1} updates at once.` : ""}`;
     $("update-notes").innerHTML = "";
-    found.notes.slice(0, 5).forEach((n) => { const li = document.createElement("li"); li.textContent = n; $("update-notes").append(li); });
+    found.notes.slice(0, found.skipped ? 12 : 5).forEach((n) => { const li = document.createElement("li"); li.textContent = n; $("update-notes").append(li); });
     $("update-progress").hidden = true;
     $("update-note").textContent = native ? "Ervo downloads the update, then Android asks you to install it. Your chats and settings stay." : "Takes a second. Your chats and settings stay.";
     $("update-now").textContent = "Update now";
@@ -6851,10 +7176,17 @@
     const seen = load("ervo-seen-version");
     save("ervo-seen-version", APP_VERSION);
     if (firstTime || seen === APP_VERSION) return;
-    let notes = [];
-    try { const r = await fetch("version.json", { cache: "no-store" }); const v = await r.json(); notes = (v.highlights && v.highlights.length ? v.highlights : v.notes || []).slice(0, 3); } catch (e) { /* offline */ }
+    let notes = [], skipped = [];
+    try {
+      const r = await fetch("version.json", { cache: "no-store" });
+      const v = await r.json();
+      notes = (v.highlights && v.highlights.length ? v.highlights : v.notes || []).slice(0, 3);
+      // Updates they skipped came along with this one, so their highlights show as well
+      skipped = (v.previous || []).filter((p) => p && p.version && seen && newer(p.version, seen) && p.version !== APP_VERSION).slice(0, 3);
+    } catch (e) { /* offline */ }
     if (!notes.length) return;
-    await ervoSays(`I was just updated to version ${APP_VERSION}. What's new:\n${notes.map((n) => `• ${n}`).join("\n")}`);
+    const more = skipped.flatMap((p) => (p.highlights || p.notes || []).slice(0, 2).map((n) => `• ${p.version}: ${n}`));
+    await ervoSays(`I was just updated to version ${APP_VERSION}${skipped.length ? `, which also brings ${skipped.length === 1 ? "the update" : `${skipped.length} updates`} you skipped` : ""}. What's new:\n${notes.map((n) => `• ${n}`).join("\n")}${more.length ? `\n${more.join("\n")}` : ""}`);
   }
 
   // ---------- was that helpful? (guidelines 15 and 16) ----------

@@ -22,6 +22,8 @@ import android.content.ContentValues
 import android.provider.MediaStore
 import android.util.Base64
 import android.view.HapticFeedbackConstants
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.Toast
 import android.os.Build
 import android.speech.RecognizerIntent
@@ -74,6 +76,7 @@ open class MainActivity : AppCompatActivity() {
     protected open val overlay = false
 
     private lateinit var webView: WebView
+    private lateinit var shop: ShopWindow // Ervo Shopping's window over the app (0.5.16)
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private var fileCallback: ValueCallback<Array<Uri>>? = null
@@ -175,7 +178,12 @@ open class MainActivity : AppCompatActivity() {
 
         webView = WebView(this)
         webView.setBackgroundColor(if (overlay) Color.TRANSPARENT else ContextCompat.getColor(this, R.color.ervo_background))
-        setContentView(webView)
+        val rootView = FrameLayout(this)
+        rootView.addView(webView, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        setContentView(rootView)
+        // The store's page script ships with the app screens (docs/app/shop.js)
+        val shopScript = try { assets.open("www/shop.js").bufferedReader().use { it.readText() } } catch (e: Exception) { "" }
+        shop = ShopWindow(this, rootView, shopScript) { ev -> callJs("ervoShopEvent", ev.toString()) }
 
         webView.settings.apply {
             javaScriptEnabled = true
@@ -265,6 +273,13 @@ open class MainActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (::shop.isInitialized && shop.isOpen() && shop.mode == "full") {
+                    if (!shop.back()) {
+                        shop.setMode("mini")
+                        callJs("ervoShopEvent", JSONObject().put("type", "mode").put("mode", "mini").toString())
+                    }
+                    return
+                }
                 webView.evaluateJavascript("window.ervoBack ? window.ervoBack() : false") { handled ->
                     if (handled != "true") finish()
                 }
@@ -274,6 +289,36 @@ open class MainActivity : AppCompatActivity() {
 
     /** Methods the app screens can call as ErvoNative.method(). */
     inner class Bridge {
+        // ---------- Ervo Shopping: the store's website in Ervo's own window (0.5.16) ----------
+        @JavascriptInterface
+        fun shopOpen(url: String, storeName: String) = runOnUiThread { shop.open(url, storeName) }
+
+        @JavascriptInterface
+        fun shopClose() = runOnUiThread { shop.close() }
+
+        @JavascriptInterface
+        fun shopMode(mode: String) = runOnUiThread { shop.setMode(mode) }
+
+        @JavascriptInterface
+        fun shopGo(url: String) = runOnUiThread { shop.go(url) }
+
+        @JavascriptInterface
+        fun shopSay(text: String) = runOnUiThread { shop.say(text) }
+
+        @JavascriptInterface
+        fun shopInject() = runOnUiThread { shop.inject() }
+
+        /** Runs JavaScript in the store's page; the result comes back as window.ervoShopResult({ id, result }). */
+        @JavascriptInterface
+        fun shopEval(id: String, js: String) = runOnUiThread {
+            shop.eval(id, js) { i, r -> callJs("ervoShopResult", JSONObject().put("id", i).put("result", r).toString()) }
+        }
+
+        /** A small picture of the window for Ervo's AI, back as window.ervoShopResult({ id, image }). */
+        @JavascriptInterface
+        fun shopShot(id: String, maxWidth: Int) = runOnUiThread {
+            shop.shot(id, maxWidth) { i, img -> callJs("ervoShopResult", JSONObject().put("id", i).put("image", img).toString()) }
+        }
         /** Listens on Ervo's own screen (words show up as you talk); falls back to the phone's voice popup. */
         @JavascriptInterface
         fun startListening() = runOnUiThread {
@@ -1422,6 +1467,8 @@ open class MainActivity : AppCompatActivity() {
     private fun callJs(function: String, text: String) {
         webView.post { webView.evaluateJavascript("window.$function && window.$function(${JSONObject.quote(text)})", null) }
     }
+
+    fun openFromShop(uri: Uri) = openOutside(uri)
 
     private fun openOutside(uri: Uri, action: String = Intent.ACTION_VIEW) {
         try {
