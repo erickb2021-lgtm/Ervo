@@ -1230,6 +1230,7 @@
     d.settings = explainQuote || aboutMe ? null : parseSettings(raw, t);
     if (explainQuote || aboutMe) d.intent = "unknown";
     else if (d.settings) d.intent = "settings";
+    else if (is(/\b(clear|wipe|erase|empty|clean (out|up)|remove|delete|cancel|get rid of)\b/) && is(/\b(calendar|schedule|events?|appointments?|meetings?|reminders?)\b/) && !is(/\b(order|subscription|cart|membership|account|photo|photos|file|files|email|message|alarms?|timers?)\b/)) d.intent = "remove"; // before the planning rule, so "clear my calendar for the next 3 months" clears
     else if (is(/\b(change|switch|pick|choose|edit|customi[sz]e|new|different)\b.*\b(your|ervo'?s|the owl'?s|his)\b.*\b(look|looks|avatar|outfit|costume|picture|pic)\b|\bwhat (other )?(looks|outfits|avatars)\b/)) d.intent = "look";
     else if (is(/\b(warn|alert|notify|tell|ping|text|let) me( know)?\b.*\b(weather|rain|snow|storms?|umbrella|jacket|cold|heat)\b|\b(weather|rain|storm)\b.*\b(before i (leave|head out|go)|when i leave|heads.?up|alerts?|notifications?)\b/)) d.intent = "leaveAlert";
     else if (is(/^(yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|sounds good|please do|book it|add it|confirm|let'?s do it|correct|perfect)\b/)) d.intent = "yes";
@@ -1271,6 +1272,7 @@
     // A long message (several asks, a story, a plan for the week) is for Ervo's AI, which has the same
     // phone tools; the one-line command rules above are for short commands and misread long text
     if (["wake", "timer", "alarm", "alarmOff", "alarmChange", "meeting", "edit", "remove", "alarms", "call", "look", "leaveAlert", "settings"].includes(d.intent) && t.split(/\s+/).length > 14) { d.intent = "unknown"; d.settings = null; }
+    if (d.intent === "event" && /\b(the other (week|day|night|weekend)|week after next|a (couple|few) (of )?weeks?|sometime|some day|one of these days|in a (couple|few) (of )?(days|weeks))\b/.test(t)) d.intent = "unknown"; // the AI confirms the exact date first
     if (d.intent === "reserve") d.cuisine = CUISINES.find((c) => new RegExp(`\\b${c}\\b`).test(t)) || null;
     if (d.intent === "reserve") { const m = raw.match(/\bat ([A-Z][\w'&]*(?: [A-Z][\w'&]*)*)/); d.place = m ? m[1] : null; }
     return d;
@@ -1365,10 +1367,10 @@
   function propose(tk) {
     confirming = true;
     const opts = { chips: ["Yes", "No"] };
-    if (tk.date && startOfDay(tk.date) < startOfDay(new Date())) {
+    if (tk.date && startOfDay(tk.date) < startOfDay(new Date()) && !tk.pastOk) {
       confirming = false;
-      tk.date = null;
-      return ervoSays("That day has already passed. What day did you mean?", Object.assign(opts, { chips: ["Today", "Tomorrow"] }));
+      pastAsk = tk;
+      return ervoSays(`${fmtDate(tk.date)} has already passed. Add it there anyway, or did you mean the next one?`, Object.assign(opts, { chips: ["Add it anyway", "Next year", "Different day"] }));
     }
     if (tk.intent === "reserve") {
       const what = `${meal(tk.time)} for ${tk.party}${tk.cuisine ? ` (${cap(tk.cuisine)})` : ""}${tk.place ? ` at ${tk.place}` : ""}`;
@@ -1474,6 +1476,7 @@
   let restoreWaiter = null;
   window.ervoEventRestored = (json) => { const r = restoreWaiter; restoreWaiter = null; if (r) { try { r(JSON.parse(json)); } catch (e) { r({ ok: false }); } } };
   let removeAsk = null; // Ervo asked "when is it?" and is waiting for a day
+  let pastAsk = null; // Ervo asked whether a past date was meant
 
   function forgetPlanned(title, start) {
     const t = String(title || "").toLowerCase();
@@ -1487,7 +1490,8 @@
     "on in at for calendar calendars today tonight tomorrow week weeks month months day days and set are is it its it's them they " +
     "scheduled schedule there one two three four five six seven eight nine ten couple of up coming soon thanks thank " +
     "monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december " +
-    "jan feb mar apr jun jul aug sep sept oct nov dec").split(" "));
+    "jan feb mar apr jun jul aug sep sept oct nov dec year years rest entire whole wipe erase empty clean out until till through thru before after weekend " +
+    "few more coming").split(" "));
   const cleanTitle = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}'&\s-]/gu, " ").split(/\s+/)
     .filter((w) => w && !REMOVE_STOP.has(w) && !/^\d+(st|nd|rd|th|am|pm)?$/.test(w)).join(" ");
 
@@ -1506,6 +1510,36 @@
   }
   const upcomingRange = () => ({ from: new Date(), to: addDays(new Date(), 90), label: "coming up" });
 
+  const SPAN_MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+  const addMonths = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
+  // "the next 3 months", "next 2 weeks", "this year", "all of December", "until Jan 15", "from Dec 1 to Dec 20", "everything"
+  function parseSpan(t, d) {
+    const today = startOfDay(new Date());
+    const num = (w) => NUM[w] || (w === "few" ? 3 : +w || 0);
+    let m;
+    if ((m = t.match(/\b(?:the )?next (\d+|two|three|four|five|six|seven|eight|nine|ten|couple|few) (days?|weeks?|months?|years?)\b/))) {
+      const k = num(m[1]) || 1, u = m[2].replace(/s$/, "");
+      const to = u === "day" ? addDays(today, k) : u === "week" ? addDays(today, 7 * k) : u === "month" ? addMonths(today, k) : new Date(today.getFullYear() + k, today.getMonth(), today.getDate());
+      return { from: today, to, label: `for the next ${k} ${u}${k === 1 ? "" : "s"}` };
+    }
+    if (/\bnext month\b/.test(t)) { const f = new Date(today.getFullYear(), today.getMonth() + 1, 1); return { from: f, to: new Date(f.getFullYear(), f.getMonth() + 1, 1), label: "next month" }; }
+    if (/\b(this|the) year\b|\brest of (the|this) year\b/.test(t)) return { from: today, to: new Date(today.getFullYear() + 1, 0, 1), label: "for the rest of this year" };
+    if (/\bnext year\b/.test(t)) return { from: new Date(today.getFullYear() + 1, 0, 1), to: new Date(today.getFullYear() + 2, 0, 1), label: `in ${today.getFullYear() + 1}` };
+    if (/\b(this|the) weekend\b/.test(t)) { const sat = addDays(today, (6 - today.getDay() + 7) % 7); return { from: sat, to: addDays(sat, 2), label: "this weekend" }; }
+    if ((m = t.match(/\b(all (of )?|in |for |during |the whole |entire |rest of )?(january|february|march|april|may|june|july|august|september|october|november|december)\b(?! \d)/)) && (m[3] !== "may" || m[1])) {
+      const mi = SPAN_MONTHS.indexOf(m[3]);
+      const y = today.getFullYear() + (mi < today.getMonth() ? 1 : 0);
+      const same = mi === today.getMonth() && y === today.getFullYear();
+      return { from: same ? today : new Date(y, mi, 1), to: new Date(y, mi + 1, 1), label: `in ${cap(m[3])}` };
+    }
+    if ((m = t.match(/\bfrom (.+?) (?:to|until|till|through|thru) (.+)$/)) && d.when.date) {
+      const w2 = parseWhen(m[2], new Date(), false);
+      if (w2.date) return { from: startOfDay(d.when.date), to: addDays(startOfDay(w2.date), 1), label: `from ${fmtDate(d.when.date)} to ${fmtDate(w2.date)}` };
+    }
+    if (/\b(until|till|through|thru|up to|before)\b/.test(t) && d.when.date) return { from: today, to: addDays(startOfDay(d.when.date), 1), label: `until ${fmtDate(d.when.date)}` };
+    if (/\b(everything|all of (it|them)|entire calendar|whole calendar|every event|all (my |the )?(events|plans))\b/.test(t) && !d.when.date) return { from: today, to: addMonths(today, 12), label: "for the next 12 months" };
+    return null;
+  }
   // "remove the next two events from my calendar" -> { count: 2 }; "cancel the dentist friday" -> { title, range }
   function parseRemove(d) {
     const t = d.t;
@@ -1513,21 +1547,25 @@
       t.match(/\b(\d+|two|three|four|five|six|seven|eight|nine|ten)\s+(?:next|upcoming)\b/);
     let count = m ? (NUM[m[1]] || +m[1] || 0) : /\b(next|upcoming) (event|appointment|meeting|thing|plan)\b/.test(t) ? 1 : 0;
     if (!count && /\bboth\b/.test(t)) count = 2;
-    let range = null;
-    if (/\bthis week\b/.test(t)) range = weekRange(false);
+    let range = parseSpan(t, d);
+    if (range) { /* a span of days */ }
+    else if (/\bthis week\b/.test(t)) range = weekRange(false);
     else if (/\bnext week\b/.test(t)) range = weekRange(true);
-    else if (/\b(this|the) month\b/.test(t)) range = monthRange();
+    else if (/\b(this|the) month\b|\brest of (the|this) month\b/.test(t)) range = monthRange();
     else if (d.when.date) range = dayRange(d.when.date);
-    return { title: cleanTitle(t), count: Math.min(count, 10), all: /\b(all|everything|every)\b/.test(t), range };
+    // "Clear my calendar for the next 3 months" means all of it, not a card to pick from
+    const clearing = /\b(clear|wipe|erase|empty|clean (out|up))\b/.test(t);
+    return { title: cleanTitle(t), count: Math.min(count, 10), all: /\b(all|everything|every|entire|whole)\b/.test(t) || (clearing && !!range), clearing, range };
   }
 
   // Quick day buttons, so nobody has to type
   function rangeButtons(q, skip) {
-    return [["Today", () => dayRange(new Date())], ["Tomorrow", () => dayRange(addDays(new Date(), 1))], ["This week", () => weekRange(false)], ["Next week", () => weekRange(true)], ["This month", monthRange]]
+    const today = () => startOfDay(new Date());
+    return [["Today", () => dayRange(new Date())], ["Tomorrow", () => dayRange(addDays(new Date(), 1))], ["This week", () => weekRange(false)], ["Next week", () => weekRange(true)], ["This month", monthRange],
+      ["Next 3 months", () => ({ from: today(), to: addMonths(today(), 3), label: "for the next 3 months" })], ["This year", () => ({ from: today(), to: new Date(today().getFullYear() + 1, 0, 1), label: "for the rest of this year" })]]
       .filter(([label]) => label.toLowerCase() !== skip)
-      .map(([label, make]) => ({ label, icon: "calendar", onClick: (e) => { e.currentTarget.closest(".acts").remove(); bubble(label, "me"); history.push({ role: "user", text: label }); removeEvents(Object.assign({}, q, { range: make() })); } }));
+      .map(([label, make]) => ({ label, icon: "calendar", onClick: (e) => { e.currentTarget.closest(".acts").remove(); bubble(label, "me"); history.push({ role: "user", text: label }); removeEvents(Object.assign({}, q, { range: make(), all: q.all || q.clearing || /months|year/.test(label) })); } }));
   }
-
   function readCalendar(title, range) {
     return new Promise((resolve) => {
       eventsWaiter = resolve;
@@ -1536,8 +1574,19 @@
     });
   }
 
+  // Ervo's own planned items in a span (the dots on the Calendar tab come from these too)
+  function plannedIn(range, title) {
+    const t = cleanTitle(title || "");
+    return activity().filter((a) => a.when && new Date(a.when) >= range.from && new Date(a.when) < range.to && (!t || String(a.title).toLowerCase().includes(t)));
+  }
+  const plannedKey = (a) => `${a.when}|${a.title}`;
+  const nativeDelete = (ev) => new Promise((resolve) => {
+    deleteWaiter = resolve;
+    native.deleteEvent(String(ev.id), Number(ev.rawBegin || ev.start), !!ev.repeats);
+    setTimeout(() => { if (deleteWaiter === resolve) { deleteWaiter = null; resolve({ ok: false }); } }, 8000);
+  });
   async function removeEvents(q) {
-    q = Object.assign({ title: "", count: 0, all: false, range: null }, q);
+    q = Object.assign({ title: "", count: 0, all: false, clearing: false, range: null }, q);
     q.title = cleanTitle(q.title);
     removeAsk = null;
     if (!(native && native.findEvents)) return removeOnWeb(q);
@@ -1545,15 +1594,19 @@
     // No day and no name: ask with buttons instead of guessing
     if (!q.title && !q.range && !q.count) {
       removeAsk = q;
-      return ervoSays("Sure 🗓️ When is it?", { acts: rangeButtons(q) });
+      return ervoSays(q.clearing ? "Sure 🗓️ How far should I clear?" : "Sure 🗓️ When is it?", { acts: rangeButtons(q) });
     }
     const range = q.range || (q.count ? upcomingRange() : { from: startOfDay(new Date()), to: addDays(startOfDay(new Date()), 180), label: "in the next 6 months" });
+    const wipe = !q.title && !q.count && !!q.range && (q.all || q.clearing);
     showTyping("checking your calendar");
     setStatus("📅", "Checking your calendar");
     const found = await readCalendar(q.title, range);
     if (found.status === "denied") return ervoSays("I need permission to see your calendar. You can allow it in Settings → Apps → Ervo → Permissions → Calendar.");
     if (found.status !== "ready") return ervoSays("I couldn't read your calendar just now. Try again in a moment.");
     let events = found.events;
+    const planned = plannedIn(range, q.title);
+    // A whole span: one question, then everything in it goes, more than one card could show
+    if (wipe && (events.length || planned.length)) return confirmWipe(q, range, events, planned);
     let shown = range;
     let lead = "";
     if (!events.length && q.title) {
@@ -1564,6 +1617,8 @@
       if (events.length) lead = `I couldn't find "${q.title}", but here's what's on ${shown.label === "today" || shown.label === "tomorrow" ? shown.label : `your calendar ${shown.label}`} 👇`;
     }
     if (!events.length) {
+      // Only Ervo's own plans are there (the phone calendar never got them, or they were just plans)
+      if (planned.length) return confirmWipe(q, range, [], planned);
       const cals = found.calendars || [];
       const google = cals.filter((c) => c.google).map((c) => c.account);
       const help = !cals.length ? "I can't see any calendars on this phone. Add your Google account in Settings → Accounts, and turn on Calendar sync."
@@ -1583,12 +1638,72 @@
         : `Here's ${shown.label === "today" || shown.label === "tomorrow" ? shown.label : `what's ${shown.label}`} 📅 Tap the ones you want gone.`;
     }
     await ervoSays(lead);
-    showEventPicker(events, picked);
+    showEventPicker(events, picked, q.title ? null : () => wipeRange(q, shown, events, plannedIn(shown, "")));
   }
-
+  // "Clear the next 3 months": say what's there, ask once, then clear it all
+  function confirmWipe(q, range, events, planned) {
+    const phone = events.length ? `${events.length >= 80 ? "80 or more" : events.length} on your phone calendar` : "";
+    const mine = planned.length ? `${planned.length} planned with Ervo` : "";
+    const what = [phone, mine].filter(Boolean).join(" and ");
+    const gone = (e) => { const box = e.currentTarget.closest(".acts"); if (box) box.remove(); };
+    return ervoSays(`I found ${what} ${range.label} 🗓️ Remove all of ${events.length + planned.length === 1 ? "it" : "them"}?`, { acts: [
+      { label: "Remove all", icon: "calendar", onClick: (e) => { gone(e); bubble("Remove all", "me"); history.push({ role: "user", text: "Remove all" }); wipeRange(q, range, events, planned); } },
+      events.length > 1 ? { label: "Let me pick", icon: "calendar", onClick: (e) => { gone(e); showEventPicker(events, [], () => wipeRange(q, range, events, planned)); } } : null,
+      { label: "Keep them", icon: "undo", onClick: (e) => { gone(e); ervoSays("Okay, I left them as they are."); } },
+    ].filter(Boolean) });
+  }
+  async function wipeRange(q, range, events, planned) {
+    showTyping(`clearing your calendar ${range.label}`);
+    setStatus("🗑️", "Clearing your calendar");
+    const done = [];
+    const tried = new Set();
+    let list = events, rounds = 0;
+    // The phone hands over 80 at a time, so read again until the span is empty
+    while (list.length && rounds < 8) {
+      for (const ev of list) {
+        tried.add(`${ev.id}|${ev.start}`);
+        const r = await nativeDelete(ev);
+        if (r.ok) { forgetPlanned(ev.title, new Date(ev.start)); done.push({ token: r.undo, ev }); }
+      }
+      rounds++;
+      const again = await readCalendar(q.title, range);
+      list = again.status === "ready" ? again.events.filter((e) => !tried.has(`${e.id}|${e.start}`)) : [];
+    }
+    // Ervo's own plans in the span go too, kept aside for Undo
+    const mine = plannedIn(range, q.title);
+    if (mine.length) {
+      const keys = new Set(mine.map(plannedKey));
+      save(ACTIVITY_KEY, activity().filter((a) => !keys.has(plannedKey(a))));
+      calCache = {};
+    }
+    const n = done.length + mine.length;
+    if (!n) return ervoSays("I couldn't remove those. Try deleting them in your calendar app.");
+    logActivity({ kind: "remove", ico: "calendar", title: `Cleared ${n} ${n === 1 ? "event" : "events"} ${range.label}`, detail: `${fmtDate(range.from)} to ${fmtDate(addDays(range.to, -1))}` });
+    const failed = events.length > done.length ? events.length - done.length : 0;
+    return ervoSays(`Done ✅ ${n === 1 ? "That event is" : `${n} events are`} off your calendar ${range.label}.${failed ? ` I couldn't remove ${failed} of them.` : ""}`, {
+      acts: [{ label: "Undo", icon: "undo", onClick: (e) => undoWipe(done, mine, e.currentTarget) }],
+    });
+  }
+  async function undoWipe(done, mine, btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    showTyping("putting them back");
+    setStatus("↩️", "Putting them back");
+    let back = 0;
+    for (const d of done) {
+      const r = await new Promise((resolve) => {
+        restoreWaiter = resolve;
+        native.restoreEvent(String(d.token || ""));
+        setTimeout(() => { if (restoreWaiter === resolve) { restoreWaiter = null; resolve({ ok: false }); } }, 8000);
+      });
+      if (r.ok) back++;
+    }
+    if (mine.length) { save(ACTIVITY_KEY, activity().concat(mine)); calCache = {}; back += mine.length; }
+    return ervoSays(back ? `Put ${back === 1 ? "it" : `${back} of them`} back ✅` : "I couldn't put those back. You can add them again anytime.");
+  }
   // A day card like a calendar: tap events to pick them, then Remove
   const dayName = (d) => sameDay(d, new Date()) ? "Today" : sameDay(d, addDays(new Date(), 1)) ? "Tomorrow" : d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
-  function showEventPicker(events, chosen) {
+  function showEventPicker(events, chosen, allFn) {
     const card = document.createElement("div");
     card.className = "daycard";
     const picked = new Set(chosen);
@@ -1635,6 +1750,14 @@
       more.className = "daycard-note";
       more.textContent = `Showing the first ${list.length} of ${events.length}.`;
       card.append(more);
+    }
+    if (allFn && events.length > 1) {
+      const all = document.createElement("button");
+      all.type = "button";
+      all.className = "pill danger ghost";
+      all.textContent = `Remove all ${events.length >= 80 ? "80+" : events.length}`;
+      all.addEventListener("click", () => { if (card.classList.contains("busy")) return; card.remove(); allFn(); });
+      card.append(all);
     }
     const go = document.createElement("button");
     go.type = "button";
@@ -1710,14 +1833,15 @@
   // iPhone and computers: take it off Ervo's list, then open the calendar to delete it there
   function removeOnWeb(q) {
     const t = q.title;
-    const day = q.range && q.range.to - q.range.from <= 864e5 ? q.range.from : null;
-    const mine = activity().filter((a) => a.when && (!t || a.title.toLowerCase().includes(t)) && (!day || sameDay(new Date(a.when), day)));
+    if (!t && !q.range && !q.count) { removeAsk = q; return ervoSays(q.clearing ? "Sure 🗓️ How far should I clear?" : "Sure 🗓️ When is it?", { acts: rangeButtons(q) }); }
+    const mine = q.range ? plannedIn(q.range, t) : activity().filter((a) => a.when && (!t || a.title.toLowerCase().includes(t)));
     mine.forEach((a) => forgetPlanned(a.title, new Date(a.when)));
+    if (mine.length) calCache = {};
     const google = prefs().calendar === "google";
     const acts = [google
       ? { label: "Open Google Calendar", icon: "calendar", href: t ? `https://calendar.google.com/calendar/r/search?q=${encodeURIComponent(t)}` : "https://calendar.google.com/calendar/r" }
       : { label: "Open Calendar", icon: "calendar", href: /iPhone|iPad/.test(navigator.userAgent) ? "calshow:" : "https://calendar.google.com/calendar/r" }];
-    return ervoSays(`${mine.length ? "Removed it from your Ervo Stats ✅ " : ""}I can't delete events from here on this phone, so tap below, open ${t ? `"${t}"` : "the event"} and choose Delete Event.`, { acts });
+    return ervoSays(`${mine.length ? `Removed ${mine.length === 1 ? "it" : `${mine.length} planned items`} from Ervo ✅ ` : ""}I can't delete events from here on this phone, so tap below, open ${t ? `"${t}"` : "the event"} and choose Delete Event.`, { acts });
   }
 
   // Android: no calendar app on the phone, so offer Google Calendar instead
@@ -2360,6 +2484,7 @@
         if (every === "daily") d = addDays(d, 1);
         else if (every === "every_2_weeks") d = addDays(d, 14);
         else if (every === "monthly") { d = new Date(d); d.setMonth(d.getMonth() + 1); }
+        else if (every === "yearly") { d = new Date(d); d.setFullYear(d.getFullYear() + 1); }
         else d = addDays(d, 7);
       }
     });
@@ -3406,8 +3531,8 @@
           // Added right away (with Undo), no extra Yes/No
           const tk = { intent: "event", title: String(a.title).slice(0, 80), date, time, allDay: !time, minutes };
           const um = String(a.repeat_until || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-          if (["weekly", "every_2_weeks", "daily", "monthly"].includes(a.repeat)) {
-            const until = um ? new Date(+um[1], +um[2] - 1, +um[3], 23, 59) : addDays(date, 91);
+          if (["weekly", "every_2_weeks", "daily", "monthly", "yearly"].includes(a.repeat)) {
+            const until = um ? new Date(+um[1], +um[2] - 1, +um[3], 23, 59) : a.repeat === "yearly" ? new Date(date.getFullYear() + 3, date.getMonth(), date.getDate(), 23, 59) : addDays(date, 91);
             if (!out.repeats) { out.repeats = []; afters.push(() => addRepeating(out.repeats)); }
             out.repeats.push({ tk, every: a.repeat, until });
           } else afters.push(() => runTask(tk));
@@ -3443,9 +3568,11 @@
         } else if (a.type === "call_contact" && a.name) {
           afters.push(() => doCall(String(a.name)));
         } else if (a.type === "remove_calendar_event") {
-          const m = String(a.date || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+          const day = (s) => { const m = String(s || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
           const asked = parseRemove(d);
-          afters.push(() => removeEvents({ title: String(a.title || ""), count: asked.count, all: asked.all, range: m ? dayRange(new Date(+m[1], +m[2] - 1, +m[3])) : asked.range }));
+          const f = day(a.from), to = day(a.to), one = day(a.date);
+          const range = f && to ? { from: startOfDay(f), to: addDays(startOfDay(to), 1), label: `from ${fmtDate(f)} to ${fmtDate(to)}` } : one ? dayRange(one) : asked.range;
+          afters.push(() => removeEvents({ title: String(a.title || ""), count: asked.count, all: !!a.all || asked.all, clearing: asked.clearing || !!a.all, range }));
         } else if (a.type === "request_address") {
           // Ervo needs an address they saved: ask once, then run the request again with it filled in
           afters.push(async () => {
@@ -3948,7 +4075,7 @@
     { const on = String(text).trim().match(/^(\d{3}-\d{7}-\d{7})$/); if (on) return orderNumberReply(on[1]); }
     { const tn = String(text).trim().replace(/\s+/g, ""); const car = tn.length >= 10 && !/\s/.test(tn) ? carrierFor(tn) : null; if (car && !/[a-z]{4,}/i.test(tn.replace(/^TBA|^JD/i, ""))) return trackNumberReply(tn, car); }
     const d = understand(text);
-    if (calendarAsk(d.t) && !/(stats|activity|what (have|did) you|add|put|schedule|set up|create|book|make|move|remove|delete|cancel|remind|alarm|timer)/i.test(d.t.replace(/\bwhat'?s? (on|planned|scheduled)\b/, "x"))) return calendarReply(d);
+    if (calendarAsk(d.t) && !/(stats|activity|what (have|did) you|add|put|schedule|set up|create|book|make|move|remove|delete|cancel|clear|wipe|erase|empty|remind|alarm|timer)/i.test(d.t.replace(/\bwhat'?s? (on|planned|scheduled)\b/, "x"))) return calendarReply(d);
     const biz = account.plan === "business";
     if (account.team && account.team.role === "employee" && ["steps", "shop"].includes(d.intent)) {
       return ervoSays(`This Ervo is set up for work at ${account.team.companyName}, so I keep to work things here. A Personal account can help with that.`);
@@ -4037,6 +4164,14 @@
     if (d.intent === "wake") return heyErvo(d.wakeTurn);
     if (d.intent === "look") return openLook();
     if (d.intent === "leaveAlert") return openLeave(d.when.time);
+    // Ervo asked whether a date in the past was meant
+    if (pastAsk) {
+      const tk = pastAsk;
+      pastAsk = null;
+      if (/\b(anyway|yes|yeah|yep|keep|past|that day|back then|it is|correct)\b/.test(d.t)) { tk.pastOk = true; task = tk; return propose(tk); }
+      if (/\bnext (year|one|time)\b/.test(d.t)) { tk.date = new Date(tk.date.getFullYear() + 1, tk.date.getMonth(), tk.date.getDate()); task = tk; return propose(tk); }
+      if (d.when.date) { tk.date = d.when.date; tk.pastOk = true; task = tk; return propose(tk); }
+    }
     // Ervo asked "when is it?": a day or "this week" answers it
     if (removeAsk) {
       const q = removeAsk;
@@ -4998,6 +5133,7 @@
   function milestoneNumbers() {
     return { done: Math.max(counts().done, activity().length), goals: goalFacts().length, streak: streakDays(), messages: usage().total, looks: (prefs().looksTried || []).length };
   }
+  let lastCheer = 0;
   function checkMilestones(silent) {
     if (!account) return;
     const got = load(MILESTONE_KEY);
@@ -5006,11 +5142,13 @@
     const fresh = [];
     MILESTONES.forEach((m) => { if (!have[m.id] && n[m.of] >= m.need) { have[m.id] = new Date().toISOString(); fresh.push(m); } });
     save(MILESTONE_KEY, have);
-    if (!got || silent) return; // first run: what's already done counts quietly
-    fresh.forEach((m) => {
-      logActivity({ kind: "milestone", ico: "star", title: `Milestone: ${m.title}` });
-      ervoSays(`${m.e} Milestone: ${m.title}! ${m.of === "streak" ? "Nice habit." : m.of === "goals" ? "I'll keep you moving on it." : "Thanks for letting me help."}`, { acts: [{ label: "See Milestones", icon: "stats", onClick: () => openStats() }] });
-    });
+    if (!got || silent || !fresh.length) return; // first run: what's already done counts quietly
+    // One cheer, the biggest, and not again within a few minutes: a batch of events once fired four in a row
+    fresh.forEach((m) => logActivity({ kind: "milestone", ico: "star", title: `Milestone: ${m.title}` }));
+    if (Date.now() - lastCheer < 3 * 60000) return;
+    lastCheer = Date.now();
+    const top = fresh.slice().sort((a, b) => b.need - a.need)[0];
+    ervoSays(`${top.e} Milestone: ${top.title}! ${top.of === "streak" ? "Nice habit." : top.of === "goals" ? "I'll keep you moving on it." : "Thanks for letting me help."}`, { acts: [{ label: "See Milestones", icon: "stats", onClick: () => openStats() }] });
   }
   function renderBadges() {
     const box = $("badges");
@@ -5776,7 +5914,7 @@
   // ---------- updates: Ervo tells you when a new version is ready ----------
   // Android downloads the new Ervo.apk from GitHub Releases and opens the installer.
   // On iPhone the files come straight from the website, so updating is a quick refresh.
-  const APP_VERSION = "0.5.14"; // keep in step with version.json and the Android versionName
+  const APP_VERSION = "0.5.15"; // keep in step with version.json and the Android versionName
   const UPDATE_CHECK_KEY = "ervo-update-checked";
   const RELEASES_API = "https://api.github.com/repos/erickb2021-lgtm/Ervo/releases/latest";
   const currentVersion = () => (native && native.appVersion ? native.appVersion() : APP_VERSION);

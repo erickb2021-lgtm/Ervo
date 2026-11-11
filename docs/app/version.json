@@ -1,13 +1,13 @@
 {
-  "version": "0.5.14",
+  "version": "0.5.15",
   "notes": [
-    "Plans show up: a week of meals, a grocery list and reminders no longer get cut off mid-reply, and anything Ervo announces is in that same reply as words, cards or calendar events",
-    "Long messages with several asks go to Ervo's AI and get every part answered; a message that only mentions Hey Ervo in passing no longer gets the hands-free blurb",
-    "Ideas pages are tagged for the Ervo they were written for, so Personal never shows Business ideas or the other way round"
+    "Clear your calendar for any span: a day, a week, the next 3 months, a month by name, the rest of the year. Ervo counts what's there, asks once, and clears all of it, including the plans it made for you",
+    "Tell Ervo a birthday or anniversary and it remembers it and puts it on your calendar every year. Any date works, far ahead or back, and a vague day like \"the other week\" gets confirmed first",
+    "Plans ask what you want when you haven't said: meals, a diet, a week, a trip. Long messages with several asks get every part answered. A calmer gray-glass look with less purple, and Ervo's new owls everywhere"
   ],
   "highlights": [
-    "Plans and schedules actually appear",
-    "Long, multi-part messages are answered in full",
-    "Ideas stay with the right Ervo"
+    "Clear any span of your calendar in one go",
+    "Birthdays remembered, every year",
+    "Gray glass look and the new owls"
   ]
 }
